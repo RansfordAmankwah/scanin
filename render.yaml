@@ -4,13 +4,13 @@ services:
   - type: web
     name: scanin
     runtime: node
-    plan: starter # pre-deploy commands and always-on need a paid plan; do not scale past 1 instance in the pilot
+    plan: free # TESTING ONLY: sleeps after ~15 min idle. Use `starter` for the real pilot.
     region: frankfurt # keep the same region as the Neon project
     branch: main
     autoDeployTrigger: off # deploy deliberately during the pilot
-    buildCommand: npm install -g pnpm@10 && pnpm install --frozen-lockfile && pnpm build
-    # Applies migrations and re-installs the least-privilege grants before each release.
-    preDeployCommand: node apps/api/dist/db/setup.js
+    # Migrations run at the end of the build (the free plan has no pre-deploy step). If they fail,
+    # the build fails and the previous version keeps serving. Re-running is safe.
+    buildCommand: npm install -g pnpm@10 && pnpm install --frozen-lockfile && pnpm build && node apps/api/dist/db/setup.js
     startCommand: node apps/api/dist/server.js
     healthCheckPath: /healthz
     envVars:
