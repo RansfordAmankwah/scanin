@@ -1,6 +1,8 @@
 import { userInfo } from 'node:os';
 import { parseArgs } from 'node:util';
+import { FileCheckpointSink, verifyCheckpoints, writeCheckpoint } from '../audit/checkpoint.js';
 import { createPool } from '../db/pool.js';
+import { runRetention } from '../retention/service.js';
 import {
   assignLecturer,
   createCourse,
@@ -21,8 +23,13 @@ Commands:
   assign-lecturer   --term <term name> --course <code> --email <lecturer email>
   end-assignment    --term <term name> --course <code> --email <lecturer email>
 
+  retention-run     (uses RETENTION_DATABASE_URL) purge everything past its retention period
+  audit-checkpoint  --dir <path>   write audit fingerprints to an independently owned location
+  audit-verify      --dir <path>   compare the audit log with those fingerprints
+
 Environment:
   OPERATOR_DATABASE_URL   connection string for the operator role (required)
+  RETENTION_DATABASE_URL  connection string for the retention role (retention-run only)
 `;
 
 function need(values: Record<string, string | boolean | undefined>, key: string): string {
@@ -43,6 +50,7 @@ async function main(): Promise<void> {
       title: { type: 'string' },
       email: { type: 'string' },
       course: { type: 'string' },
+      dir: { type: 'string' },
       help: { type: 'boolean' },
     },
   });
@@ -51,6 +59,18 @@ async function main(): Promise<void> {
     console.log(USAGE);
     return;
   }
+  if (command === 'retention-run') {
+    const retentionUrl = process.env.RETENTION_DATABASE_URL;
+    if (!retentionUrl) throw new OperatorError('RETENTION_DATABASE_URL is not set.');
+    const retentionPool = createPool(retentionUrl);
+    try {
+      console.log(JSON.stringify(await runRetention(retentionPool), null, 2));
+    } finally {
+      await retentionPool.end();
+    }
+    return;
+  }
+
   const url = process.env.OPERATOR_DATABASE_URL;
   if (!url) throw new OperatorError('OPERATOR_DATABASE_URL is not set.');
 
@@ -107,6 +127,25 @@ async function main(): Promise<void> {
           lecturerEmail: need(values, 'email'),
         });
         console.log('Assignment ended.');
+        break;
+      }
+      case 'audit-checkpoint': {
+        const r = await writeCheckpoint(pool, new FileCheckpointSink(need(values, 'dir')));
+        console.log(
+          r.written
+            ? `Wrote a checkpoint of ${r.entries} audit rows.`
+            : 'Nothing new to checkpoint.',
+        );
+        break;
+      }
+      case 'audit-verify': {
+        const r = await verifyCheckpoints(pool, new FileCheckpointSink(need(values, 'dir')));
+        console.log(
+          r.ok
+            ? `OK: ${r.checkedRows} audit rows match their checkpoints.`
+            : JSON.stringify(r.problems, null, 2),
+        );
+        if (!r.ok) process.exitCode = 2;
         break;
       }
       default:

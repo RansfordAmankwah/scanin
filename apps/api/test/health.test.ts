@@ -23,6 +23,8 @@ describe('loadConfig', () => {
     DATABASE_URL: 'postgres://u:p@localhost/db',
     APP_ORIGIN: 'https://app.example.test/some/path',
     IP_HASH_SECRET: 'a'.repeat(32),
+    QR_KEYS: `k1:${'A'.repeat(43)}`,
+    QR_ACTIVE_KID: 'k1',
   };
 
   it('fails fast when required variables are missing, without echoing values', () => {

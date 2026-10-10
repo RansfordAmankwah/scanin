@@ -2,6 +2,7 @@ import { Writable } from 'node:stream';
 import type { FastifyInstance, InjectOptions } from 'fastify';
 import { buildApp } from '../../src/app.js';
 import { MemoryMailer } from '../../src/auth/mailer.js';
+import { MemoryStorage } from '../../src/exports/storage.js';
 import type { Config } from '../../src/config.js';
 import type { MigratedTestDatabase } from './testDb.js';
 
@@ -13,6 +14,9 @@ export const TEST_CONFIG: Config = {
   NODE_ENV: 'test',
   APP_ORIGIN,
   IP_HASH_SECRET: 'test-only-ip-hash-secret-0123456789abcdef',
+  QR_KEYS: `k1:${'A'.repeat(43)},k0:${'B'.repeat(43)}`,
+  QR_ACTIVE_KID: 'k1',
+  EXPORT_TTL_MINUTES: 60,
   ALLOW_INSECURE_COOKIES: false,
   TRUST_PROXY: false,
 };
@@ -20,6 +24,8 @@ export const TEST_CONFIG: Config = {
 export interface TestApp {
   app: FastifyInstance;
   mailer: MemoryMailer;
+  /** In-memory export store, so tests can inspect (and tamper with) generated files. */
+  storage: MemoryStorage;
   /** Everything the API wrote to its log, for asserting that secrets never appear. */
   logs: () => string;
   close: () => Promise<void>;
@@ -31,6 +37,7 @@ export async function createTestApp(
   overrides: Partial<Config> = {},
 ): Promise<TestApp> {
   const mailer = new MemoryMailer();
+  const storage = new MemoryStorage();
   const chunks: string[] = [];
   const stream = new Writable({
     write(chunk, _enc, cb) {
@@ -42,10 +49,11 @@ export async function createTestApp(
     config: { ...TEST_CONFIG, ...overrides },
     pool: db.appPool,
     mailer,
+    exportStorage: storage,
     logger: { level: 'trace', stream },
   });
   await app.ready();
-  return { app, mailer, logs: () => chunks.join(''), close: () => app.close() };
+  return { app, mailer, storage, logs: () => chunks.join(''), close: () => app.close() };
 }
 
 let ipCounter = 0;

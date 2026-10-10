@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import pg from 'pg';
 import { applyGrants, migrate } from '../../src/db/migrate.js';
+import { hardenPool } from '../../src/db/pool.js';
 
 /**
  * Creates a throwaway database on the server named by TEST_DATABASE_ADMIN_URL and returns a pool
@@ -41,7 +42,19 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     await pool.end();
     const cleanup = new pg.Pool({ connectionString: admin.toString(), max: 1 });
     try {
-      await cleanup.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+      // Postgres's own autovacuum worker can briefly be attached to the database; a plain DROP
+      // fails while it is ("being accessed by other users"), and WITH (FORCE) is not allowed to
+      // terminate it. It lets go within moments, so retry.
+      for (let attempt = 0; ; attempt++) {
+        try {
+          await cleanup.query(`DROP DATABASE IF EXISTS ${name}`);
+          return;
+        } catch (err) {
+          const busy = (err as { code?: string }).code === '55006';
+          if (!busy || attempt >= 40) throw err;
+          await new Promise((r) => setTimeout(r, 250));
+        }
+      }
     } finally {
       await cleanup.end();
     }
@@ -59,6 +72,8 @@ export interface MigratedTestDatabase extends TestDatabase {
   operatorRole: string;
   /** Pool whose connections run as the operator role. */
   operatorPool: pg.Pool;
+  /** Pool whose connections run as the retention role (read + delete only). */
+  retentionPool: pg.Pool;
   /** Pool whose connections run as the app role, exactly like the API in production. */
   appPool: pg.Pool;
   /** Runs `fn` on a connection acting as `role` (SET ROLE), so privilege checks are real. */
@@ -103,11 +118,13 @@ export async function createMigratedTestDatabase(): Promise<MigratedTestDatabase
   };
 
   // `-c role=...` makes every pooled connection act as the restricted app role.
-  const appPool = new pg.Pool({
-    connectionString: base.connectionString,
-    options: `-c role=${appRole}`,
-    max: 10,
-  });
+  const appPool = hardenPool(
+    new pg.Pool({
+      connectionString: base.connectionString,
+      options: `-c role=${appRole}`,
+      max: 10,
+    }),
+  );
 
   const operatorPool = new pg.Pool({
     connectionString: base.connectionString,
@@ -115,9 +132,18 @@ export async function createMigratedTestDatabase(): Promise<MigratedTestDatabase
     max: 4,
   });
 
+  const retentionPool = hardenPool(
+    new pg.Pool({
+      connectionString: base.connectionString,
+      options: `-c role=${retentionRole}`,
+      max: 4,
+    }),
+  );
+
   const drop = async (): Promise<void> => {
     await appPool.end();
     await operatorPool.end();
+    await retentionPool.end();
     await base.drop();
     const cleanup = new pg.Pool({ connectionString: adminUrl().toString(), max: 1 });
     try {
@@ -129,5 +155,15 @@ export async function createMigratedTestDatabase(): Promise<MigratedTestDatabase
     }
   };
 
-  return { ...base, appRole, retentionRole, operatorRole, appPool, operatorPool, asRole, drop };
+  return {
+    ...base,
+    appRole,
+    retentionRole,
+    operatorRole,
+    appPool,
+    operatorPool,
+    retentionPool,
+    asRole,
+    drop,
+  };
 }

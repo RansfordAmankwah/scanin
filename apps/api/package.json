@@ -9,20 +9,29 @@
     "start": "node dist/server.js",
     "operator": "tsx src/operator/cli.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:load": "vitest run --config vitest.load.config.ts"
   },
   "dependencies": {
+    "@expo-google-fonts/noto-sans": "^0.4.2",
     "@fastify/cookie": "^11.1.3",
     "@node-rs/argon2": "^2.2.2",
     "@scanin/shared": "workspace:*",
     "csv-parse": "^7.0.3",
+    "csv-stringify": "^6.9.0",
+    "docx": "^9.9.0",
+    "exceljs": "^4.4.0",
     "fastify": "^5.12.5",
+    "pdfkit": "^0.20.2",
     "pg": "^8.23.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "@types/pdfkit": "^0.17.6",
     "@types/pg": "^8.23.1",
+    "jszip": "^3.10.2",
+    "pdfjs-dist": "^6.4.299",
     "tsx": "^4.23.15",
     "vitest": "^5.0.3"
   }

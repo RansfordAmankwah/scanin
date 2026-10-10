@@ -63,7 +63,7 @@ export function createStudent(db: Queryable, studentId = `S${rand()}`): Promise<
 }
 
 export interface LinkOptions {
-  state?: 'PROVISIONAL' | 'REVIEW_REQUIRED';
+  state?: 'PROVISIONAL' | 'REVIEW_REQUIRED' | 'CONFIRMED' | 'REJECTED';
 }
 
 /** A course-student association plus its first (system) review, as one atomic unit. */
@@ -74,16 +74,18 @@ export async function createLink(
   opts: LinkOptions = {},
 ): Promise<string> {
   const state = opts.state ?? 'PROVISIONAL';
+  // A confirmed link needs a basis; a lecturer's enrollment confirmation needs no roster entry.
+  const basis = state === 'CONFIRMED' ? 'LECTURER_ENROLLMENT_CONFIRMED' : null;
   return tx(pool, async (c) => {
     const id = await one<string>(
       c,
-      `INSERT INTO roster_links (course_id, student_id, state) VALUES ($1, $2, $3) RETURNING id`,
-      [courseId, studentId, state],
+      `INSERT INTO roster_links (course_id, student_id, state, confirmed_basis) VALUES ($1, $2, $3, $4) RETURNING id`,
+      [courseId, studentId, state, basis],
     );
     await c.query(
-      `INSERT INTO identity_reviews (link_id, review_no, review_kind, decision, from_state, to_state)
-       VALUES ($1, 1, 'SYSTEM_MATCH', 'SYSTEM_MATCH', NULL, $2)`,
-      [id, state],
+      `INSERT INTO identity_reviews (link_id, review_no, review_kind, decision, from_state, to_state, basis)
+       VALUES ($1, 1, 'SYSTEM_MATCH', 'SYSTEM_MATCH', NULL, $2, $3)`,
+      [id, state, basis],
     );
     return id;
   });

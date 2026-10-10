@@ -1,0 +1,60 @@
+/*
+ * Design tokens shared by the student (mobile) and lecturer (desktop) experiences.
+ * Colour pairs below meet WCAG AA contrast (4.5:1 for text). Status is never conveyed by colour
+ * alone: every status also carries an icon and words.
+ */
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #f5f6f8;
+  --color-text: #14171c;
+  --color-text-muted: #4a5260;
+  --color-border: #c4c9d2;
+  --color-primary: #1b4fd8;
+  --color-primary-text: #ffffff;
+  --color-focus: #1b4fd8;
+
+  --color-success-bg: #e3f5e8;
+  --color-success-text: #0b4d1f;
+  --color-warning-bg: #fff3d6;
+  --color-warning-text: #5c3b00;
+  --color-danger-bg: #fde7e7;
+  --color-danger-text: #7a1010;
+  --color-info-bg: #e6eefc;
+  --color-info-text: #12306f;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --radius: 0.75rem;
+  --tap-target: 2.75rem; /* 44px */
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0f1216;
+    --color-surface: #1a1f27;
+    --color-text: #eef0f4;
+    --color-text-muted: #b4bbc8;
+    --color-border: #3a4150;
+    --color-primary: #8fb0ff;
+    --color-primary-text: #0b1530;
+    --color-focus: #8fb0ff;
+
+    --color-success-bg: #12301b;
+    --color-success-text: #bdf0ca;
+    --color-warning-bg: #3a2c08;
+    --color-warning-text: #ffe1a3;
+    --color-danger-bg: #3d1414;
+    --color-danger-text: #ffc9c9;
+    --color-info-bg: #14264d;
+    --color-info-text: #cddcff;
+  }
+}

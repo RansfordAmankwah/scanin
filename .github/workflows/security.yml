@@ -1,0 +1,106 @@
+name: Security
+
+# Static and dynamic security checks. Run on every pull request, on main, and weekly (new
+# advisories appear without any code change). Findings at HIGH or above fail the build.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependencies:
+    name: Dependency advisories
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Fails on high/critical; moderate findings are listed but do not block.
+      - run: pnpm audit --audit-level=high
+      - run: pnpm audit --audit-level=moderate || true
+
+  secrets:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  static-analysis:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install semgrep
+      - run: semgrep scan --error --config p/typescript --config p/nodejsscan --config p/security-audit --exclude test --exclude node_modules apps packages
+
+  zap-baseline:
+    name: OWASP ZAP baseline
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: scanin
+          POSTGRES_PASSWORD: scanin_ci
+          POSTGRES_DB: scanin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U scanin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # CI-only throwaway values for a local, short-lived instance.
+      MIGRATOR_DATABASE_URL: postgres://scanin:scanin_ci@localhost:5432/scanin
+      DB_APP_PASSWORD: ci-only-app-password
+      DATABASE_URL: postgres://scanin_app:ci-only-app-password@localhost:5432/scanin
+      APP_ORIGIN: http://localhost:3000
+      IP_HASH_SECRET: ci-only-ip-hash-secret-0123456789abcdef
+      QR_KEYS: k1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      QR_ACTIVE_KID: k1
+      ALLOW_INSECURE_COOKIES: 'true'
+      WEB_DIST_DIR: apps/web/dist
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Prepare the database
+        run: node apps/api/dist/db/setup.js --create-roles
+      - name: Start the app
+        run: |
+          node apps/api/dist/server.js &
+          for i in $(seq 1 30); do curl -sf http://localhost:3000/healthz && break; sleep 1; done
+      - name: ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: 'http://localhost:3000'
+          fail_action: true
+          allow_issue_writing: false

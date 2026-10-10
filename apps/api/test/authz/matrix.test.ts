@@ -102,7 +102,9 @@ const fill = (url: string, courseId: string): string =>
   url
     .replace(':courseId', courseId)
     .replace(':linkId', randomUUID())
-    .replace(':sessionId', randomUUID());
+    .replace(':sessionId', randomUUID())
+    .replace(':flagId', randomUUID())
+    .replace(':attendanceId', randomUUID());
 
 function call(route: Route, courseId: string, cookie?: string) {
   const url = fill(route.url, courseId);

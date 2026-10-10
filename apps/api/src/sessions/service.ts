@@ -28,7 +28,7 @@ export class SessionError extends Error {
 type Client = pg.PoolClient;
 type StoredState = 'NOT_STARTED' | 'CHECK_IN_OPEN' | 'CHECK_IN_CLOSED' | 'ENDED';
 
-interface LockedSession {
+export interface LockedSession {
   id: string;
   state: StoredState;
   /**
@@ -41,7 +41,20 @@ interface LockedSession {
   deadlinePassed: boolean;
 }
 
-async function lockSession(c: Client, courseId: string, sessionId: string): Promise<LockedSession> {
+/** Key of the per-session advisory lock shared by check-ins and lifecycle changes. */
+export const sessionLockKey = (sessionId: string): string => `session:${sessionId}`;
+
+export async function lockSession(
+  c: Client,
+  courseId: string,
+  sessionId: string,
+): Promise<LockedSession> {
+  // Fair queue for this session: check-ins hold the SHARED side of this advisory lock, so a waiting
+  // exclusive request here blocks newer check-ins instead of being starved by a steady stream of
+  // them (plain row locks do not give writers priority). Always taken before the row lock.
+  await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+    sessionLockKey(sessionId),
+  ]);
   const locked = await c.query<{ id: string; state: StoredState; deadline_text: string | null }>(
     `SELECT id, state, check_in_deadline::text AS deadline_text FROM class_sessions
       WHERE id = $1 AND course_id = $2 FOR UPDATE`,
@@ -67,7 +80,7 @@ async function lockSession(c: Client, courseId: string, sessionId: string): Prom
 }
 
 /** The state callers should act on: an open session past its deadline is already closed. */
-function effectiveState(s: LockedSession): StoredState {
+export function effectiveState(s: LockedSession): StoredState {
   return s.state === 'CHECK_IN_OPEN' && s.deadlinePassed ? 'CHECK_IN_CLOSED' : s.state;
 }
 
@@ -392,6 +405,12 @@ export async function closeExpiredSessions(pool: pg.Pool, batchSize = 100): Prom
     );
     let closed = 0;
     for (const row of rows) {
+      // Skip sessions that are busy (check-ins in flight, or a lecturer action); next run retries.
+      const free = await c.query<{ ok: boolean }>(
+        'SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0)) AS ok',
+        [sessionLockKey(row.id)],
+      );
+      if (!free.rows[0]?.ok) continue;
       // Re-check under the lock: an extension may have committed first.
       const result = await c.query(
         `UPDATE class_sessions
