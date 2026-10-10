@@ -26,7 +26,7 @@ jobs:
       # CI-only throwaway credentials for the service container above; not a real secret.
       TEST_DATABASE_ADMIN_URL: postgres://scanin:scanin_ci@localhost:5432/postgres
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 10
@@ -62,7 +62,7 @@ jobs:
       TEST_DATABASE_ADMIN_URL: postgres://scanin:scanin_ci@localhost:5432/postgres
       PLAYWRIGHT_CHANNEL: chromium
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 10
