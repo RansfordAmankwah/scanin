@@ -1,10 +1,11 @@
 import { randomBytes } from 'node:crypto';
 import pg from 'pg';
+import { applyGrants, migrate } from '../../src/db/migrate.js';
 
 /**
  * Creates a throwaway database on the server named by TEST_DATABASE_ADMIN_URL and returns a pool
- * connected to it. Real PostgreSQL is used on purpose: constraint and locking behaviour cannot be
- * trusted from mocks.
+ * connected to it. Real PostgreSQL is used on purpose: constraint, privilege and locking behaviour
+ * cannot be trusted from mocks.
  */
 export interface TestDatabase {
   pool: pg.Pool;
@@ -46,4 +47,64 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   };
 
   return { pool, name, drop };
+}
+
+export interface MigratedTestDatabase extends TestDatabase {
+  /** Role the API connects as in production: no UPDATE/DELETE on history. */
+  appRole: string;
+  /** Role used only by purge jobs: SELECT and DELETE. */
+  retentionRole: string;
+  /** Runs `fn` on a connection acting as `role` (SET ROLE), so privilege checks are real. */
+  asRole: <T>(role: string, fn: (client: pg.PoolClient) => Promise<T>) => Promise<T>;
+}
+
+/**
+ * A throwaway database with all migrations applied and grants installed for freshly created,
+ * uniquely named roles (roles are cluster-global, so names carry a random suffix and are dropped
+ * with the database). The pool connects as the schema owner, i.e. the "migrator".
+ */
+export async function createMigratedTestDatabase(): Promise<MigratedTestDatabase> {
+  const base = await createTestDatabase();
+  const suffix = randomBytes(5).toString('hex');
+  const appRole = `scanin_app_${suffix}`;
+  const retentionRole = `scanin_ret_${suffix}`;
+
+  const adminPool = new pg.Pool({ connectionString: adminUrl().toString(), max: 1 });
+  try {
+    for (const role of [appRole, retentionRole]) {
+      await adminPool.query(`CREATE ROLE "${role}" NOLOGIN`);
+      // Lets the test login switch into the role with SET ROLE.
+      await adminPool.query(`GRANT "${role}" TO CURRENT_USER WITH SET TRUE`);
+    }
+  } finally {
+    await adminPool.end();
+  }
+
+  await migrate(base.pool);
+  await applyGrants(base.pool, { appRole, retentionRole });
+
+  const asRole = async <T>(role: string, fn: (client: pg.PoolClient) => Promise<T>): Promise<T> => {
+    const client = await base.pool.connect();
+    try {
+      await client.query(`SET ROLE "${role}"`);
+      return await fn(client);
+    } finally {
+      await client.query('RESET ROLE').catch(() => undefined);
+      client.release();
+    }
+  };
+
+  const drop = async (): Promise<void> => {
+    await base.drop();
+    const cleanup = new pg.Pool({ connectionString: adminUrl().toString(), max: 1 });
+    try {
+      for (const role of [appRole, retentionRole]) {
+        await cleanup.query(`DROP ROLE IF EXISTS "${role}"`);
+      }
+    } finally {
+      await cleanup.end();
+    }
+  };
+
+  return { ...base, appRole, retentionRole, asRole, drop };
 }
