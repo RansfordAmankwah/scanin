@@ -9,7 +9,7 @@ describe('real PostgreSQL test harness', () => {
   });
 
   afterAll(async () => {
-    await db.drop();
+    await db?.drop();
   });
 
   it('connects to a throwaway database on a real server', async () => {
