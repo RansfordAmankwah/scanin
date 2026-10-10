@@ -4,7 +4,9 @@ import type pg from 'pg';
 import { csrfGuard } from './auth/csrf.js';
 import type { Mailer } from './auth/mailer.js';
 import { registerAuthRoutes } from './auth/routes.js';
+import { registerAuthorization } from './authz/index.js';
 import type { Config } from './config.js';
+import { registerCourseRoutes } from './courses/routes.js';
 
 export interface AppOptions {
   config: Config;
@@ -31,9 +33,11 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
   await app.register(cookie);
   app.addHook('onRequest', csrfGuard(config));
+  registerAuthorization(app, { pool });
   registerAuthRoutes(app, { config, pool, mailer });
+  registerCourseRoutes(app, { pool });
 
-  app.get('/healthz', async () => ({ status: 'ok' }));
+  app.get('/healthz', { config: { authz: { public: true } } }, async () => ({ status: 'ok' }));
 
   return app;
 }

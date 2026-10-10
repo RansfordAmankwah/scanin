@@ -1,24 +1,28 @@
 -- Privileges for the application and retention roles. Re-applied after every migration run, so it
--- must stay idempotent. Placeholders {{app}} and {{retention}} are replaced by quoted identifiers.
+-- must stay idempotent. Placeholders {{app}}, {{retention}} and {{operator}} are replaced by quoted
+-- identifiers.
 --
 -- Model:
 --   * The schema owner (the "migrator" role that runs migrations) owns every object and is the only
---     role that can change structure. Operator provisioning (terms, courses, lecturer accounts,
---     assignments) also runs as a privileged operator connection, not as {{app}}.
+--     role that can change structure.
 --   * {{app}} is what the API connects as. It can never UPDATE or DELETE history: append-only
 --     tables get INSERT + SELECT only, and mutable tables get column-level UPDATE.
 --   * {{retention}} can only SELECT and DELETE, and is used solely by the purge jobs.
+--   * {{operator}} is used only by the operator CLI (no administrator dashboard exists): it can
+--     create terms, courses and lecturer accounts and assign lecturers, and nothing else.
 
-REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC, {{app}}, {{retention}};
-REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC, {{app}}, {{retention}};
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC, {{app}}, {{retention}}, {{operator}};
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC, {{app}}, {{retention}}, {{operator}};
 
-GRANT USAGE ON SCHEMA public TO {{app}}, {{retention}};
+GRANT USAGE ON SCHEMA public TO {{app}}, {{retention}}, {{operator}};
 
 -- Reference data written by the operator; read-only for the app.
 GRANT SELECT ON terms, courses, lecturer_courses TO {{app}};
 
--- Accounts. Role, student ID and e-mail are immutable from the app.
-GRANT SELECT, INSERT ON users TO {{app}};
+-- Accounts. Role, student ID and e-mail are immutable from the app, and sign-up may only set the
+-- columns below: no `role` (defaults to STUDENT) and no `email_verified_at`.
+GRANT SELECT ON users TO {{app}};
+GRANT INSERT (email, full_name, student_id_norm, student_id_display, password_hash) ON users TO {{app}};
 GRANT UPDATE (email_verified_at, password_hash, status) ON users TO {{app}};
 
 GRANT SELECT, INSERT ON account_tokens TO {{app}};
@@ -77,3 +81,15 @@ GRANT SELECT, DELETE ON
   investigation_flags, investigation_flag_events,
   export_records, audit_events
 TO {{retention}};
+
+-- Operator CLI: provisioning only. Lecturer accounts, terms, courses and assignments are created
+-- here because the application role deliberately cannot write them.
+GRANT SELECT, INSERT ON terms, courses TO {{operator}};
+GRANT SELECT, INSERT ON lecturer_courses TO {{operator}};
+GRANT UPDATE (ended_at) ON lecturer_courses TO {{operator}};
+GRANT SELECT, INSERT ON users TO {{operator}};
+GRANT UPDATE (password_hash, status, email_verified_at) ON users TO {{operator}};
+GRANT SELECT ON auth_sessions TO {{operator}};
+GRANT UPDATE (revoked_at, revoke_reason) ON auth_sessions TO {{operator}};
+GRANT SELECT, INSERT ON audit_events TO {{operator}};
+GRANT USAGE ON SEQUENCE audit_events_id_seq TO {{operator}};

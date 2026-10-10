@@ -55,6 +55,10 @@ export interface MigratedTestDatabase extends TestDatabase {
   appRole: string;
   /** Role used only by purge jobs: SELECT and DELETE. */
   retentionRole: string;
+  /** Role used only by the operator CLI: provisioning of terms, courses, lecturers, assignments. */
+  operatorRole: string;
+  /** Pool whose connections run as the operator role. */
+  operatorPool: pg.Pool;
   /** Pool whose connections run as the app role, exactly like the API in production. */
   appPool: pg.Pool;
   /** Runs `fn` on a connection acting as `role` (SET ROLE), so privilege checks are real. */
@@ -71,10 +75,11 @@ export async function createMigratedTestDatabase(): Promise<MigratedTestDatabase
   const suffix = randomBytes(5).toString('hex');
   const appRole = `scanin_app_${suffix}`;
   const retentionRole = `scanin_ret_${suffix}`;
+  const operatorRole = `scanin_op_${suffix}`;
 
   const adminPool = new pg.Pool({ connectionString: adminUrl().toString(), max: 1 });
   try {
-    for (const role of [appRole, retentionRole]) {
+    for (const role of [appRole, retentionRole, operatorRole]) {
       await adminPool.query(`CREATE ROLE "${role}" NOLOGIN`);
       // Lets the test login switch into the role with SET ROLE.
       await adminPool.query(`GRANT "${role}" TO CURRENT_USER WITH SET TRUE`);
@@ -84,7 +89,7 @@ export async function createMigratedTestDatabase(): Promise<MigratedTestDatabase
   }
 
   await migrate(base.pool);
-  await applyGrants(base.pool, { appRole, retentionRole });
+  await applyGrants(base.pool, { appRole, retentionRole, operatorRole });
 
   const asRole = async <T>(role: string, fn: (client: pg.PoolClient) => Promise<T>): Promise<T> => {
     const client = await base.pool.connect();
@@ -104,12 +109,19 @@ export async function createMigratedTestDatabase(): Promise<MigratedTestDatabase
     max: 10,
   });
 
+  const operatorPool = new pg.Pool({
+    connectionString: base.connectionString,
+    options: `-c role=${operatorRole}`,
+    max: 4,
+  });
+
   const drop = async (): Promise<void> => {
     await appPool.end();
+    await operatorPool.end();
     await base.drop();
     const cleanup = new pg.Pool({ connectionString: adminUrl().toString(), max: 1 });
     try {
-      for (const role of [appRole, retentionRole]) {
+      for (const role of [appRole, retentionRole, operatorRole]) {
         await cleanup.query(`DROP ROLE IF EXISTS "${role}"`);
       }
     } finally {
@@ -117,5 +129,5 @@ export async function createMigratedTestDatabase(): Promise<MigratedTestDatabase
     }
   };
 
-  return { ...base, appRole, retentionRole, appPool, asRole, drop };
+  return { ...base, appRole, retentionRole, operatorRole, appPool, operatorPool, asRole, drop };
 }

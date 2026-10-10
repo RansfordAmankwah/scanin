@@ -49,3 +49,15 @@ export async function writeAudit(db: Db, e: AuditInput): Promise<void> {
     ],
   );
 }
+
+/** Retention end for course-related DOMAIN events: the term's end date plus one year (provisional). */
+export async function courseRetainUntil(db: Db, courseId: string): Promise<string> {
+  const { rows } = await db.query<{ retain_until: string }>(
+    `SELECT to_char(t.ends_on + interval '1 year', 'YYYY-MM-DD') AS retain_until
+       FROM courses c JOIN terms t ON t.id = c.term_id WHERE c.id = $1`,
+    [courseId],
+  );
+  const value = rows[0]?.retain_until;
+  if (!value) throw new Error('course not found for audit retention');
+  return value;
+}

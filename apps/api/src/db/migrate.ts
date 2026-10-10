@@ -95,6 +95,7 @@ function quoteRole(name: string): string {
 export interface GrantRoles {
   appRole: string;
   retentionRole: string;
+  operatorRole: string;
 }
 
 /** (Re)applies db/grants.sql for the given roles. Safe to run repeatedly. */
@@ -106,6 +107,7 @@ export async function applyGrants(
   const template = await readFile(file, 'utf8');
   const sql = template
     .replaceAll('{{app}}', quoteRole(roles.appRole))
-    .replaceAll('{{retention}}', quoteRole(roles.retentionRole));
+    .replaceAll('{{retention}}', quoteRole(roles.retentionRole))
+    .replaceAll('{{operator}}', quoteRole(roles.operatorRole));
   await pool.query(sql);
 }

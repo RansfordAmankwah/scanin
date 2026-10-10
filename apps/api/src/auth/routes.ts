@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import { z } from 'zod';
 import { writeAudit } from '../audit.js';
+import { ANY_ROLE } from '../authz/index.js';
 import type { Config } from '../config.js';
 import { isUniqueViolation, withTransaction } from '../db/pool.js';
 import { keyedHash, randomToken, sha256 } from './crypto.js';
@@ -48,6 +49,9 @@ const REGISTER_MAX_PER_IP = 10;
 const PASSWORD_CHANGE_MAX_FAILURES = 5;
 
 const VERIFICATION_TTL_HOURS = 24;
+
+const PUBLIC = { config: { authz: { public: true as const } } };
+const SIGNED_IN = { config: { authz: { roles: ANY_ROLE } } };
 
 const COOKIE_NAME_SECURE = '__Host-sid';
 const COOKIE_NAME_INSECURE = 'sid';
@@ -140,18 +144,12 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
     req.auth = token ? await findSession(pool, token) : null;
   });
 
-  const requireAuth = async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    if (!req.auth) {
-      await fail(reply, 401, 'UNAUTHENTICATED', 'Please sign in.');
-    }
-  };
-
   // ---------------------------------------------------------------------------------------------
   // Registration (students only; lecturers are provisioned by the operator).
   // ---------------------------------------------------------------------------------------------
 
   /** Validates and echoes the normalised details for the confirmation screen. Writes nothing. */
-  app.post('/auth/register/preview', async (req, reply) => {
+  app.post('/auth/register/preview', PUBLIC, async (req, reply) => {
     const body = RegisterBody.safeParse(req.body);
     if (!body.success) return fail(reply, 400, 'INVALID_REQUEST', 'Check the form and try again.');
     const n = normalizeRegistration(body.data);
@@ -163,7 +161,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
     };
   });
 
-  app.post('/auth/register/commit', async (req, reply) => {
+  app.post('/auth/register/commit', PUBLIC, async (req, reply) => {
     const hashedIp = ipHash(req);
     const limit = await hit(pool, `register:${hashedIp.toString('hex')}`, REGISTER_WINDOW_S);
     if (limit.count > REGISTER_MAX_PER_IP) {
@@ -190,8 +188,10 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
     try {
       const userId = await withTransaction(pool, async (c) => {
         const { rows } = await c.query<{ id: string }>(
-          `INSERT INTO users (role, email, full_name, student_id_norm, student_id_display, password_hash)
-           VALUES ('STUDENT', $1, $2, $3, $4, $5) RETURNING id`,
+          // `role` is deliberately omitted: the column default is STUDENT and the application
+          // database role has no privilege to set it.
+          `INSERT INTO users (email, full_name, student_id_norm, student_id_display, password_hash)
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
           [v.email, v.fullName, v.studentId, v.studentIdDisplay, passwordHash],
         );
         const id = rows[0]?.id;
@@ -260,7 +260,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
     return reply.code(201).send({ status: 'registered' });
   });
 
-  app.post('/auth/verify-email', async (req, reply) => {
+  app.post('/auth/verify-email', PUBLIC, async (req, reply) => {
     const body = VerifyBody.safeParse(req.body);
     if (!body.success) return fail(reply, 400, 'INVALID_REQUEST', 'Invalid link.');
     const ok = await withTransaction(pool, async (c) => {
@@ -297,7 +297,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
   // Login / logout / session
   // ---------------------------------------------------------------------------------------------
 
-  app.post('/auth/login', async (req, reply) => {
+  app.post('/auth/login', PUBLIC, async (req, reply) => {
     const body = LoginBody.safeParse(req.body);
     if (!body.success)
       return fail(reply, 400, 'INVALID_REQUEST', 'Enter your e-mail and password.');
@@ -381,7 +381,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
     };
   });
 
-  app.post('/auth/logout', { preHandler: requireAuth }, async (req, reply) => {
+  app.post('/auth/logout', SIGNED_IN, async (req, reply) => {
     const auth = req.auth;
     if (auth) {
       await revokeSession(pool, auth.sessionHash, 'LOGOUT');
@@ -397,7 +397,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
     return reply.code(204).send();
   });
 
-  app.get('/auth/me', { preHandler: requireAuth }, async (req) => {
+  app.get('/auth/me', SIGNED_IN, async (req) => {
     const auth = req.auth;
     return {
       user: auth && {
@@ -410,7 +410,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
   });
 
   /** Changes the password, revokes every other session, and issues a fresh one. */
-  app.post('/auth/password', { preHandler: requireAuth }, async (req, reply) => {
+  app.post('/auth/password', SIGNED_IN, async (req, reply) => {
     const auth = req.auth;
     if (!auth) return fail(reply, 401, 'UNAUTHENTICATED', 'Please sign in.');
     const body = ChangePasswordBody.safeParse(req.body);
