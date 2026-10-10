@@ -10,6 +10,7 @@ import { applyGrants, migrate } from '../../src/db/migrate.js';
 export interface TestDatabase {
   pool: pg.Pool;
   name: string;
+  connectionString: string;
   drop: () => Promise<void>;
 }
 
@@ -46,7 +47,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     }
   };
 
-  return { pool, name, drop };
+  return { pool, name, connectionString: dbUrl.toString(), drop };
 }
 
 export interface MigratedTestDatabase extends TestDatabase {
@@ -54,6 +55,8 @@ export interface MigratedTestDatabase extends TestDatabase {
   appRole: string;
   /** Role used only by purge jobs: SELECT and DELETE. */
   retentionRole: string;
+  /** Pool whose connections run as the app role, exactly like the API in production. */
+  appPool: pg.Pool;
   /** Runs `fn` on a connection acting as `role` (SET ROLE), so privilege checks are real. */
   asRole: <T>(role: string, fn: (client: pg.PoolClient) => Promise<T>) => Promise<T>;
 }
@@ -94,7 +97,15 @@ export async function createMigratedTestDatabase(): Promise<MigratedTestDatabase
     }
   };
 
+  // `-c role=...` makes every pooled connection act as the restricted app role.
+  const appPool = new pg.Pool({
+    connectionString: base.connectionString,
+    options: `-c role=${appRole}`,
+    max: 10,
+  });
+
   const drop = async (): Promise<void> => {
+    await appPool.end();
     await base.drop();
     const cleanup = new pg.Pool({ connectionString: adminUrl().toString(), max: 1 });
     try {
@@ -106,5 +117,5 @@ export async function createMigratedTestDatabase(): Promise<MigratedTestDatabase
     }
   };
 
-  return { ...base, appRole, retentionRole, asRole, drop };
+  return { ...base, appRole, retentionRole, appPool, asRole, drop };
 }
