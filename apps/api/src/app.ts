@@ -8,6 +8,7 @@ import { registerAuthorization } from './authz/index.js';
 import type { Config } from './config.js';
 import { registerCourseRoutes } from './courses/routes.js';
 import { registerRosterRoutes } from './roster/routes.js';
+import { registerSessionRoutes } from './sessions/routes.js';
 
 export interface AppOptions {
   config: Config;
@@ -38,6 +39,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   registerAuthRoutes(app, { config, pool, mailer });
   registerCourseRoutes(app, { pool });
   registerRosterRoutes(app, { pool });
+  registerSessionRoutes(app, { pool });
 
   app.get('/healthz', { config: { authz: { public: true } } }, async () => ({ status: 'ok' }));
 

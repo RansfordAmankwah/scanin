@@ -99,7 +99,10 @@ const protectedRoutes = (): Route[] =>
 
 // Other path parameters get a well-formed id that matches nothing; authorization runs first anyway.
 const fill = (url: string, courseId: string): string =>
-  url.replace(':courseId', courseId).replace(':linkId', randomUUID());
+  url
+    .replace(':courseId', courseId)
+    .replace(':linkId', randomUUID())
+    .replace(':sessionId', randomUUID());
 
 function call(route: Route, courseId: string, cookie?: string) {
   const url = fill(route.url, courseId);
