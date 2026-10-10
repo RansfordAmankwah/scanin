@@ -35,10 +35,22 @@ const ConfigSchema = z
     AUDIT_CHECKPOINT_DIR: z.string().min(1).optional(),
     /** Directory of the built web app (apps/web/dist). When set, the API serves it from the same origin. */
     WEB_DIST_DIR: z.string().min(1).optional(),
+    /** Resend API key. Required in production; without it, development prints links to the console. */
+    RESEND_API_KEY: z.string().min(1).optional(),
+    /** Sender for system e-mail, on a domain verified in Resend, e.g. "ScanIn <no-reply@example.edu>". */
+    MAIL_FROM: z.string().min(3).optional(),
     /** Development convenience only: allows the session cookie over plain HTTP. */
     ALLOW_INSECURE_COOKIES: booleanString,
     /** Set when running behind a trusted reverse proxy so the client IP is read correctly. */
     TRUST_PROXY: booleanString,
+  })
+  .refine((c) => c.NODE_ENV !== 'production' || (c.RESEND_API_KEY && c.MAIL_FROM), {
+    message: 'RESEND_API_KEY and MAIL_FROM are required in production',
+    path: ['RESEND_API_KEY'],
+  })
+  .refine((c) => !c.RESEND_API_KEY || c.MAIL_FROM, {
+    message: 'MAIL_FROM is required when RESEND_API_KEY is set',
+    path: ['MAIL_FROM'],
   })
   .refine((c) => !(c.NODE_ENV === 'production' && c.ALLOW_INSECURE_COOKIES), {
     message: 'ALLOW_INSECURE_COOKIES must not be enabled in production',

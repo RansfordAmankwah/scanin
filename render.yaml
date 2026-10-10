@@ -1,0 +1,46 @@
+# Render blueprint: one web service serves the API and the built web app from the same origin.
+# Database: Neon (not managed by Render). Secrets are entered in the Render dashboard (sync: false).
+services:
+  - type: web
+    name: scanin
+    runtime: node
+    plan: starter # pre-deploy commands and always-on need a paid plan; do not scale past 1 instance in the pilot
+    region: frankfurt # keep the same region as the Neon project
+    branch: main
+    autoDeployTrigger: off # deploy deliberately during the pilot
+    buildCommand: npm install -g pnpm@10 && pnpm install --frozen-lockfile && pnpm build
+    # Applies migrations and re-installs the least-privilege grants before each release.
+    preDeployCommand: node apps/api/dist/db/setup.js
+    startCommand: node apps/api/dist/server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: API_PORT
+        value: 10000 # Render's default port
+      - key: WEB_DIST_DIR
+        value: /opt/render/project/src/apps/web/dist
+      - key: TRUST_PROXY
+        value: 'true' # behind Cloudflare and Render's proxy
+      - key: EXPORT_DIR
+        value: /tmp/scanin-exports # exports live 60 minutes; local disk is enough on one instance
+      - key: APP_ORIGIN
+        sync: false # https://<your domain>, exactly, no trailing slash
+      - key: DATABASE_URL
+        sync: false # Neon DIRECT URL, role scanin_app, ?sslmode=require
+      - key: MIGRATOR_DATABASE_URL
+        sync: false # Neon DIRECT URL, owner role (used only by the pre-deploy step)
+      - key: RETENTION_DATABASE_URL
+        sync: false # Neon DIRECT URL, role scanin_retention
+      - key: RESEND_API_KEY
+        sync: false # Resend API key (sending access only)
+      - key: MAIL_FROM
+        sync: false # e.g. ScanIn <no-reply@your-domain>, a domain verified in Resend
+      - key: IP_HASH_SECRET
+        generateValue: true
+      - key: QR_KEYS
+        sync: false # k1:<32+ random bytes, base64url>
+      - key: QR_ACTIVE_KID
+        value: k1

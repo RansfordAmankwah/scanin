@@ -12,6 +12,37 @@ export class MemoryMailer implements Mailer {
   }
 }
 
+/** Sends through Resend's HTTPS API (no SDK). The link is never logged, and errors carry no body. */
+export class ResendMailer implements Mailer {
+  constructor(
+    private readonly apiKey: string,
+    private readonly from: string,
+    private readonly fetchFn: typeof fetch = fetch,
+  ) {}
+
+  async sendEmailVerification(to: string, link: string): Promise<void> {
+    const res = await this.fetchFn('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: this.from,
+        to: [to],
+        subject: 'Verify your ScanIn e-mail',
+        text: `Open this link to verify your e-mail address for ScanIn:
+
+${link}
+
+If you did not create a ScanIn account, ignore this message.`,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw new Error(`Resend rejected the message (HTTP ${res.status})`);
+  }
+}
+
 /**
  * Prints the link to the console so a developer can click it. Refuses to run in production, where
  * a real mail provider is required (an open decision) and tokens must never reach logs.

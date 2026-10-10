@@ -1,7 +1,7 @@
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildApp } from './app.js';
-import { DevConsoleMailer } from './auth/mailer.js';
+import { DevConsoleMailer, ResendMailer } from './auth/mailer.js';
 import { loadConfig } from './config.js';
 import { createPool } from './db/pool.js';
 import { FileCheckpointSink, startCheckpointJob } from './audit/checkpoint.js';
@@ -12,8 +12,11 @@ import { startSessionSweeper } from './sessions/service.js';
 
 const config = loadConfig();
 const pool = createPool(config.DATABASE_URL);
-// A real mail provider is an open decision; production start-up fails until one is wired in.
-const mailer = new DevConsoleMailer(config.NODE_ENV);
+// Production requires Resend (config enforces it); development falls back to printing links.
+const mailer =
+  config.RESEND_API_KEY && config.MAIL_FROM
+    ? new ResendMailer(config.RESEND_API_KEY, config.MAIL_FROM)
+    : new DevConsoleMailer(config.NODE_ENV);
 const exportStorage = new LocalDiskStorage(config.EXPORT_DIR ?? join(tmpdir(), 'scanin-exports'));
 const app = await buildApp({ config, pool, mailer, exportStorage, logger: true });
 

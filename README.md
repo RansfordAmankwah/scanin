@@ -102,4 +102,4 @@ All settings are environment variables, documented in `.env.example`. The import
 
 Milestones M0 to M12 are built and verified. Remaining before a pilot: container image, deployment guide, operator runbook and a restore drill (M13).
 
-Not built yet, by design or pending decision: password reset, an operator command to release a student ID, a production e-mail provider, and a hosting choice.
+Not built yet, by design or pending decision: password reset, an operator command to release a student ID, and hosting is chosen but not yet deployed.
