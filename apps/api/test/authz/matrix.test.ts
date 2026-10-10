@@ -97,7 +97,9 @@ const protectedRoutes = (): Route[] =>
     (r) => !('public' in r.spec) && r.method !== 'HEAD',
   ) as unknown as Route[];
 
-const fill = (url: string, courseId: string): string => url.replace(':courseId', courseId);
+// Other path parameters get a well-formed id that matches nothing; authorization runs first anyway.
+const fill = (url: string, courseId: string): string =>
+  url.replace(':courseId', courseId).replace(':linkId', randomUUID());
 
 function call(route: Route, courseId: string, cookie?: string) {
   const url = fill(route.url, courseId);
@@ -164,7 +166,12 @@ describe('AUTHZ matrix over every protected route', () => {
   });
 
   it('lets an assigned lecturer read their own course', async () => {
-    for (const route of protectedRoutes().filter((r) => r.spec.course && r.method === 'GET')) {
+    // Only routes whose sole parameter is the course id can be called with just a course.
+    const readable = protectedRoutes().filter(
+      (r) => r.spec.course && r.method === 'GET' && !/:(?!courseId(?:\/|$))/.test(r.url),
+    );
+    expect(readable.length).toBeGreaterThanOrEqual(2);
+    for (const route of readable) {
       const res = await call(route, ids.courseA, cookies.l1);
       expect(res.statusCode, `${route.method} ${route.url}`).toBe(200);
     }

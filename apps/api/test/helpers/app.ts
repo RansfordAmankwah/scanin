@@ -127,3 +127,38 @@ export function cookieHeader(res: { cookies: Array<{ name: string; value: string
   if (!c) throw new Error('response set no cookie');
   return `${c.name}=${c.value}`;
 }
+
+/** Operator-provisions a lecturer and signs them in; returns their id and session cookie. */
+export async function createLecturerSession(
+  db: MigratedTestDatabase,
+  app: FastifyInstance,
+  email: string,
+  fullName = 'Dr Test',
+): Promise<{ id: string; cookie: string }> {
+  const { createLecturer } = await import('../../src/operator/commands.js');
+  const lecturer = await createLecturer(db.operatorPool, { operator: 'test', email, fullName });
+  const res = await post(app, '/auth/login', { email, password: lecturer.temporaryPassword });
+  if (res.statusCode !== 200) throw new Error(`lecturer login failed: ${res.statusCode}`);
+  return { id: lecturer.id, cookie: cookieHeader(res) };
+}
+
+/** Registers a student (optionally verifying their e-mail) and returns the new user id. */
+export async function registerStudent(
+  db: MigratedTestDatabase,
+  t: Pick<TestApp, 'app' | 'mailer'>,
+  reg: Registration,
+  opts: { verifyEmail?: boolean } = {},
+): Promise<string> {
+  const res = await post(t.app, '/auth/register/commit', registerBody(reg));
+  if (res.statusCode !== 201) throw new Error(`register failed: ${res.statusCode}`);
+  if (opts.verifyEmail) {
+    const link = t.mailer.outbox.filter((m) => m.to === reg.email.toLowerCase()).at(-1)?.link ?? '';
+    const token = new URL(link).hash.replace('#t=', '');
+    const verified = await post(t.app, '/auth/verify-email', { token });
+    if (verified.statusCode !== 200) throw new Error('verification failed');
+  }
+  const { rows } = await db.pool.query<{ id: string }>('SELECT id FROM users WHERE email = $1', [
+    reg.email.toLowerCase(),
+  ]);
+  return rows[0]?.id as string;
+}
