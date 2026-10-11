@@ -51,7 +51,10 @@ export async function createTerm(
 }
 
 async function termId(c: pg.PoolClient, name: string): Promise<string> {
-  const { rows } = await c.query<{ id: string }>('SELECT id FROM terms WHERE name = $1', [name]);
+  const { rows } = await c.query<{ id: string }>(
+    'SELECT id FROM terms WHERE name = $1 AND created_by IS NULL',
+    [name],
+  );
   const id = rows[0]?.id;
   if (!id) throw new OperatorError(`No term named "${name}".`);
   return id;
@@ -59,7 +62,7 @@ async function termId(c: pg.PoolClient, name: string): Promise<string> {
 
 async function courseId(c: pg.PoolClient, term: string, code: string): Promise<string> {
   const { rows } = await c.query<{ id: string }>(
-    `SELECT c.id FROM courses c JOIN terms t ON t.id = c.term_id WHERE t.name = $1 AND c.code = $2`,
+    `SELECT c.id FROM courses c JOIN terms t ON t.id = c.term_id WHERE t.name = $1 AND t.created_by IS NULL AND c.code = $2`,
     [term, code],
   );
   const id = rows[0]?.id;

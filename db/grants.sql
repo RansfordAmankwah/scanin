@@ -19,6 +19,11 @@ GRANT USAGE ON SCHEMA public TO {{app}}, {{retention}}, {{operator}};
 -- Reference data written by the operator; read-only for the app.
 GRANT SELECT ON terms, courses, lecturer_courses TO {{app}};
 
+-- Lecturers create their own terms and courses only through these two functions (migration 0005);
+-- the application role has no INSERT on terms, courses or lecturer_courses.
+GRANT EXECUTE ON FUNCTION create_term_for_lecturer(uuid, text, date, date) TO {{app}};
+GRANT EXECUTE ON FUNCTION create_course_for_lecturer(uuid, uuid, text, text) TO {{app}};
+
 -- Accounts. Role, student ID and e-mail are immutable once created. Sign-up (students and lecturers)
 -- may set only the columns below, never `email_verified_at`. A lecturer account on its own grants no
 -- data access: every lecturer query is scoped to a course assignment, and only the operator can

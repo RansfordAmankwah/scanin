@@ -2,8 +2,8 @@
 
 ## Lecturer
 
-1. **Account.** An operator creates your account and assigns your course (`pnpm --filter @scanin/api operator create-lecturer ...`) and gives you a temporary password.
-2. **Sign in** with your e-mail and password.
+1. **Account.** On the sign-in screen choose **Create a lecturer account** and enter your name, e-mail and a password of at least 10 characters.
+2. **Sign in**, then **Create a course**: a code, a title, and a term (pick one from the list or choose **New term…** and give its name and dates). You are assigned to the course automatically and see only courses you created or were assigned. Class data is deleted one year after the term's end date, so enter the real end date.
 3. **Import the class list.** Open the course, paste or upload a CSV with the header `student_id,full_name,email` (e-mail optional), choose **Preview changes**, check the counts, then **Apply changes**. Nothing changes until you apply.
 4. **Create a session.** Type a title, **Create session**, open it, then **Start check-in (30 minutes)**. Use **Extend** (with a reason) if needed.
 5. **Project the QR.** Choose **Show QR code for the room** and put that page on the projector. It refreshes itself about every 30 seconds. If a code was shared outside the room, press **Invalidate shown codes**.
@@ -43,5 +43,6 @@ Store the file somewhere access-controlled. It contains student names, IDs and a
 
 - **Rotate QR keys:** add `k2:...` to `QR_KEYS`, set `QR_ACTIVE_KID=k2`, redeploy, and remove `k1` at least 4 minutes later.
 - **Retention:** runs daily when `RETENTION_DATABASE_URL` is set. Check the logs for "retention run complete".
+- **Operator provisioning is now optional.** Lecturers create their own terms and courses. The operator CLI is still there to add a second lecturer to a course (`assign-lecturer`), to end an assignment, or to create a shared term. An account can be assigned a course without a verified e-mail, so confirm someone's identity before assigning them to a course you did not see them create.
 - **Student ID released after a mistake:** no command exists yet. Escalate to the developer.
 - **Password reset:** not built yet. Escalate to the developer.

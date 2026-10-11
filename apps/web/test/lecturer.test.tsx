@@ -99,7 +99,10 @@ const flush = () =>
   act(async () => {
     await Promise.resolve();
   });
-const signedInLecturer = { 'GET /auth/me': reply(200, { user: lecturer }) };
+const signedInLecturer = {
+  'GET /auth/me': reply(200, { user: lecturer }),
+  'GET /terms': reply(200, { terms: [] }),
+};
 
 describe('lecturer: courses and sessions', () => {
   it("lists the lecturer's courses and links to each", async () => {
@@ -110,10 +113,58 @@ describe('lecturer: courses and sessions', () => {
     expect(screen.getByText('Autumn 2026')).toBeTruthy();
   });
 
-  it('explains when no course is assigned', async () => {
+  it('invites a lecturer with no courses to create their first one', async () => {
     mockApi({ ...signedInLecturer, 'GET /courses': reply(200, { courses: [] }) });
     render(<App pathname="/" />);
-    await waitFor(() => screen.getByText(/not assigned to any course/i));
+    await waitFor(() => screen.getByText(/create your first course below/i));
+    expect(screen.getByRole('form', { name: /create course/i })).toBeTruthy();
+  });
+
+  it('creates a course with a new term of their own, and shows it in the list', async () => {
+    const fetchMock = mockApi({
+      ...signedInLecturer,
+      'GET /courses': reply(200, { courses: [] }),
+      'POST /courses': reply(201, { course }),
+    });
+    render(<App pathname="/" />);
+    await waitFor(() => screen.getByRole('form', { name: /create course/i }));
+    fireEvent.change(screen.getByLabelText('Course code'), { target: { value: 'CS101' } });
+    fireEvent.change(screen.getByLabelText('Course title'), { target: { value: 'Intro to CS' } });
+    fireEvent.change(screen.getByLabelText('Term name'), { target: { value: 'Autumn 2026' } });
+    fireEvent.change(screen.getByLabelText('Term starts on'), { target: { value: '2026-09-01' } });
+    fireEvent.change(screen.getByLabelText('Term ends on'), { target: { value: '2026-12-20' } });
+    fireEvent.click(screen.getByRole('button', { name: /create course/i }));
+
+    await waitFor(() => screen.getByRole('link', { name: /CS101 Intro to CS/ }));
+    const call = fetchMock.mock.calls.find((c) => c[1]?.method === 'POST')!;
+    expect(bodyOf(call)).toEqual({
+      code: 'CS101',
+      title: 'Intro to CS',
+      newTerm: { name: 'Autumn 2026', startsOn: '2026-09-01', endsOn: '2026-12-20' },
+    });
+  });
+
+  it('uses an existing term from the list, and explains a refusal', async () => {
+    const fetchMock = mockApi({
+      ...signedInLecturer,
+      'GET /terms': reply(200, {
+        terms: [{ id: 't9', name: 'Autumn 2026', startsOn: '2026-09-01', endsOn: '2026-12-20' }],
+      }),
+      'GET /courses': reply(200, { courses: [course] }),
+      'POST /courses': reply(409, { error: { code: 'COURSE_EXISTS' } }),
+    });
+    render(<App pathname="/" />);
+    await waitFor(() => screen.getByRole('form', { name: /create course/i }));
+    await waitFor(() =>
+      expect((screen.getByLabelText('Term') as HTMLSelectElement).value).toBe('t9'),
+    );
+    expect(screen.queryByLabelText('Term name')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Course code'), { target: { value: 'CS101' } });
+    fireEvent.change(screen.getByLabelText('Course title'), { target: { value: 'Intro' } });
+    fireEvent.click(screen.getByRole('button', { name: /create course/i }));
+    await waitFor(() => screen.getByText(/course with that code already exists/i));
+    const call = fetchMock.mock.calls.find((c) => c[1]?.method === 'POST')!;
+    expect(bodyOf(call)).toEqual({ code: 'CS101', title: 'Intro', termId: 't9' });
   });
 
   it("shows a course with its sessions and creates a new session with the lecturer's local date", async () => {

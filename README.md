@@ -2,7 +2,7 @@
 
 A campus attendance tracker with QR check-in. A lecturer starts a class session and shows a QR code that refreshes every 30 seconds. Students sign in on their phones and scan it. The database and backend are the source of truth.
 
-- Two roles only: **lecturer** and **student**. There is no admin dashboard; an operator CLI handles provisioning.
+- Two roles only: **lecturer** and **student**. There is no admin dashboard. Lecturers sign up themselves and create their own terms and courses; an operator CLI covers exceptions such as adding a second lecturer to a course.
 - One effective attendance record per student per session, enforced by the database.
 - Identity uncertainty is explicit: matches to the class list are _provisional_, _needs review_, _confirmed_ or _rejected_, and a lecturer decides.
 - No biometrics, no precise location, and nothing is written to official university systems.
@@ -50,9 +50,9 @@ pnpm --filter @scanin/api dev     # API on API_PORT
 pnpm --filter @scanin/web dev     # web app on :5173
 ```
 
-## Provisioning (operator CLI)
+## Operator CLI
 
-Lecturers, terms, courses and assignments are created by an operator, not through the app:
+Lecturers create their own terms and courses in the app. The operator CLI is for exceptions (assigning another lecturer to a course, ending an assignment, shared terms, retention and audit tools):
 
 ```sh
 pnpm --filter @scanin/api operator --help

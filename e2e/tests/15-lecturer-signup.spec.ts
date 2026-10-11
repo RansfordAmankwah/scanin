@@ -30,7 +30,21 @@ test.describe('a lecturer signing themselves up', () => {
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
     await expect(page.getByText('No courses yet')).toBeVisible();
-    await expect(page.getByText('You are not assigned to any course')).toBeVisible();
+    await expect(page.getByText('Create your first course below')).toBeVisible();
+    await expectGoodScreen(page, 'create course form');
+
+    // They create their own term and course, and are assigned to it automatically.
+    await page.getByLabel('Course code').fill('SELF101');
+    await page.getByLabel('Course title').fill('Self Service Course');
+    await page.getByLabel('Term', { exact: true }).selectOption({ label: 'New term…' });
+    await page.getByLabel('Term name').fill('Self term');
+    await page.getByLabel('Term starts on').fill('2026-09-01');
+    await page.getByLabel('Term ends on').fill('2027-06-30');
+    await page.getByRole('button', { name: 'Create course' }).click();
+    await expect(page.getByRole('link', { name: /SELF101/ })).toBeVisible();
+    await page.getByRole('link', { name: /SELF101/ }).click();
+    await expect(page.getByRole('heading', { name: /SELF101/ })).toBeVisible();
+
     // The seeded course belongs to someone else: this lecturer cannot reach it by address either.
     await page.goto(`/courses/${state().courseId}`);
     await expect(page.getByRole('heading', { name: /E2E101/ })).toHaveCount(0);

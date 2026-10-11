@@ -301,6 +301,7 @@ describe('UX-02 accessibility (axe) on every screen', () => {
     mockApi({
       'GET /auth/me': reply(200, { user: lecturer }),
       'GET /courses': reply(200, { courses: [course] }),
+      'GET /terms': reply(200, { terms: [] }),
       [`GET /courses/${COURSE}`]: reply(200, { course }),
       [`GET /courses/${COURSE}/sessions`]: reply(200, { sessions: [sessionView] }),
       [`GET /courses/${COURSE}/review-queue`]: reply(200, queue),

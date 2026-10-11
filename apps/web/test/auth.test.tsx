@@ -98,6 +98,7 @@ describe('signing in', () => {
     mockApi({
       'GET /auth/me': reply(200, { user: lecturer }),
       'GET /courses': reply(200, { courses: [] }),
+      'GET /terms': reply(200, { terms: [] }),
     });
     render(<App pathname="/" />);
     await waitFor(() => screen.getByText(/no courses yet/i));

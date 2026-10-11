@@ -7,6 +7,20 @@ export interface Course {
   term: { id: string; name: string; startsOn: string; endsOn: string };
 }
 
+export interface TermView {
+  id: string;
+  name: string;
+  startsOn: string;
+  endsOn: string;
+}
+
+export interface NewCourseInput {
+  code: string;
+  title: string;
+  termId?: string;
+  newTerm?: { name: string; startsOn: string; endsOn: string };
+}
+
 export interface SessionView {
   id: string;
   courseId: string;
@@ -91,6 +105,9 @@ const base = (courseId: string, sessionId: string) => `/courses/${courseId}/sess
 
 export const lecturerApi = {
   courses: () => call<{ courses: Course[] }>('/courses'),
+  terms: () => call<{ terms: TermView[] }>('/terms'),
+  createCourse: (input: NewCourseInput) =>
+    call<{ course: Course }>('/courses', { method: 'POST', body: input }),
   course: (id: string) => call<{ course: Course }>(`/courses/${id}`),
   sessions: (courseId: string) =>
     call<{ sessions: SessionView[] }>(`/courses/${courseId}/sessions`),
