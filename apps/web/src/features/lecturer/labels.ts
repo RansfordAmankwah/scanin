@@ -1,3 +1,5 @@
+import type { BadgeTone } from '../../components/ui';
+
 /** Plain-language labels. Never claims more certainty than the system has. */
 export function associationLabel(state: string, basis: string | null): string {
   switch (state) {
@@ -66,3 +68,24 @@ export const INVALIDATION_LABEL: Record<string, string> = {
   IDENTITY_ENROLLMENT_MISMATCH: 'Identity/enrollment mismatch',
   OTHER: 'Other',
 };
+
+export const STATUS_TONE: Record<string, BadgeTone> = {
+  PRESENT: 'success',
+  INVALIDATED: 'danger',
+  NO_RECORD: 'neutral',
+};
+
+export function associationTone(state: string): BadgeTone {
+  switch (state) {
+    case 'CONFIRMED':
+      return 'success';
+    case 'PROVISIONAL':
+      return 'warning';
+    case 'REVIEW_REQUIRED':
+      return 'attention';
+    case 'REJECTED':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}

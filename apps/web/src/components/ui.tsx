@@ -14,6 +14,13 @@ export function Button({
   );
 }
 
+export type BadgeTone = 'success' | 'warning' | 'attention' | 'danger' | 'info' | 'neutral';
+
+/** A pill-shaped status tag. The text always carries the meaning; colour only reinforces it. */
+export function Badge({ tone, children }: { tone: BadgeTone; children: ReactNode }) {
+  return <span className={`badge badge--${tone}`}>{children}</span>;
+}
+
 export function TextField({
   label,
   hint,

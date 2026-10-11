@@ -4,12 +4,17 @@
  * alone: every status also carries an icon and words.
  */
 :root {
-  --color-bg: #ffffff;
-  --color-surface: #f5f6f8;
+  --color-bg: #f4f6f9; /* page */
+  --color-surface: #ffffff; /* cards */
   --color-text: #14171c;
   --color-text-muted: #4a5260;
-  --color-border: #c4c9d2;
+  --color-border: #c4c9d2; /* form controls: strong enough to see */
+  --color-border-soft: #e2e6ec; /* cards, table rules: a hint, not a line */
+  --color-row-hover: rgba(27, 79, 216, 0.06);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.04);
+  --shadow-button: 0 1px 2px rgba(16, 24, 40, 0.2);
   --color-primary: #1b4fd8;
+  --color-primary-hover: #153fb0;
   --color-primary-text: #ffffff;
   --color-focus: #1b4fd8;
 
@@ -21,6 +26,10 @@
   --color-danger-text: #7a1010;
   --color-info-bg: #e6eefc;
   --color-info-text: #12306f;
+  --color-attention-bg: #ffe9d6;
+  --color-attention-text: #6b2e00;
+  --color-neutral-bg: #e9ecf1;
+  --color-neutral-text: #2d3441;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -29,22 +38,29 @@
   --space-6: 1.5rem;
   --space-8: 2rem;
 
-  --radius: 0.75rem;
+  --radius: 0.625rem;
   --tap-target: 2.75rem; /* 44px */
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
   --text-base: 1rem;
-  --text-lg: 1.25rem;
-  --text-xl: 1.75rem;
+  --text-lg: 1.125rem; /* h2 */
+  --text-xl: 1.5rem; /* h1 */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #0f1216;
-    --color-surface: #1a1f27;
+    --color-bg: #0d1117;
+    --color-surface: #161b22;
     --color-text: #eef0f4;
     --color-text-muted: #b4bbc8;
-    --color-border: #3a4150;
+    --color-border: #4a5262;
+    --color-border-soft: rgba(255, 255, 255, 0.1);
+    --color-row-hover: rgba(143, 176, 255, 0.08);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-button: 0 1px 2px rgba(0, 0, 0, 0.5);
     --color-primary: #8fb0ff;
+    --color-primary-hover: #aac3ff;
     --color-primary-text: #0b1530;
     --color-focus: #8fb0ff;
 
@@ -56,5 +72,9 @@
     --color-danger-text: #ffc9c9;
     --color-info-bg: #14264d;
     --color-info-text: #cddcff;
+    --color-attention-bg: #3d2210;
+    --color-attention-text: #ffd3ad;
+    --color-neutral-bg: #252c37;
+    --color-neutral-text: #d6dbe5;
   }
 }

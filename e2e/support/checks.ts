@@ -77,6 +77,14 @@ export async function expectGoodScreen(page: Page, label: string): Promise<void>
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     await expectAccessible(page, `${label} [${scheme}]`);
+    // Opt-in: SCANIN_E2E_SHOTS=<dir> saves a picture of every audited screen, for eyeballing.
+    if (process.env.SCANIN_E2E_SHOTS) {
+      const name = `${label}-${scheme}`.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+      await page.screenshot({
+        path: `${process.env.SCANIN_E2E_SHOTS}/${name}.png`,
+        fullPage: true,
+      });
+    }
   }
   await page.emulateMedia({ colorScheme: 'light' });
   await expectNoHorizontalScroll(page, label);

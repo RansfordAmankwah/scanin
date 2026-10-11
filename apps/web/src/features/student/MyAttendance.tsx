@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { studentApi, type MyAttendance as Data } from '../../api/lecturer';
 import { Notice } from '../../components/ui';
-import { INVALIDATION_LABEL, STATUS_LABEL } from '../lecturer/labels';
+import { Badge } from '../../components/ui';
+import { INVALIDATION_LABEL, STATUS_LABEL, STATUS_TONE } from '../lecturer/labels';
 
 /** The student's own attendance only. The server never returns anyone else's. */
 export function MyAttendance({ reloadKey = 0 }: { reloadKey?: number }) {
@@ -48,7 +49,8 @@ export function MyAttendance({ reloadKey = 0 }: { reloadKey?: number }) {
           <ul className="list">
             {c.sessions.map((s) => (
               <li key={s.id}>
-                {s.date} · {s.title}: <strong>{STATUS_LABEL[s.status]}</strong>
+                {s.date} · {s.title}:{' '}
+                <Badge tone={STATUS_TONE[s.status] ?? 'neutral'}>{STATUS_LABEL[s.status]}</Badge>
                 {s.status === 'INVALIDATED' && s.invalidationCategory && (
                   <span className="muted">
                     {' '}

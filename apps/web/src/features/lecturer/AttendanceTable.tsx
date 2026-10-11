@@ -1,6 +1,14 @@
 import type { Counts, SessionRoster } from '../../api/lecturer';
 import { RecordActions } from './RecordActions';
-import { associationLabel, FLAG_LABEL, SOURCE_LABEL, STATUS_LABEL } from './labels';
+import { Badge } from '../../components/ui';
+import {
+  associationLabel,
+  associationTone,
+  FLAG_LABEL,
+  SOURCE_LABEL,
+  STATUS_LABEL,
+  STATUS_TONE,
+} from './labels';
 
 export function CountsPanel({ counts }: { counts: Counts }) {
   return (
@@ -76,10 +84,14 @@ export function AttendanceTable({
               <tr key={r.attendanceId}>
                 <td data-label="Student ID">{r.studentId}</td>
                 <td data-label="Name">{r.fullName}</td>
-                <td data-label="Attendance">{STATUS_LABEL[r.status]}</td>
+                <td data-label="Attendance">
+                  <Badge tone={STATUS_TONE[r.status] ?? 'neutral'}>{STATUS_LABEL[r.status]}</Badge>
+                </td>
                 <td data-label="Recorded by">{SOURCE_LABEL[r.source]}</td>
                 <td data-label="Class-list match">
-                  {associationLabel(r.associationState, r.associationBasis)}
+                  <Badge tone={associationTone(r.associationState)}>
+                    {associationLabel(r.associationState, r.associationBasis)}
+                  </Badge>
                 </td>
                 <td data-label="Flags">
                   {r.flagKinds.length ? r.flagKinds.map((k) => FLAG_LABEL[k] ?? k).join(', ') : '—'}
