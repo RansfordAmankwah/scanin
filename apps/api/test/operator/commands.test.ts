@@ -238,15 +238,9 @@ describe('operator provisioning (no administrator dashboard)', () => {
     }
   });
 
-  it('is the only path to provisioning: the application role cannot create lecturers, courses or pre-verified accounts', async () => {
+  it('is the only path to courses and assignments: the application role cannot create courses, assign lecturers or pre-verify accounts', async () => {
     const insertUser = (cols: string, vals: string) =>
       db.appPool.query(`INSERT INTO users (${cols}) VALUES (${vals})`);
-    await expect(
-      insertUser(
-        'role, email, full_name, password_hash',
-        `'LECTURER', 'self.made@school.test', 'Self Made', 'x'`,
-      ),
-    ).rejects.toMatchObject({ code: '42501' });
     await expect(
       insertUser(
         'email, full_name, password_hash, email_verified_at',

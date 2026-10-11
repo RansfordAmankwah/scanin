@@ -159,6 +159,25 @@ describe('UX-02 accessibility (axe) on every screen', () => {
     expect(await violations()).toEqual([]);
   });
 
+  it('signed-out: the lecturer sign-up form, its error and its confirmation', async () => {
+    mockApi({
+      'GET /auth/me': reply(401, {}),
+      'POST /auth/register/lecturer': reply(400, { error: { code: 'PASSWORD_TOO_SHORT' } }),
+    });
+    render(<App pathname="/" />);
+    await waitFor(() => screen.getByRole('form', { name: /sign in/i }));
+    fireEvent.click(screen.getByRole('button', { name: /create a lecturer account/i }));
+    await waitFor(() => screen.getByRole('form', { name: /create lecturer account/i }));
+    expect(await violations()).toEqual([]);
+
+    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Dr Owusu' } });
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'o@s.test' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'short' } });
+    fireEvent.submit(screen.getByRole('form', { name: /create lecturer account/i }));
+    await waitFor(() => screen.getByText(/choose a password of at least 10 characters/i));
+    expect(await violations()).toEqual([]);
+  });
+
   it('login errors are announced and the page stays accessible', async () => {
     mockApi({
       'GET /auth/me': reply(401, {}),

@@ -63,11 +63,12 @@ describe('database setup for deployment', () => {
       await app.query(
         `INSERT INTO audit_events (class, actor_type, action, retain_until) VALUES ('SECURITY','ANONYMOUS','SETUP_TEST', current_date + 1)`,
       );
-      // But it cannot rewrite history, create privileged users, or change the schema.
+      // But it cannot rewrite history, pre-verify accounts, create courses, or change the schema.
       for (const sql of [
         `UPDATE audit_events SET action = 'x'`,
         `DELETE FROM audit_events`,
-        `INSERT INTO users (role, email, full_name, password_hash) VALUES ('LECTURER', 'x@y.test', 'X', 'x')`,
+        `INSERT INTO users (email, full_name, password_hash, email_verified_at) VALUES ('x@y.test', 'X', 'x', now())`,
+        `INSERT INTO lecturer_courses (lecturer_id, course_id) VALUES (gen_random_uuid(), gen_random_uuid())`,
         `INSERT INTO courses (term_id, code, title) VALUES (gen_random_uuid(), 'A', 'A')`,
         `DROP TABLE users`,
         `CREATE TABLE sneaky (id int)`,

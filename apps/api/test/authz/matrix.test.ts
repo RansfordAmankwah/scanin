@@ -136,6 +136,7 @@ describe('every route must declare its authorization', () => {
       'GET /healthz',
       'POST /auth/login',
       'POST /auth/register/commit',
+      'POST /auth/register/lecturer',
       'POST /auth/register/preview',
       'POST /auth/verify-email',
     ]);

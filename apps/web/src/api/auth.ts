@@ -90,6 +90,27 @@ export async function commitRegistration(
   }
 }
 
+export interface LecturerRegistrationInput {
+  fullName: string;
+  email: string;
+  password: string;
+}
+
+export async function registerLecturer(
+  input: LecturerRegistrationInput,
+): Promise<{ ok: true } | { ok: false; code: string }> {
+  try {
+    const res = await apiFetch<{ error?: { code: string } }>('/auth/register/lecturer', {
+      method: 'POST',
+      body: input,
+    });
+    if (res.ok) return { ok: true };
+    return { ok: false, code: res.data?.error?.code ?? 'ERROR' };
+  } catch {
+    return { ok: false, code: 'NETWORK' };
+  }
+}
+
 export async function verifyEmail(token: string): Promise<boolean> {
   try {
     return (await apiFetch('/auth/verify-email', { method: 'POST', body: { token } })).ok;

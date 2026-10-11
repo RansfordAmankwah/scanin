@@ -250,3 +250,50 @@ describe('projector page access', () => {
     await waitFor(() => screen.getByRole('img', { name: /qr code/i }));
   });
 });
+
+describe('lecturer sign-up', () => {
+  it('creates a lecturer account from the sign-in screen, then returns to sign in', async () => {
+    const fetchMock = mockApi({
+      'GET /auth/me': reply(401, { error: { code: 'UNAUTHENTICATED' } }),
+      'POST /auth/register/lecturer': reply(201, { status: 'registered' }),
+    });
+    render(<App pathname="/" />);
+    await waitFor(() => screen.getByRole('heading', { name: /sign in/i, level: 2 }));
+
+    fireEvent.click(screen.getByRole('button', { name: /create a lecturer account/i }));
+    await waitFor(() => screen.getByRole('heading', { name: /create a lecturer account/i }));
+    type('Full name', 'Dr Owusu');
+    type('E-mail', 'owusu@school.test');
+    type('Password', 'a-long-password-1');
+    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
+
+    await waitFor(() => screen.getByText(/lecturer account created/i));
+    expect(screen.getByText(/once the person who runs scanin has assigned them/i)).toBeTruthy();
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).endsWith('/auth/register/lecturer'));
+    expect(bodyOf(call!)).toEqual({
+      fullName: 'Dr Owusu',
+      email: 'owusu@school.test',
+      password: 'a-long-password-1',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /go to sign in/i }));
+    await waitFor(() => screen.getByRole('heading', { name: /sign in/i, level: 2 }));
+  });
+
+  it('explains a problem and keeps what was typed', async () => {
+    mockApi({
+      'GET /auth/me': reply(401, { error: { code: 'UNAUTHENTICATED' } }),
+      'POST /auth/register/lecturer': reply(400, { error: { code: 'PASSWORD_TOO_SHORT' } }),
+    });
+    render(<App pathname="/" />);
+    await waitFor(() => screen.getByRole('heading', { name: /sign in/i, level: 2 }));
+    fireEvent.click(screen.getByRole('button', { name: /create a lecturer account/i }));
+    await waitFor(() => screen.getByLabelText('Full name'));
+    type('Full name', 'Dr Owusu');
+    type('E-mail', 'owusu@school.test');
+    type('Password', 'short');
+    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
+    await waitFor(() => screen.getByText(/choose a password of at least 10 characters/i));
+    expect((screen.getByLabelText('Full name') as HTMLInputElement).value).toBe('Dr Owusu');
+  });
+});

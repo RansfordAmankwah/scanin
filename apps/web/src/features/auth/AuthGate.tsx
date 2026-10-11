@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { fetchMe, login, logout, type CurrentUser } from '../../api/auth';
 import { Button, Notice, TextField } from '../../components/ui';
+import { LecturerRegister } from './LecturerRegister';
 import { RegisterFlow } from './RegisterFlow';
 
 interface AuthContextValue {
@@ -76,7 +77,7 @@ function LoginForm({ onSignedIn }: { onSignedIn: (u: CurrentUser) => void }) {
  */
 export function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null | undefined>(undefined);
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'register-lecturer'>('login');
 
   useEffect(() => {
     let cancelled = false;
@@ -114,7 +115,15 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 Create an account
               </Button>
             </p>
+            <p>
+              Lecturer?{' '}
+              <Button variant="secondary" onClick={() => setMode('register-lecturer')}>
+                Create a lecturer account
+              </Button>
+            </p>
           </>
+        ) : mode === 'register-lecturer' ? (
+          <LecturerRegister onDone={() => setMode('login')} onCancel={() => setMode('login')} />
         ) : (
           <RegisterFlow onDone={() => setMode('login')} onCancel={() => setMode('login')} />
         )}

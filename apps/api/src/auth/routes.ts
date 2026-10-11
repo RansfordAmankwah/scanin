@@ -67,6 +67,12 @@ const RegisterBody = z.object({
   password: z.string().max(1024),
 });
 
+const LecturerRegisterBody = z.object({
+  fullName: z.string().max(200),
+  email: z.string().max(254).email(),
+  password: z.string().max(1024),
+});
+
 const CommitBody = RegisterBody.extend({ confirmed: z.literal(true) });
 
 const LoginBody = z.object({ email: z.string().max(254), password: z.string().max(1024) });
@@ -144,8 +150,104 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
     req.auth = token ? await findSession(pool, token) : null;
   });
 
+  type NewAccount = {
+    role: 'STUDENT' | 'LECTURER';
+    email: string;
+    fullName: string;
+    password: string;
+    studentId?: { norm: string; display: string };
+  };
+
+  /**
+   * Creates the account and sends the verification e-mail. A duplicate e-mail looks exactly like
+   * success (so the endpoint cannot be used to discover registered addresses); a duplicate student
+   * ID is reported, because the student needs to know.
+   */
+  async function createAccount(
+    req: FastifyRequest,
+    hashedIp: Buffer,
+    a: NewAccount,
+  ): Promise<'CREATED' | 'STUDENT_ID_TAKEN'> {
+    // Always hash, so every path costs the same time.
+    const passwordHash = await hashPassword(a.password);
+    const verificationToken = randomToken();
+
+    try {
+      await withTransaction(pool, async (c) => {
+        const { rows } = await c.query<{ id: string }>(
+          // `email_verified_at` is not insertable by the application database role.
+          `INSERT INTO users (role, email, full_name, student_id_norm, student_id_display, password_hash)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [
+            a.role,
+            a.email,
+            a.fullName,
+            a.studentId?.norm ?? null,
+            a.studentId?.display ?? null,
+            passwordHash,
+          ],
+        );
+        const id = rows[0]?.id;
+        if (!id) throw new Error('user insert returned no row');
+        await c.query(
+          `INSERT INTO account_tokens (token_hash, user_id, purpose, expires_at)
+           VALUES ($1, $2, 'EMAIL_VERIFICATION', clock_timestamp() + make_interval(hours => $3))`,
+          [sha256(verificationToken), id, VERIFICATION_TTL_HOURS],
+        );
+        await writeAudit(c, {
+          class: 'SECURITY',
+          actorType: a.role,
+          actorUserId: id,
+          action: 'ACCOUNT_REGISTERED',
+          entityType: 'user',
+          entityId: id,
+          requestId: req.id,
+          ipHash: hashedIp,
+        });
+      });
+    } catch (err) {
+      if (isUniqueViolation(err, 'users_student_id_norm_key') && a.studentId) {
+        await writeAudit(pool, {
+          class: 'SECURITY',
+          actorType: 'ANONYMOUS',
+          action: 'REGISTRATION_ID_CONFLICT',
+          outcome: 'DENIED',
+          entityType: 'student_id',
+          entityId: keyedHash(config.IP_HASH_SECRET, 'sid', a.studentId.norm).toString('hex'),
+          requestId: req.id,
+          ipHash: hashedIp,
+        });
+        return 'STUDENT_ID_TAKEN';
+      }
+      if (isUniqueViolation(err, 'users_email_key')) {
+        await writeAudit(pool, {
+          class: 'SECURITY',
+          actorType: 'ANONYMOUS',
+          action: 'REGISTRATION_EMAIL_CONFLICT',
+          outcome: 'DENIED',
+          requestId: req.id,
+          ipHash: hashedIp,
+        });
+        return 'CREATED';
+      }
+      throw err;
+    }
+
+    try {
+      await mailer.sendEmailVerification(
+        a.email,
+        `${config.APP_ORIGIN}/verify-email#t=${verificationToken}`,
+      );
+    } catch (err) {
+      // The account exists; they can request another link later. Never log the link.
+      req.log.error({ err: (err as Error).name }, 'verification e-mail failed');
+    }
+    return 'CREATED';
+  }
+
   // ---------------------------------------------------------------------------------------------
-  // Registration (students only; lecturers are provisioned by the operator).
+  // Registration. Students and lecturers can both sign up. A lecturer account sees nothing until an
+  // operator assigns it a course.
   // ---------------------------------------------------------------------------------------------
 
   /** Validates and echoes the normalised details for the confirmation screen. Writes nothing. */
@@ -181,82 +283,47 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
     if (!n.ok) return fail(reply, 400, n.code, n.message);
     const v = n.value;
 
-    // Always hash, so every path costs the same time.
-    const passwordHash = await hashPassword(v.password);
-    const verificationToken = randomToken();
-
-    try {
-      const userId = await withTransaction(pool, async (c) => {
-        const { rows } = await c.query<{ id: string }>(
-          // `role` is deliberately omitted: the column default is STUDENT and the application
-          // database role has no privilege to set it.
-          `INSERT INTO users (email, full_name, student_id_norm, student_id_display, password_hash)
-           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-          [v.email, v.fullName, v.studentId, v.studentIdDisplay, passwordHash],
-        );
-        const id = rows[0]?.id;
-        if (!id) throw new Error('user insert returned no row');
-        await c.query(
-          `INSERT INTO account_tokens (token_hash, user_id, purpose, expires_at)
-           VALUES ($1, $2, 'EMAIL_VERIFICATION', clock_timestamp() + make_interval(hours => $3))`,
-          [sha256(verificationToken), id, VERIFICATION_TTL_HOURS],
-        );
-        await writeAudit(c, {
-          class: 'SECURITY',
-          actorType: 'STUDENT',
-          actorUserId: id,
-          action: 'ACCOUNT_REGISTERED',
-          entityType: 'user',
-          entityId: id,
-          requestId: req.id,
-          ipHash: hashedIp,
-        });
-        return id;
-      });
-      void userId;
-      try {
-        await mailer.sendEmailVerification(
-          v.email,
-          `${config.APP_ORIGIN}/verify-email#t=${verificationToken}`,
-        );
-      } catch (err) {
-        // The account exists; the student can request another link later. Never log the link.
-        req.log.error({ err: (err as Error).name }, 'verification e-mail failed');
-      }
-    } catch (err) {
-      if (isUniqueViolation(err, 'users_student_id_norm_key')) {
-        await writeAudit(pool, {
-          class: 'SECURITY',
-          actorType: 'ANONYMOUS',
-          action: 'REGISTRATION_ID_CONFLICT',
-          outcome: 'DENIED',
-          entityType: 'student_id',
-          entityId: keyedHash(config.IP_HASH_SECRET, 'sid', v.studentId).toString('hex'),
-          requestId: req.id,
-          ipHash: hashedIp,
-        });
-        return fail(
-          reply,
-          409,
-          'STUDENT_ID_TAKEN',
-          'This student ID is already registered. If you think this is an error, contact your lecturer.',
-        );
-      }
-      if (isUniqueViolation(err, 'users_email_key')) {
-        // Same response as success, so the endpoint cannot be used to discover registered e-mails.
-        await writeAudit(pool, {
-          class: 'SECURITY',
-          actorType: 'ANONYMOUS',
-          action: 'REGISTRATION_EMAIL_CONFLICT',
-          outcome: 'DENIED',
-          requestId: req.id,
-          ipHash: hashedIp,
-        });
-      } else {
-        throw err;
-      }
+    const outcome = await createAccount(req, hashedIp, {
+      role: 'STUDENT',
+      email: v.email,
+      fullName: v.fullName,
+      password: v.password,
+      studentId: { norm: v.studentId, display: v.studentIdDisplay },
+    });
+    if (outcome === 'STUDENT_ID_TAKEN') {
+      return fail(
+        reply,
+        409,
+        'STUDENT_ID_TAKEN',
+        'This student ID is already registered. If you think this is an error, contact your lecturer.',
+      );
     }
 
+    return reply.code(201).send({ status: 'registered' });
+  });
+
+  app.post('/auth/register/lecturer', PUBLIC, async (req, reply) => {
+    const hashedIp = ipHash(req);
+    const limit = await hit(pool, `register:${hashedIp.toString('hex')}`, REGISTER_WINDOW_S);
+    if (limit.count > REGISTER_MAX_PER_IP) {
+      return fail(reply, 429, 'RATE_LIMITED', 'Too many attempts. Try again later.', {
+        retryAfterSeconds: limit.retryAfterSeconds,
+      });
+    }
+    const body = LecturerRegisterBody.safeParse(req.body);
+    if (!body.success) return fail(reply, 400, 'INVALID_REQUEST', 'Check the form and try again.');
+    const fullName = normalizeFullName(body.data.fullName);
+    if (!fullName) return fail(reply, 400, 'INVALID_NAME', 'Enter your full name.');
+    const policy = checkPasswordPolicy(body.data.password);
+    if (policy) {
+      return fail(reply, 400, policy, 'Choose a password of 10 to 128 characters.');
+    }
+    await createAccount(req, hashedIp, {
+      role: 'LECTURER',
+      email: normalizeEmail(body.data.email),
+      fullName,
+      password: body.data.password,
+    });
     return reply.code(201).send({ status: 'registered' });
   });
 
