@@ -276,6 +276,65 @@ describe('lecturer: roster import', () => {
     expect(bodyOf(apply)).toMatchObject({ previewToken: 'p'.repeat(64), retireEntryIds: ['m1'] });
   });
 
+  describe('importing spreadsheets', () => {
+    const previewReply = () =>
+      reply(200, {
+        previewToken: 'p'.repeat(64),
+        counts: { added: 1, changed: 0, unchanged: 0, missing: 0 },
+        added: [{ studentId: 'A1', fullName: 'Ann Smith' }],
+        changed: [],
+        missing: [],
+      });
+    const routes = () => ({
+      ...signedInLecturer,
+      [`GET /courses/${COURSE}`]: reply(200, { course }),
+      [`GET /courses/${COURSE}/review-queue`]: reply(200, { links: [], flags: [] }),
+      [`GET /courses/${COURSE}/sessions`]: reply(200, { sessions: [] }),
+      [`POST /courses/${COURSE}/roster/preview`]: previewReply(),
+    });
+    const previewBody = (fetchMock: ReturnType<typeof mockApi>) =>
+      bodyOf(fetchMock.mock.calls.find((c) => String(c[0]).endsWith('/roster/preview'))!);
+    const COMMA_CSV = 'student_id,full_name\nA1,Ann Smith\n';
+    const TAB_CSV = 'student_id\tfull_name\nA1\tAnn Smith\n';
+
+    it('turns an uploaded tab-separated file into comma-separated text, shows it, and previews that', async () => {
+      const fetchMock = mockApi(routes());
+      render(<App pathname={`/courses/${COURSE}`} />);
+      await waitFor(() => screen.getByLabelText(/spreadsheet or csv file/i));
+      fireEvent.change(screen.getByLabelText(/spreadsheet or csv file/i), {
+        target: { files: [new File([TAB_CSV], 'class.tsv')] },
+      });
+      await waitFor(() => screen.getByText(/class\.tsv: file read/i));
+      const box = screen.getByLabelText(/or paste the csv/i) as HTMLTextAreaElement;
+      expect(box.value).toBe(COMMA_CSV);
+
+      fireEvent.click(screen.getByRole('button', { name: /preview changes/i }));
+      await waitFor(() => screen.getByText(/1 to add/i));
+      expect(previewBody(fetchMock).csv).toBe(COMMA_CSV);
+    });
+
+    it('converts cells pasted from a spreadsheet when previewing', async () => {
+      const fetchMock = mockApi(routes());
+      render(<App pathname={`/courses/${COURSE}`} />);
+      await waitFor(() => screen.getByLabelText(/or paste the csv/i));
+      fireEvent.change(screen.getByLabelText(/or paste the csv/i), { target: { value: TAB_CSV } });
+      fireEvent.click(screen.getByRole('button', { name: /preview changes/i }));
+      await waitFor(() => screen.getByText(/1 to add/i));
+      expect(previewBody(fetchMock).csv).toBe(COMMA_CSV);
+    });
+
+    it('tells the lecturer what to do with a file it cannot read', async () => {
+      mockApi(routes());
+      render(<App pathname={`/courses/${COURSE}`} />);
+      await waitFor(() => screen.getByLabelText(/spreadsheet or csv file/i));
+      const old = new File([new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 1, 2])], 'old.xls');
+      fireEvent.change(screen.getByLabelText(/spreadsheet or csv file/i), {
+        target: { files: [old] },
+      });
+      await waitFor(() => screen.getByText(/old excel file \(\.xls\).*save as/i));
+    });
+  });
+
   it('explains an unusable file and a stale preview', async () => {
     open();
     vi.stubGlobal(

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { lecturerApi, type RosterPreview } from '../../api/lecturer';
 import { Button, Notice } from '../../components/ui';
+import { fileToCsv, normalizeDelimited, type FileProblem } from './rosterFile';
 
 const PROBLEMS: Record<string, string> = {
   INVALID_ROSTER:
@@ -8,6 +9,18 @@ const PROBLEMS: Record<string, string> = {
   STALE_PREVIEW: 'The class list changed since this preview. Preview the file again.',
   ROSTER_CONFLICT: 'A row clashes with an existing entry (same student ID or e-mail).',
   NETWORK: 'Could not reach the server. Try again.',
+};
+
+const FILE_PROBLEMS: Record<FileProblem, string> = {
+  TOO_BIG: 'That file is too large (5 MB at most). Remove unused rows or sheets and try again.',
+  UNSUPPORTED_EXCEL_OLD:
+    'That is an old Excel file (.xls). Open it and choose File, Save As, Excel Workbook (.xlsx) or CSV, then upload that.',
+  UNSUPPORTED:
+    'That file type cannot be read. Open it in your spreadsheet app and save or download it as Excel (.xlsx) or CSV.',
+  UNREADABLE:
+    'That file could not be read. Save it again as Excel (.xlsx) or CSV, or copy the cells and paste them below.',
+  EMPTY: 'That file is empty.',
+  TOO_MANY_ROWS: 'That sheet has too many rows (20,000 at most). Split it and import in parts.',
 };
 
 /** Paste or upload a class list, see exactly what would change, then apply. Nothing is overwritten. */
@@ -23,11 +36,29 @@ export function RosterImport({
   const [retire, setRetire] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [fileNote, setFileNote] = useState<string | null>(null);
+
+  const chooseFile = async (file: File) => {
+    setMessage(null);
+    setFileNote(null);
+    setPreview(null);
+    const converted = await fileToCsv(file);
+    if (converted.ok) {
+      setCsv(converted.csv);
+      setFileNote(`${file.name}: ${converted.note} Check the rows below, then preview.`);
+    } else {
+      setMessage({ tone: 'danger', text: FILE_PROBLEMS[converted.code] });
+    }
+  };
 
   const runPreview = async () => {
     setBusy(true);
     setMessage(null);
-    const r = await lecturerApi.rosterPreview(courseId, csv);
+    // Cells pasted from Excel or Google Sheets are tab-separated; make them comma-separated first.
+    // The same text is then sent for the preview and the apply, so the two always agree.
+    const text = normalizeDelimited(csv);
+    if (text !== csv) setCsv(text);
+    const r = await lecturerApi.rosterPreview(courseId, text);
     setBusy(false);
     if (r.ok) {
       setPreview(r.data);
@@ -70,21 +101,24 @@ export function RosterImport({
     <section className="card" aria-labelledby="roster-heading">
       <h2 id="roster-heading">Class list (roster)</h2>
       <p className="muted">
-        Upload a CSV with student_id and full_name columns (e-mail optional). You see the changes
-        before anything is applied, and existing entries are never overwritten.
+        Upload an Excel (.xlsx) or CSV file, or paste rows copied from Excel or Google Sheets. It
+        needs student_id and full_name columns in the first row (e-mail optional). You see the
+        changes before anything is applied, and existing entries are never overwritten.
       </p>
       <div className="field">
-        <label htmlFor="roster-file">CSV file</label>
+        <label htmlFor="roster-file">Spreadsheet or CSV file</label>
         <input
           id="roster-file"
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,.tsv,.txt,.xlsx,.xlsm,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) void file.text().then(setCsv);
+            if (file) void chooseFile(file);
           }}
         />
+        <span className="hint">Excel (.xlsx), CSV, or tab- or semicolon-separated text.</span>
       </div>
+      {fileNote && <p role="status">{fileNote}</p>}
       <div className="field">
         <label htmlFor="roster-text">Or paste the CSV</label>
         <textarea id="roster-text" rows={5} value={csv} onChange={(e) => setCsv(e.target.value)} />

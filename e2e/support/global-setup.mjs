@@ -137,7 +137,7 @@ export default async function globalSetup() {
   server.stderr.pipe(log);
 
   // Wait until it answers.
-  const deadline = Date.now() + 30_000;
+  const deadline = Date.now() + 90_000; // generous: a cold start on a busy laptop can be slow
   for (;;) {
     try {
       const res = await fetch(`${origin}/healthz`);
