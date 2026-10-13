@@ -174,7 +174,11 @@ describe('LOAD-01 a lecture hall scanning one code', () => {
     const { course, session, token } = await openSession();
     const crowd = await createBulkStudents(db, 500);
     const results = await paced(500, 20_000, (i) =>
-      http('POST', '/checkins', crowd[i]!.cookie, { token, clientAttemptId: randomUUID() }),
+      http('POST', '/checkins', crowd[i]!.cookie, {
+        token,
+        clientAttemptId: randomUUID(),
+        deviceId: randomUUID(),
+      }),
     );
 
     expect(results.filter((r) => r.status >= 500)).toHaveLength(0);
@@ -208,7 +212,11 @@ describe('LOAD-01 a lecture hall scanning one code', () => {
     const crowd = await createBulkStudents(db, 500);
     const started = performance.now();
     const results = await burst(500, 50, (i) =>
-      http('POST', '/checkins', crowd[i]!.cookie, { token, clientAttemptId: randomUUID() }),
+      http('POST', '/checkins', crowd[i]!.cookie, {
+        token,
+        clientAttemptId: randomUUID(),
+        deviceId: randomUUID(),
+      }),
     );
     const seconds = (performance.now() - started) / 1000;
 
@@ -262,7 +270,11 @@ describe('LOAD-01 a lecture hall scanning one code', () => {
       return res;
     })();
     const scans = paced(400, 6_000, (i) =>
-      http('POST', '/checkins', crowd[i]!.cookie, { token, clientAttemptId: randomUUID() }),
+      http('POST', '/checkins', crowd[i]!.cookie, {
+        token,
+        clientAttemptId: randomUUID(),
+        deviceId: randomUUID(),
+      }),
     );
     const [endRes, results] = await Promise.all([ending, scans]);
 
@@ -316,7 +328,11 @@ describe('LOAD-02 lecturers watching live while students check in', () => {
     const scans = classes.flatMap((c, k) => crowds[k]!.map((s, i) => ({ c, s, i })));
     const results = await paced(scans.length, 8_000, (n) => {
       const { c, s } = scans[n]!;
-      return http('POST', '/checkins', s.cookie, { token: c.token, clientAttemptId: randomUUID() });
+      return http('POST', '/checkins', s.cookie, {
+        token: c.token,
+        clientAttemptId: randomUUID(),
+        deviceId: randomUUID(),
+      });
     });
     scanning = false;
     await Promise.all(pollers);

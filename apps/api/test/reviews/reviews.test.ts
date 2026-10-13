@@ -100,7 +100,7 @@ async function scan(s: BulkStudent, sessionId: string) {
   return post(
     t.app,
     '/checkins',
-    { token: await checkInToken(sessionId), clientAttemptId: randomUUID() },
+    { token: await checkInToken(sessionId), clientAttemptId: randomUUID(), deviceId: randomUUID() },
     { cookie: s.cookie, ip: freshIp() },
   );
 }

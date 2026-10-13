@@ -63,6 +63,7 @@ describe('submitCheckIn', () => {
     [409, { error: { code: 'SESSION_NOT_STARTED' } }, 'not-started'],
     [409, { error: { code: 'SESSION_CLOSED' } }, 'closed'],
     [403, { error: { code: 'DEVICE_ALREADY_USED' } }, 'device-used'],
+    [400, { error: { code: 'DEVICE_ID_REQUIRED' } }, 'reload-needed'],
     [409, { error: { code: 'SESSION_ENDED' } }, 'ended'],
     [400, { error: { code: 'INVALID_CODE' } }, 'invalid'],
     [401, { error: { code: 'UNAUTHENTICATED' } }, 'signed-out'],

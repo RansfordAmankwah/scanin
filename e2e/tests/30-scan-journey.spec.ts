@@ -185,6 +185,46 @@ test('with the camera blocked, the student is told what to do instead', async ({
   }
 });
 
+test('two student accounts on the same browser: the second cannot check in for the same class', async ({
+  browser,
+}) => {
+  const first = newStudent('swapa');
+  const second = newStudent('swapb');
+  const { page, context } = await newPhone(browser);
+  try {
+    // Account A signs in on this browser and checks in.
+    await registerAndSignIn(page, first);
+    await openCode(page, (await mint()).qrUrl);
+    await expect(page.getByText("You're checked in")).toBeVisible({ timeout: 15_000 });
+
+    // Account B signs in on the very same browser (same stored device id) and scans the same code.
+    await page.getByRole('button', { name: 'Sign out' }).tap();
+    await expect(page.getByRole('form', { name: 'Sign in' })).toBeVisible();
+    await registerAndSignIn(page, second);
+    await openCode(page, (await mint()).qrUrl);
+    await expect(page.getByText('Device error')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/already used by another student/)).toBeVisible();
+    await expectGoodScreen(page, 'device error');
+    // The message does not say who the other student was.
+    await expect(page.getByText(first.fullName)).toHaveCount(0);
+    await expect(page.getByText(first.studentId)).toHaveCount(0);
+
+    // The lecturer's view, from the real server: only A has attendance; B is a rejected scan.
+    const roster = JSON.stringify(
+      (await api(lecturerPage, 'GET', `/courses/${courseId}/sessions/${sessionId}/attendance`))
+        .json,
+    );
+    expect(roster).toContain(first.studentId);
+    expect(roster).not.toContain(second.studentId);
+    const scans = JSON.stringify(
+      (await api(lecturerPage, 'GET', `/courses/${courseId}/sessions/${sessionId}/scans`)).json,
+    );
+    expect(scans).toContain('REJECTED_DEVICE_REUSED');
+  } finally {
+    await context.close();
+  }
+});
+
 test('the lecturer sees the counts, the scan history, can invalidate a record and download a CSV', async () => {
   const page = lecturerPage;
   await page.goto(`/courses/${courseId}/sessions/${sessionId}`);

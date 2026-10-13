@@ -90,7 +90,11 @@ async function scan(
   return post(
     t.app,
     '/checkins',
-    { token: mintToken(keyring, sessionId, now).token, clientAttemptId: randomUUID() },
+    {
+      token: mintToken(keyring, sessionId, now).token,
+      clientAttemptId: randomUUID(),
+      deviceId: randomUUID(),
+    },
     {
       cookie: student.cookie,
       ip: opts.ip ?? freshIp(),

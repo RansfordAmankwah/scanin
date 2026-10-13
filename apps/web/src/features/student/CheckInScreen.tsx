@@ -304,6 +304,15 @@ function Result({
           <Button onClick={onDone}>Done</Button>
         </section>
       );
+    case 'reload-needed':
+      return (
+        <section className="card">
+          <Notice tone="warning" title="Reload ScanIn to finish checking in" urgent>
+            This copy of ScanIn is out of date. Reload it, then scan the code again.
+          </Notice>
+          <Button onClick={() => window.location.reload()}>Reload</Button>
+        </section>
+      );
     case 'error':
       return (
         <section className="card">

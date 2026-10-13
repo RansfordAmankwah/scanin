@@ -93,7 +93,11 @@ async function scan(s: BulkStudent, session: string) {
   return post(
     t.app,
     '/checkins',
-    { token: mintToken(keyring, session, now).token, clientAttemptId: randomUUID() },
+    {
+      token: mintToken(keyring, session, now).token,
+      clientAttemptId: randomUUID(),
+      deviceId: randomUUID(),
+    },
     { cookie: s.cookie, ip: freshIp() },
   );
 }

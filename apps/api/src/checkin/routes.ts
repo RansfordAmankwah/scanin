@@ -17,7 +17,10 @@ const PER_IP_PER_MINUTE = 600;
 const Body = z.object({
   token: z.string().min(1).max(200),
   clientAttemptId: z.string().uuid(),
-  /** The browser's random device id. Optional so an older cached app still works. */
+  /**
+   * The browser's random device id. Required (checked below, with its own error code) so that
+   * leaving it out cannot be used to skip the one-device-one-student rule.
+   */
   deviceId: z.string().uuid().optional(),
 });
 
@@ -30,6 +33,8 @@ const STATUS_FOR_REASON: Record<RejectionReason, number> = {
   SESSION_ENDED: 409,
   DEVICE_ALREADY_USED: 403,
 };
+
+const DEVICE_ID_REQUIRED_MESSAGE = 'Reload ScanIn, then scan the code again.';
 
 const MESSAGE_FOR_REASON: Record<RejectionReason, string> = {
   INVALID_CODE: 'This is not a valid check-in code.',
@@ -55,7 +60,11 @@ export function userAgentFamily(ua: string | undefined): string {
 
 export function registerCheckInRoutes(
   app: FastifyInstance,
-  deps: { pool: pg.Pool; config: Pick<Config, 'IP_HASH_SECRET' | 'DEVICE_POLICY'>; keyring: Keyring },
+  deps: {
+    pool: pg.Pool;
+    config: Pick<Config, 'IP_HASH_SECRET' | 'DEVICE_POLICY'>;
+    keyring: Keyring;
+  },
 ): void {
   const { pool, config, keyring } = deps;
 
@@ -90,6 +99,23 @@ export function registerCheckInRoutes(
       const body = Body.safeParse(req.body);
       if (!body.success) return send(reply, 400, 'INVALID_REQUEST', 'Scan the QR code again.');
 
+      // The device rule is only a control if every check-in carries a device id. An up-to-date
+      // browser always sends one; a stale cached app is told to reload, and a client that leaves it
+      // out on purpose gets nothing recorded and leaves a trace.
+      const deviceId = body.data.deviceId;
+      if (!deviceId) {
+        await writeAudit(pool, {
+          class: 'SECURITY',
+          actorType: 'STUDENT',
+          actorUserId: studentId,
+          action: 'CHECKIN_DEVICE_ID_MISSING',
+          outcome: 'DENIED',
+          requestId: req.id,
+          ipHash,
+        });
+        return send(reply, 400, 'DEVICE_ID_REQUIRED', DEVICE_ID_REQUIRED_MESSAGE);
+      }
+
       // Signature first, with no database access: forged or garbled codes stop here.
       const verified = verifyToken(keyring, body.data.token);
       if (!verified.ok) {
@@ -113,9 +139,7 @@ export function registerCheckInRoutes(
           clientAttemptId: body.data.clientAttemptId,
           ipHash,
           userAgentFamily: userAgentFamily(req.headers['user-agent']),
-          deviceHash: body.data.deviceId
-            ? keyedHash(config.IP_HASH_SECRET, 'device', body.data.deviceId)
-            : null,
+          deviceHash: keyedHash(config.IP_HASH_SECRET, 'device', deviceId),
           devicePolicy: config.DEVICE_POLICY,
         });
 

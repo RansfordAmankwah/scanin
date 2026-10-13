@@ -12,6 +12,7 @@ import {
   freshIp,
   newRegistration,
   post,
+  registerAndLogin,
   registerStudent,
   type TestApp,
 } from '../helpers/app.js';
@@ -105,7 +106,7 @@ async function codeFor(sessionId: string, ageMs = 0): Promise<string> {
 async function scan(
   cookie: string,
   token: string,
-  opts: { attemptId?: string; headers?: Record<string, string>; deviceId?: string } = {},
+  opts: { attemptId?: string; headers?: Record<string, string>; deviceId?: string | null } = {},
 ) {
   return post(
     t.app,
@@ -113,7 +114,8 @@ async function scan(
     {
       token,
       clientAttemptId: opts.attemptId ?? randomUUID(),
-      ...(opts.deviceId ? { deviceId: opts.deviceId } : {}),
+      // Every scan is from a different phone unless the test names one; null sends no device id.
+      ...(opts.deviceId === null ? {} : { deviceId: opts.deviceId ?? randomUUID() }),
     },
     { cookie, ip: freshIp(), headers: opts.headers ?? {} },
   );
@@ -451,6 +453,7 @@ describe('QR-01 forged or malformed codes never reach the database', () => {
       {
         token: await codeFor(sessionId),
         clientAttemptId: randomUUID(),
+        deviceId: randomUUID(),
         studentId: other!.id,
         userId: other!.id,
       },
@@ -897,9 +900,10 @@ describe('device binding: one phone, one student per class', () => {
     const outcomes = (await attemptsFor(sessionId)).map((x) => x.outcome);
     expect(outcomes).toEqual(['ACCEPTED', 'REJECTED_DEVICE_REUSED']);
     expect(
-      await count(`SELECT 1 FROM audit_events WHERE session_id = $1 AND action = 'CHECKIN_DEVICE_REUSED'`, [
-        sessionId,
-      ]),
+      await count(
+        `SELECT 1 FROM audit_events WHERE session_id = $1 AND action = 'CHECKIN_DEVICE_REUSED'`,
+        [sessionId],
+      ),
     ).toBe(1);
     // The raw device id is never stored.
     const stored = await db.pool.query<{ device_hash: Buffer }>(
@@ -925,9 +929,9 @@ describe('device binding: one phone, one student per class', () => {
     const [a, b] = await nextStudents(2);
     for (const s of [a!, b!]) {
       const sessionId = await openSession();
-      expect((await scan(s.cookie, await codeFor(sessionId), { deviceId: device })).statusCode).toBe(
-        201,
-      );
+      expect(
+        (await scan(s.cookie, await codeFor(sessionId), { deviceId: device })).statusCode,
+      ).toBe(201);
     }
   });
 
@@ -977,17 +981,16 @@ describe('device binding: one phone, one student per class', () => {
       true,
     );
     expect(
-      await count(
-        `SELECT 1 FROM attendance_records WHERE session_id = $1 AND status = 'PRESENT'`,
-        [sessionId],
-      ),
+      await count(`SELECT 1 FROM attendance_records WHERE session_id = $1 AND status = 'PRESENT'`, [
+        sessionId,
+      ]),
     ).toBe(2);
   });
 
-  it('rejects a malformed device id and still works without one (older cached app)', async () => {
+  it('rejects a malformed device id', async () => {
     const sessionId = await openSession();
     const token = await codeFor(sessionId);
-    const [a, b] = await nextStudents(2);
+    const [a] = await nextStudents(1);
     const bad = await post(
       t.app,
       '/checkins',
@@ -995,6 +998,88 @@ describe('device binding: one phone, one student per class', () => {
       { cookie: a!.cookie, ip: freshIp(), headers: {} },
     );
     expect(bad.statusCode).toBe(400);
-    expect((await scan(b!.cookie, token)).statusCode).toBe(201);
+    expect(await attendanceFor(sessionId)).toBe(0);
+  });
+
+  it('records nothing when a check-in leaves the device id out, so omitting it cannot skip the rule', async () => {
+    const sessionId = await openSession();
+    const token = await codeFor(sessionId);
+    const [a, b] = await nextStudents(2);
+    for (const s of [a!, b!]) {
+      const res = await scan(s.cookie, token, { deviceId: null });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error.code).toBe('DEVICE_ID_REQUIRED');
+    }
+    expect(await attendanceFor(sessionId)).toBe(0);
+    expect(await attemptsFor(sessionId)).toEqual([]);
+    expect(
+      await count(
+        `SELECT 1 FROM audit_events WHERE action = 'CHECKIN_DEVICE_ID_MISSING' AND actor_user_id = $1`,
+        [a!.id],
+      ),
+    ).toBe(1);
+    // Once the app sends its id, the same student checks in normally.
+    expect((await scan(a!.cookie, token, { deviceId: randomUUID() })).statusCode).toBe(201);
+  });
+
+  it('does not let a rejected attempt use up a device', async () => {
+    const sessionId = await openSession();
+    const stale = await codeFor(sessionId, 4 * 60_000); // older than the three-minute lifetime
+    const fresh = await codeFor(sessionId);
+    const [a, b] = await nextStudents(2);
+    const device = randomUUID();
+    expect((await scan(a!.cookie, stale, { deviceId: device })).statusCode).toBe(410);
+    expect(await count('SELECT 1 FROM device_sessions WHERE session_id = $1', [sessionId])).toBe(0);
+    expect((await scan(b!.cookie, fresh, { deviceId: device })).statusCode).toBe(201);
+  });
+
+  it('REPORTED CASE: two student accounts signing in one after the other on the same browser', async () => {
+    const sessionId = await openSession();
+    const token = await codeFor(sessionId);
+    const device = randomUUID(); // what the one browser keeps in its storage across both logins
+    const first = await registerAndLogin(t.app);
+    const second = await registerAndLogin(t.app);
+
+    // Account A signs in and checks in. Repeating it is not a duplicate. Then A signs out.
+    expect((await scan(first.cookie, token, { deviceId: device })).statusCode).toBe(201);
+    const repeat = await scan(first.cookie, token, { deviceId: device });
+    expect(repeat.statusCode).toBe(200);
+    expect(repeat.json().result).toBe('ALREADY_RECORDED');
+    await post(t.app, '/auth/logout', {}, { cookie: first.cookie });
+
+    // Account B signs in on the same browser and scans the same code.
+    const blocked = await scan(second.cookie, token, { deviceId: device });
+    expect(blocked.statusCode).toBe(403);
+    expect(blocked.json().error.code).toBe('DEVICE_ALREADY_USED');
+
+    // Nothing about account A leaks to account B.
+    const body = blocked.body;
+    for (const secret of [first.reg.email, first.reg.fullName, first.reg.studentId, device]) {
+      expect(body).not.toContain(secret);
+    }
+
+    // Persisted state: one attendance record (A's), one device claim (A's), B only a rejection.
+    const records = await db.pool.query<{ email: string }>(
+      `SELECT u.email FROM attendance_records a JOIN users u ON u.id = a.student_id WHERE a.session_id = $1`,
+      [sessionId],
+    );
+    expect(records.rows).toEqual([{ email: first.reg.email.toLowerCase() }]);
+    expect(await count('SELECT 1 FROM device_sessions WHERE session_id = $1', [sessionId])).toBe(1);
+    expect((await attemptsFor(sessionId)).map((x) => x.outcome)).toEqual([
+      'ACCEPTED',
+      'DUPLICATE_EXISTING', // A's own repeat
+      'REJECTED_DEVICE_REUSED', // B on the same browser
+    ]);
+
+    // The audit event names no one else's identity and holds no device id, token or cookie.
+    const audit = await db.pool.query<{ summary: unknown }>(
+      `SELECT summary FROM audit_events WHERE session_id = $1 AND action = 'CHECKIN_DEVICE_REUSED'`,
+      [sessionId],
+    );
+    expect(audit.rows).toHaveLength(1);
+    const logged = JSON.stringify(audit.rows[0]);
+    for (const secret of [first.reg.email, first.reg.studentId, device, token]) {
+      expect(logged).not.toContain(secret);
+    }
   });
 });

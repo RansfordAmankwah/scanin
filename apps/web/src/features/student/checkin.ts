@@ -22,6 +22,7 @@ export type CheckInOutcome =
   | { kind: 'ended' }
   | { kind: 'invalid' }
   | { kind: 'device-used' }
+  | { kind: 'reload-needed' } // an out-of-date cached copy of the app did not send a device id
   | { kind: 'rate-limited'; retryAfterSeconds: number }
   | { kind: 'signed-out' }
   | { kind: 'retryable' } // network failure or a temporary server problem: safe to try again
@@ -44,6 +45,7 @@ const REJECTIONS: Record<string, CheckInOutcome> = {
   SESSION_ENDED: { kind: 'ended' },
   INVALID_CODE: { kind: 'invalid' },
   DEVICE_ALREADY_USED: { kind: 'device-used' },
+  DEVICE_ID_REQUIRED: { kind: 'reload-needed' },
 };
 
 /**
