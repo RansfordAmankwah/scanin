@@ -3,7 +3,8 @@
 A campus attendance tracker with QR check-in. A lecturer starts a class session and shows a QR code that refreshes every 30 seconds. Students sign in on their phones and scan it. The database and backend are the source of truth.
 
 - Two roles only: **lecturer** and **student**. There is no admin dashboard. Lecturers sign up themselves and create their own terms and courses; an operator CLI covers exceptions such as adding a second lecturer to a course.
-- One effective attendance record per student per session, enforced by the database.
+- One effective attendance record per student per session, enforced by the database, and one device per student per class (`docs/DEVICE_BINDING.md`).
+- Anti-proxy controls: a room headcount compared with attendance, randomised in-person spot checks, and a review process for the student, all as review signals rather than penalties (`docs/ANTI_PROXY.md`).
 - Identity uncertainty is explicit: matches to the class list are _provisional_, _needs review_, _confirmed_ or _rejected_, and a lecturer decides.
 - No biometrics, no precise location, and nothing is written to official university systems.
 - Exports to CSV, Excel, PDF and Word.

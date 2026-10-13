@@ -43,9 +43,7 @@ export interface AuthDeps {
 // Limits. Failed logins are counted per account and per IP in 15-minute fixed windows.
 const LOGIN_WINDOW_S = 15 * 60;
 const LOGIN_MAX_FAILURES_PER_ACCOUNT = 5;
-const LOGIN_MAX_FAILURES_PER_IP = 30;
 const REGISTER_WINDOW_S = 60 * 60;
-const REGISTER_MAX_PER_IP = 10;
 const PASSWORD_CHANGE_MAX_FAILURES = 5;
 
 const VERIFICATION_TTL_HOURS = 24;
@@ -266,7 +264,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
   app.post('/auth/register/commit', PUBLIC, async (req, reply) => {
     const hashedIp = ipHash(req);
     const limit = await hit(pool, `register:${hashedIp.toString('hex')}`, REGISTER_WINDOW_S);
-    if (limit.count > REGISTER_MAX_PER_IP) {
+    if (limit.count > config.REGISTER_MAX_PER_IP_PER_HOUR) {
       return fail(reply, 429, 'RATE_LIMITED', 'Too many attempts. Try again later.', {
         retryAfterSeconds: limit.retryAfterSeconds,
       });
@@ -305,7 +303,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
   app.post('/auth/register/lecturer', PUBLIC, async (req, reply) => {
     const hashedIp = ipHash(req);
     const limit = await hit(pool, `register:${hashedIp.toString('hex')}`, REGISTER_WINDOW_S);
-    if (limit.count > REGISTER_MAX_PER_IP) {
+    if (limit.count > config.REGISTER_MAX_PER_IP_PER_HOUR) {
       return fail(reply, 429, 'RATE_LIMITED', 'Too many attempts. Try again later.', {
         retryAfterSeconds: limit.retryAfterSeconds,
       });
@@ -378,7 +376,10 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
       peek(pool, accountKey, LOGIN_WINDOW_S),
       peek(pool, ipKey, LOGIN_WINDOW_S),
     ]);
-    if (acct.count >= LOGIN_MAX_FAILURES_PER_ACCOUNT || ip.count >= LOGIN_MAX_FAILURES_PER_IP) {
+    if (
+      acct.count >= LOGIN_MAX_FAILURES_PER_ACCOUNT ||
+      ip.count >= config.LOGIN_MAX_FAILURES_PER_IP
+    ) {
       const retryAfterSeconds = Math.max(acct.retryAfterSeconds, ip.retryAfterSeconds);
       await writeAudit(pool, {
         class: 'SECURITY',

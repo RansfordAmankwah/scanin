@@ -6,6 +6,8 @@ import {
   associationTone,
   FLAG_LABEL,
   SOURCE_LABEL,
+  SPOT_STATE_LABEL,
+  SPOT_STATE_TONE,
   STATUS_LABEL,
   STATUS_TONE,
 } from './labels';
@@ -85,7 +87,17 @@ export function AttendanceTable({
                 <td data-label="Student ID">{r.studentId}</td>
                 <td data-label="Name">{r.fullName}</td>
                 <td data-label="Attendance">
-                  <Badge tone={STATUS_TONE[r.status] ?? 'neutral'}>{STATUS_LABEL[r.status]}</Badge>
+                  <span className="badges">
+                    <Badge tone={STATUS_TONE[r.status] ?? 'neutral'}>
+                      {STATUS_LABEL[r.status]}
+                    </Badge>
+                    {r.verification && r.verification !== 'PENDING' && (
+                      <Badge tone={SPOT_STATE_TONE[r.verification] ?? 'neutral'}>
+                        {SPOT_STATE_LABEL[r.verification]}
+                      </Badge>
+                    )}
+                    {r.disputeState === 'OPEN' && <Badge tone="attention">Under review</Badge>}
+                  </span>
                 </td>
                 <td data-label="Recorded by">{SOURCE_LABEL[r.source]}</td>
                 <td data-label="Class-list match">

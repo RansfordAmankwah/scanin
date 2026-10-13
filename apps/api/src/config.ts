@@ -46,12 +46,38 @@ const ConfigSchema = z
      * FLAG records it and raises a flag for the lecturer to review.
      */
     DEVICE_POLICY: z.enum(['BLOCK', 'FLAG']).default('BLOCK'),
+    /**
+     * Headcount reconciliation. Recorded attendance is flagged for REVIEW (never rejected) when it
+     * exceeds the lecturer's headcount by more than max(MIN, PERCENT of the headcount).
+     */
+    HEADCOUNT_TOLERANCE_PERCENT: z.coerce.number().int().min(0).max(100).default(15),
+    HEADCOUNT_TOLERANCE_MIN: z.coerce.number().int().min(0).max(1000).default(3),
+    /** Largest headcount a lecturer may enter. */
+    HEADCOUNT_MAX: z.coerce.number().int().min(1).max(100_000).default(2000),
+    /** A headcount older than this, with check-ins since, is shown as possibly out of date. */
+    HEADCOUNT_STALE_MINUTES: z.coerce.number().int().min(1).max(1440).default(30),
+    /** Spot checks: how many present students are sampled, and the most a lecturer may ask for. */
+    SPOT_CHECK_DEFAULT_SIZE: z.coerce.number().int().min(1).max(1000).default(5),
+    SPOT_CHECK_MAX_SIZE: z.coerce.number().int().min(1).max(1000).default(20),
+    /** Students sampled in this many of the course's previous sessions are less likely to be picked. */
+    SPOT_CHECK_HISTORY_SESSIONS: z.coerce.number().int().min(0).max(20).default(2),
+    /**
+     * Per-address limits. A whole lecture hall on campus Wi-Fi shares one public address, so these
+     * are generous by default: a class must be able to sign up together. Raise REGISTER if a large
+     * intake is blocked; the per-account sign-in limit (5 failures) is the main guard on passwords.
+     */
+    REGISTER_MAX_PER_IP_PER_HOUR: z.coerce.number().int().min(1).max(100_000).default(100),
+    LOGIN_MAX_FAILURES_PER_IP: z.coerce.number().int().min(1).max(100_000).default(30),
     /** Set when running behind a trusted reverse proxy so the client IP is read correctly. */
     TRUST_PROXY: booleanString,
   })
   .refine((c) => c.NODE_ENV !== 'production' || (c.RESEND_API_KEY && c.MAIL_FROM), {
     message: 'RESEND_API_KEY and MAIL_FROM are required in production',
     path: ['RESEND_API_KEY'],
+  })
+  .refine((c) => c.SPOT_CHECK_DEFAULT_SIZE <= c.SPOT_CHECK_MAX_SIZE, {
+    message: 'SPOT_CHECK_DEFAULT_SIZE must not exceed SPOT_CHECK_MAX_SIZE',
+    path: ['SPOT_CHECK_DEFAULT_SIZE'],
   })
   .refine((c) => !c.RESEND_API_KEY || c.MAIL_FROM, {
     message: 'MAIL_FROM is required when RESEND_API_KEY is set',

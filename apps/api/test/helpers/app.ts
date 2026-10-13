@@ -20,6 +20,16 @@ export const TEST_CONFIG: Config = {
   ALLOW_INSECURE_COOKIES: false,
   TRUST_PROXY: false,
   DEVICE_POLICY: 'BLOCK',
+  // The tests exercise these limits, so they keep their strict, original values.
+  REGISTER_MAX_PER_IP_PER_HOUR: 10,
+  LOGIN_MAX_FAILURES_PER_IP: 30,
+  HEADCOUNT_TOLERANCE_PERCENT: 15,
+  HEADCOUNT_TOLERANCE_MIN: 3,
+  HEADCOUNT_MAX: 2000,
+  HEADCOUNT_STALE_MINUTES: 30,
+  SPOT_CHECK_DEFAULT_SIZE: 5,
+  SPOT_CHECK_MAX_SIZE: 20,
+  SPOT_CHECK_HISTORY_SESSIONS: 2,
 };
 
 export interface TestApp {

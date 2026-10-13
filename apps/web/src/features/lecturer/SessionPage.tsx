@@ -3,10 +3,13 @@ import { lecturerApi, type SessionRoster, type SessionView } from '../../api/lec
 import { Notice } from '../../components/ui';
 import { Link } from '../../router';
 import { AttendanceTable, CountsPanel } from './AttendanceTable';
+import { DisputesPanel } from './DisputesPanel';
 import { ExportPanel } from './ExportPanel';
 import { ManualAttendance } from './ManualAttendance';
+import { ReconciliationPanel } from './ReconciliationPanel';
 import { ScanHistory } from './ScanHistory';
 import { SessionControls } from './SessionControls';
+import { SpotChecksPanel } from './SpotChecksPanel';
 
 const REFRESH_MS = 10_000;
 
@@ -14,6 +17,8 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
   const [session, setSession] = useState<SessionView | null>(null);
   const [roster, setRoster] = useState<SessionRoster | null>(null);
   const [notFound, setNotFound] = useState(false);
+  // Bumped when a spot check or review changes, so the other panels reload.
+  const [reviewKey, setReviewKey] = useState(0);
 
   const load = useCallback(async () => {
     const [s, a] = await Promise.all([
@@ -62,11 +67,34 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
         }}
       />
       <CountsPanel counts={roster.counts} />
+      <ReconciliationPanel
+        courseId={courseId}
+        sessionId={sessionId}
+        presentTotal={roster.counts.presentTotal}
+      />
       <AttendanceTable
         roster={roster}
         courseId={courseId}
         sessionId={sessionId}
         onChanged={() => void load()}
+      />
+      <DisputesPanel
+        courseId={courseId}
+        sessionId={sessionId}
+        reloadKey={reviewKey}
+        onResolved={() => {
+          setReviewKey((k) => k + 1);
+          void load();
+        }}
+      />
+      <SpotChecksPanel
+        courseId={courseId}
+        sessionId={sessionId}
+        sessionState={session.state}
+        onChanged={() => {
+          setReviewKey((k) => k + 1);
+          void load();
+        }}
       />
       {session.state !== 'NOT_STARTED' && (
         <ManualAttendance courseId={courseId} sessionId={sessionId} onChanged={() => void load()} />

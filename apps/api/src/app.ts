@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import cookie from '@fastify/cookie';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pg from 'pg';
+import { registerAntiProxyRoutes } from './antiproxy/routes.js';
 import { registerAttendanceRoutes } from './attendance/routes.js';
 import { csrfGuard } from './auth/csrf.js';
 import { registerCheckInRoutes } from './checkin/routes.js';
@@ -51,6 +52,41 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     rewriteUrl: (req) => (req.url?.startsWith('/api/') ? req.url.slice(4) : (req.url ?? '/')),
   });
 
+  // One place decides what a caller sees when something goes wrong. Fastify's default handler
+  // returns the raw error, which for a database failure includes the Postgres code, constraint and
+  // table names. Here the detail goes to the log (cookies are redacted) and the caller gets a fixed
+  // message and a request id they can quote.
+  app.setErrorHandler((error: unknown, req, reply) => {
+    const err = error as { statusCode?: number; name?: string; message?: string; code?: string };
+    const status =
+      typeof err.statusCode === 'number' && err.statusCode >= 400 ? err.statusCode : 500;
+    if (status >= 500) {
+      req.log.error(
+        { reqId: req.id, err: { name: err.name, message: err.message, code: err.code } },
+        'request failed',
+      );
+      return reply.code(status).send({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Something went wrong on our side. Please try again.',
+          requestId: req.id,
+        },
+      });
+    }
+    // Framework-level client errors (malformed JSON, body too large, unsupported type): fixed text.
+    const known: Record<number, string> = {
+      400: 'The request could not be understood.',
+      413: 'The request is too large.',
+      415: 'That content type is not supported.',
+    };
+    return reply.code(status).send({
+      error: {
+        code: 'BAD_REQUEST',
+        message: known[status] ?? 'The request could not be completed.',
+      },
+    });
+  });
+
   await app.register(cookie);
   registerSecurityHeaders(app, config);
   if (config.WEB_DIST_DIR) registerWeb(app, config.WEB_DIST_DIR);
@@ -66,6 +102,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   registerCheckInRoutes(app, { pool, config, keyring });
   registerAttendanceRoutes(app, { pool });
   registerReviewRoutes(app, { pool });
+  registerAntiProxyRoutes(app, { pool, config });
   const storage =
     options.exportStorage ??
     new LocalDiskStorage(config.EXPORT_DIR ?? join(tmpdir(), 'scanin-exports'));

@@ -13,7 +13,7 @@ export interface ApiResult<T> {
 
 export async function apiFetch<T>(
   path: string,
-  init: { method?: 'GET' | 'POST'; body?: unknown } = {},
+  init: { method?: 'GET' | 'POST' | 'PUT'; body?: unknown } = {},
   fetchImpl: typeof fetch = fetch,
 ): Promise<ApiResult<T>> {
   const method = init.method ?? 'GET';

@@ -90,3 +90,56 @@ export function associationTone(state: string): BadgeTone {
       return 'neutral';
   }
 }
+
+// --- Anti-proxy controls ------------------------------------------------------------------------
+
+export const RECONCILIATION_LABEL: Record<string, string> = {
+  NO_HEADCOUNT: 'No headcount yet',
+  CONSISTENT: 'Counts agree',
+  REVIEW_RECOMMENDED: 'Review recommended',
+  MORE_PEOPLE_THAN_RECORDS: 'More people than records',
+};
+
+export const RECONCILIATION_TONE: Record<string, BadgeTone> = {
+  NO_HEADCOUNT: 'neutral',
+  CONSISTENT: 'success',
+  REVIEW_RECOMMENDED: 'attention',
+  MORE_PEOPLE_THAN_RECORDS: 'info',
+};
+
+export const RISK_FACTOR_LABEL: Record<string, string> = {
+  DEVICE_SHARED_FLAG: 'several students checked in from the same device in this class',
+  PRIOR_NOT_PRESENT_RESULT: 'an earlier spot check in this course could not find them',
+};
+
+export const SPOT_STATE_LABEL: Record<string, string> = {
+  PENDING: 'Not checked yet',
+  VERIFIED: 'Verified in person',
+  NOT_PRESENT: 'Not found in the room',
+  COULD_NOT_VERIFY: 'Could not verify',
+};
+
+export const SPOT_STATE_TONE: Record<string, BadgeTone> = {
+  PENDING: 'neutral',
+  VERIFIED: 'success',
+  NOT_PRESENT: 'attention',
+  COULD_NOT_VERIFY: 'warning',
+};
+
+export const METHOD_LABEL: Record<string, string> = {
+  STUDENT_ID_CARD: 'Student ID card',
+  ROSTER_PHOTO: 'Roster photo',
+  OTHER_OFFICIAL_ID: 'Other official ID',
+};
+
+export const DISPUTE_LABEL: Record<string, string> = {
+  OPEN: 'Under review',
+  RESOLVED_UPHELD: 'Review closed: record stands',
+  RESOLVED_INVALIDATED: 'Review closed: record invalidated',
+};
+
+export const DISPUTE_TONE: Record<string, BadgeTone> = {
+  OPEN: 'attention',
+  RESOLVED_UPHELD: 'success',
+  RESOLVED_INVALIDATED: 'danger',
+};

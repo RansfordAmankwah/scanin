@@ -500,7 +500,8 @@ describe('EXP-05 expiry and access control', () => {
     expect(info.filename).toMatch(/^attendance-X\d+-2026-10-10-[0-9a-f]{8}\.csv$/);
     const expires = new Date(info.expiresAt).getTime() - Date.now();
     expect(expires).toBeGreaterThan(58 * 60_000);
-    expect(expires).toBeLessThanOrEqual(60 * 60_000);
+    // The expiry comes from the database clock and this is the test process's clock: allow a second of skew.
+    expect(expires).toBeLessThanOrEqual(60 * 60_000 + 1000);
 
     const res = await download(info.id);
     expect(res.statusCode).toBe(200);

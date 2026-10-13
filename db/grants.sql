@@ -62,6 +62,12 @@ GRANT UPDATE (status, current_rev_no) ON attendance_records TO {{app}};
 GRANT SELECT, INSERT ON investigation_flags TO {{app}};
 GRANT UPDATE (state, current_event_no) ON investigation_flags TO {{app}};
 
+-- Anti-proxy controls (migration 0007). Spot-check items and disputes carry only their current state;
+-- the history behind each lives in append-only event tables.
+GRANT SELECT, INSERT ON spot_checks, spot_check_items, attendance_disputes TO {{app}};
+GRANT UPDATE (state, current_event_no) ON spot_check_items TO {{app}};
+GRANT UPDATE (state, current_event_no, resolved_at, resolved_by) ON attendance_disputes TO {{app}};
+
 GRANT SELECT, INSERT ON export_records TO {{app}};
 GRANT UPDATE (status, row_count, file_sha256, storage_key, ready_at, expires_at) ON export_records TO {{app}};
 
@@ -71,6 +77,10 @@ GRANT SELECT, INSERT ON
   attendance_revisions,
   scan_attempts,
   device_sessions,
+  session_headcounts,
+  reconciliation_notes,
+  spot_check_events,
+  attendance_dispute_events,
   identity_reviews,
   investigation_flag_events,
   audit_events
@@ -89,6 +99,9 @@ GRANT SELECT, DELETE ON
   roster_imports, roster_entries, roster_links, identity_reviews,
   class_sessions, session_extensions,
   attendance_records, attendance_revisions, scan_attempts, device_sessions,
+  session_headcounts, reconciliation_notes,
+  spot_checks, spot_check_items, spot_check_events,
+  attendance_disputes, attendance_dispute_events,
   investigation_flags, investigation_flag_events,
   export_records, audit_events
 TO {{retention}};

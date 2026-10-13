@@ -53,6 +53,8 @@ export interface RosterRecord {
   associationBasis: string | null;
   flagged: boolean;
   flagKinds: string[];
+  verification: 'PENDING' | 'VERIFIED' | 'NOT_PRESENT' | 'COULD_NOT_VERIFY' | null;
+  disputeState: 'OPEN' | 'RESOLVED_UPHELD' | 'RESOLVED_INVALIDATED' | null;
 }
 
 export interface SessionRoster {
@@ -83,7 +85,7 @@ export type Result<T> =
 /** Turns the raw API result into a value or a typed failure; network errors become code NETWORK. */
 async function call<T>(
   path: string,
-  init?: { method?: 'GET' | 'POST'; body?: unknown },
+  init?: { method?: 'GET' | 'POST' | 'PUT'; body?: unknown },
 ): Promise<Result<T>> {
   let res: ApiResult<T & { error?: ApiError }>;
   try {
@@ -308,12 +310,149 @@ export interface MyAttendance {
       status: 'PRESENT' | 'INVALIDATED' | 'NO_RECORD';
       source: string | null;
       invalidationCategory: string | null;
+      /** Present only while a lecturer is reviewing, or after they reviewed, this record. */
+      review: {
+        id: string;
+        state: 'OPEN' | 'RESOLVED_UPHELD' | 'RESOLVED_INVALIDATED';
+        openedAt: string;
+        resolvedAt: string | null;
+        repliesLeft: number;
+      } | null;
     }>;
   }>;
 }
 
 export const studentApi = {
   attendance: () => call<MyAttendance>('/me/attendance'),
+  respondToReview: (disputeId: string, note: string) =>
+    call<{ disputeId: string }>(`/me/disputes/${disputeId}/response`, {
+      method: 'POST',
+      body: { note },
+    }),
+};
+
+// --- Anti-proxy controls: room headcount, spot checks and reviews ----------------------------
+
+export type ReconciliationStatus =
+  'NO_HEADCOUNT' | 'CONSISTENT' | 'REVIEW_RECOMMENDED' | 'MORE_PEOPLE_THAN_RECORDS';
+
+export interface Reconciliation {
+  sessionState: string;
+  headcount: {
+    revNo: number;
+    headcount: number;
+    previousHeadcount: number | null;
+    explanation: string | null;
+    recordedAt: string;
+    recordedBy: string;
+  } | null;
+  history: Array<{ revNo: number; headcount: number; recordedAt: string; recordedBy: string }>;
+  recordedAttendance: number;
+  invalidated: number;
+  difference: number | null;
+  status: ReconciliationStatus;
+  tolerance: { percent: number; minimum: number; allowed: number | null };
+  stale: { isStale: boolean; checkInsSince: number; minutesSince: number };
+  notes: Array<{ note: string; statusAtTime: string; recordedAt: string; recordedBy: string }>;
+  limits: { headcountMax: number };
+}
+
+export type SpotState = 'PENDING' | 'VERIFIED' | 'NOT_PRESENT' | 'COULD_NOT_VERIFY';
+export type SpotOutcome = Exclude<SpotState, 'PENDING'>;
+export type VerificationMethod = 'STUDENT_ID_CARD' | 'ROSTER_PHOTO' | 'OTHER_OFFICIAL_ID';
+
+export interface SpotCheckItem {
+  id: string;
+  attendanceId: string;
+  studentId: string;
+  fullName: string;
+  selectionReason: 'RANDOM' | 'RISK_WEIGHTED';
+  riskFactors: string[];
+  state: SpotState;
+  disputeId: string | null;
+  disputeState: string | null;
+  history: Array<{
+    eventNo: number;
+    from: SpotState;
+    to: SpotOutcome;
+    method: VerificationMethod | null;
+    explanation: string | null;
+    at: string;
+    by: string;
+  }>;
+}
+
+export interface SpotChecks {
+  rounds: Array<{
+    id: string;
+    createdAt: string;
+    createdBy: string;
+    requestedSize: number;
+    eligibleCount: number;
+    selectedCount: number;
+    items: SpotCheckItem[];
+  }>;
+  summary: { pending: number; verified: number; notPresent: number; couldNotVerify: number };
+  limits: { defaultSize: number; maxSize: number };
+}
+
+export interface Dispute {
+  id: string;
+  attendanceId: string;
+  studentId: string;
+  fullName: string;
+  state: 'OPEN' | 'RESOLVED_UPHELD' | 'RESOLVED_INVALIDATED';
+  attendanceStatus: 'PRESENT' | 'INVALIDATED';
+  openedAt: string;
+  resolvedAt: string | null;
+  fromSpotCheck: boolean;
+  events: Array<{
+    eventNo: number;
+    kind: string;
+    note: string | null;
+    at: string;
+    by: string;
+    byRole: 'LECTURER' | 'STUDENT';
+  }>;
+}
+
+const sess = (c: string, s: string) => `/courses/${c}/sessions/${s}`;
+
+export const antiProxyApi = {
+  reconciliation: (c: string, s: string) => call<Reconciliation>(`${sess(c, s)}/reconciliation`),
+  setHeadcount: (c: string, s: string, headcount: number, explanation?: string) =>
+    call<{ unchanged: boolean; reconciliation: Reconciliation }>(`${sess(c, s)}/headcount`, {
+      method: 'PUT',
+      body: { headcount, ...(explanation ? { explanation } : {}) },
+    }),
+  addNote: (c: string, s: string, note: string) =>
+    call<Reconciliation>(`${sess(c, s)}/reconciliation/notes`, { method: 'POST', body: { note } }),
+  spotChecks: (c: string, s: string) => call<SpotChecks>(`${sess(c, s)}/spot-checks`),
+  generate: (c: string, s: string, size: number, requestId: string) =>
+    call<SpotChecks>(`${sess(c, s)}/spot-checks`, { method: 'POST', body: { size, requestId } }),
+  record: (
+    c: string,
+    s: string,
+    itemId: string,
+    body: {
+      requestId: string;
+      outcome: SpotOutcome;
+      method?: VerificationMethod;
+      explanation?: string;
+    },
+  ) =>
+    call<SpotChecks>(`${sess(c, s)}/spot-checks/items/${itemId}/result`, { method: 'POST', body }),
+  disputes: (c: string, s: string) => call<{ disputes: Dispute[] }>(`${sess(c, s)}/disputes`),
+  resolve: (
+    c: string,
+    s: string,
+    disputeId: string,
+    body: { resolution: 'UPHOLD' | 'INVALIDATE'; category?: string; explanation: string },
+  ) =>
+    call<{ disputeId: string; state: string; attendanceChanged: boolean }>(
+      `${sess(c, s)}/disputes/${disputeId}/resolve`,
+      { method: 'POST', body },
+    ),
 };
 
 export interface ExportSummary {

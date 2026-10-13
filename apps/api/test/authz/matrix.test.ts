@@ -10,9 +10,11 @@ import {
   endAssignment,
 } from '../../src/operator/commands.js';
 import {
+  APP_ORIGIN,
   TEST_CONFIG,
   cookieHeader,
   createTestApp,
+  freshIp,
   get,
   post,
   registerAndLogin,
@@ -104,13 +106,26 @@ const fill = (url: string, courseId: string): string =>
     .replace(':linkId', randomUUID())
     .replace(':sessionId', randomUUID())
     .replace(':flagId', randomUUID())
-    .replace(':attendanceId', randomUUID());
+    .replace(':attendanceId', randomUUID())
+    .replace(':itemId', randomUUID())
+    .replace(':disputeId', randomUUID());
 
 function call(route: Route, courseId: string, cookie?: string) {
   const url = fill(route.url, courseId);
-  return route.method === 'GET'
-    ? get(t.app, url, cookie ? { cookie } : {})
-    : post(t.app, url, {}, cookie ? { cookie } : {});
+  if (route.method === 'GET') return get(t.app, url, cookie ? { cookie } : {});
+  if (route.method === 'POST') return post(t.app, url, {}, cookie ? { cookie } : {});
+  // PUT, PATCH, DELETE: same-origin headers, like every browser request the app makes.
+  return t.app.inject({
+    method: route.method as 'PUT' | 'PATCH' | 'DELETE',
+    url,
+    payload: {},
+    headers: {
+      origin: APP_ORIGIN,
+      'x-requested-with': 'scanin',
+      ...(cookie ? { cookie } : {}),
+    },
+    remoteAddress: freshIp(),
+  });
 }
 
 describe('every route must declare its authorization', () => {

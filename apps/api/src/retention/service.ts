@@ -54,6 +54,20 @@ export async function purgeCourse(pool: pg.Pool, courseId: string): Promise<void
     const p = [courseId];
     await c.query('DELETE FROM export_records WHERE course_id = $1', p);
     await c.query('DELETE FROM audit_events WHERE course_id = $1', p);
+    // Anti-proxy records, children first (events, then their parents), before attendance and sessions.
+    await c.query(
+      'DELETE FROM attendance_dispute_events WHERE dispute_id IN (SELECT id FROM attendance_disputes WHERE course_id = $1)',
+      p,
+    );
+    await c.query('DELETE FROM attendance_disputes WHERE course_id = $1', p);
+    await c.query(
+      'DELETE FROM spot_check_events WHERE item_id IN (SELECT id FROM spot_check_items WHERE course_id = $1)',
+      p,
+    );
+    await c.query('DELETE FROM spot_check_items WHERE course_id = $1', p);
+    await c.query('DELETE FROM spot_checks WHERE course_id = $1', p);
+    await c.query('DELETE FROM reconciliation_notes WHERE course_id = $1', p);
+    await c.query('DELETE FROM session_headcounts WHERE course_id = $1', p);
     await c.query(
       'DELETE FROM device_sessions WHERE session_id IN (SELECT id FROM class_sessions WHERE course_id = $1)',
       p,

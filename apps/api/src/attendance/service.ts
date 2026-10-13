@@ -50,6 +50,10 @@ export interface RosterRecord {
   associationBasis: string | null;
   flagged: boolean;
   flagKinds: string[];
+  /** The spot-check state if this student was sampled in this session, otherwise null. */
+  verification: 'PENDING' | 'VERIFIED' | 'NOT_PRESENT' | 'COULD_NOT_VERIFY' | null;
+  /** The state of the most recent dispute on this record, if any. */
+  disputeState: 'OPEN' | 'RESOLVED_UPHELD' | 'RESOLVED_INVALIDATED' | null;
 }
 
 export interface NoRecordEntry {
@@ -74,12 +78,17 @@ export async function sessionRoster(db: Db, courseId: string, sessionId: string)
     confirmed_basis: string | null;
     flagged: boolean;
     flag_kinds: string[] | null;
+    verification: RosterRecord['verification'];
+    dispute_state: RosterRecord['disputeState'];
   }>(
     `SELECT c.attendance_id, u.student_id_display, u.full_name, c.status::text AS status, c.source::text AS source,
             c.link_state::text AS link_state, c.confirmed_basis::text AS confirmed_basis, c.flagged,
             (SELECT array_agg(DISTINCT f.kind::text ORDER BY f.kind::text) FROM investigation_flags f
               WHERE f.course_id = c.course_id AND f.state IN ('OPEN', 'UNDER_REVIEW')
-                AND (f.attendance_id = c.attendance_id OR f.roster_link_id = c.link_id)) AS flag_kinds
+                AND (f.attendance_id = c.attendance_id OR f.roster_link_id = c.link_id)) AS flag_kinds,
+            (SELECT i.state::text FROM spot_check_items i WHERE i.attendance_id = c.attendance_id) AS verification,
+            (SELECT d.state::text FROM attendance_disputes d WHERE d.attendance_id = c.attendance_id
+              ORDER BY d.opened_at DESC LIMIT 1) AS dispute_state
        FROM attendance_classified c
        JOIN users u ON u.id = c.student_id
       WHERE c.session_id = $1 AND c.course_id = $2
@@ -119,6 +128,8 @@ export async function sessionRoster(db: Db, courseId: string, sessionId: string)
       associationBasis: r.confirmed_basis,
       flagged: r.flagged,
       flagKinds: r.flag_kinds ?? [],
+      verification: r.verification,
+      disputeState: r.dispute_state,
     })),
     noRecord: missing.rows.map<NoRecordEntry>((e) => ({
       entryId: e.id,
@@ -232,17 +243,29 @@ export async function studentAttendance(db: Db, studentId: string) {
     status: 'PRESENT' | 'INVALIDATED' | null;
     source: string | null;
     category: string | null;
+    dispute_id: string | null;
+    dispute_state: string | null;
+    dispute_opened_at: Date | null;
+    dispute_resolved_at: Date | null;
+    dispute_replies: number | null;
   }>(
     `SELECT co.id AS course_id, co.code, co.title, l.state::text AS link_state,
             s.id AS session_id, s.title AS session_title, to_char(s.session_date, 'YYYY-MM-DD') AS session_date,
             a.status::text AS status, a.source::text AS source,
             (SELECT r.reason_category::text FROM attendance_revisions r
               WHERE r.attendance_id = a.id AND r.change_kind = 'INVALIDATED'
-              ORDER BY r.rev_no DESC LIMIT 1) AS category
+              ORDER BY r.rev_no DESC LIMIT 1) AS category,
+            d.id AS dispute_id, d.state::text AS dispute_state,
+            d.opened_at AS dispute_opened_at, d.resolved_at AS dispute_resolved_at,
+            (SELECT count(*)::int FROM attendance_dispute_events e
+              WHERE e.dispute_id = d.id AND e.kind = 'STUDENT_RESPONSE') AS dispute_replies
        FROM roster_links l
        JOIN courses co ON co.id = l.course_id
        JOIN class_sessions s ON s.course_id = co.id AND s.state <> 'NOT_STARTED'
        LEFT JOIN attendance_records a ON a.session_id = s.id AND a.student_id = l.student_id
+       LEFT JOIN LATERAL (
+         SELECT d.id, d.state, d.opened_at, d.resolved_at FROM attendance_disputes d
+          WHERE d.attendance_id = a.id ORDER BY d.opened_at DESC LIMIT 1) d ON true
       WHERE l.student_id = $1
       ORDER BY co.code, s.session_date DESC, s.created_at DESC`,
     [studentId],
@@ -262,6 +285,14 @@ export async function studentAttendance(db: Db, studentId: string) {
         status: 'PRESENT' | 'INVALIDATED' | 'NO_RECORD';
         source: string | null;
         invalidationCategory: string | null;
+        /** Present only when a lecturer is reviewing, or has reviewed, this record. */
+        review: {
+          id: string;
+          state: 'OPEN' | 'RESOLVED_UPHELD' | 'RESOLVED_INVALIDATED';
+          openedAt: string;
+          resolvedAt: string | null;
+          repliesLeft: number;
+        } | null;
       }>;
     }
   >();
@@ -284,6 +315,16 @@ export async function studentAttendance(db: Db, studentId: string) {
       status: r.status ?? 'NO_RECORD',
       source: r.source,
       invalidationCategory: r.status === 'INVALIDATED' ? r.category : null,
+      review:
+        r.dispute_id && r.dispute_state && r.dispute_opened_at
+          ? {
+              id: r.dispute_id,
+              state: r.dispute_state as 'OPEN' | 'RESOLVED_UPHELD' | 'RESOLVED_INVALIDATED',
+              openedAt: r.dispute_opened_at.toISOString(),
+              resolvedAt: r.dispute_resolved_at?.toISOString() ?? null,
+              repliesLeft: Math.max(0, 5 - (r.dispute_replies ?? 0)),
+            }
+          : null,
     });
   }
   return {

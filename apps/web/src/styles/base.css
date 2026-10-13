@@ -438,3 +438,49 @@ table.responsive tbody tr:last-child td {
   align-items: center;
   min-height: 44px;
 }
+
+/* A card inside a card: one item in a list the lecturer works through. */
+.subcard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius);
+}
+
+details > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  cursor: pointer;
+  color: var(--color-primary);
+}
+
+/* Several status pills in one table cell wrap onto new lines instead of widening a phone screen. */
+.badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  min-width: 0;
+  max-width: 100%;
+}
+
+table.responsive td {
+  min-width: 0;
+}
+
+/* Links inside lists (the sessions of a course) and checkboxes are real touch targets too. */
+.list a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+}
+
+.check input[type='checkbox'] {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+}

@@ -51,65 +51,77 @@ interface ChangeInput {
   explanation: string;
 }
 
-async function change(
-  pool: pg.Pool,
-  input: ChangeInput,
-  spec: {
-    kind: 'INVALIDATED' | 'RESTORED';
-    from: 'PRESENT' | 'INVALIDATED';
-    to: 'PRESENT' | 'INVALIDATED';
-    category?: InvalidationCategory;
-  },
-) {
-  return withTransaction(pool, async (c) => {
-    const rec = await lockRecord(c, input.courseId, input.sessionId, input.attendanceId);
-    if (rec.status !== spec.from) {
-      throw new ReviewError(
-        409,
-        'INVALID_TRANSITION',
-        `This record is already ${rec.status.toLowerCase()}.`,
-        { status: rec.status },
-      );
-    }
-    const revNo = rec.current_rev_no + 1;
-    await c.query(
-      `INSERT INTO attendance_revisions
+interface ChangeSpec {
+  kind: 'INVALIDATED' | 'RESTORED';
+  from: 'PRESENT' | 'INVALIDATED';
+  to: 'PRESENT' | 'INVALIDATED';
+  category?: InvalidationCategory;
+}
+
+/** The change itself, inside a transaction the caller owns (so related writes can be atomic with it). */
+async function changeWithin(c: pg.PoolClient, input: ChangeInput, spec: ChangeSpec) {
+  const rec = await lockRecord(c, input.courseId, input.sessionId, input.attendanceId);
+  if (rec.status !== spec.from) {
+    throw new ReviewError(
+      409,
+      'INVALID_TRANSITION',
+      `This record is already ${rec.status.toLowerCase()}.`,
+      { status: rec.status },
+    );
+  }
+  const revNo = rec.current_rev_no + 1;
+  await c.query(
+    `INSERT INTO attendance_revisions
          (attendance_id, rev_no, change_kind, from_status, to_status, actor_user_id, reason_category, explanation)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [
-        rec.id,
-        revNo,
-        spec.kind,
-        spec.from,
-        spec.to,
-        input.actorId,
-        spec.category ?? null,
-        input.explanation.trim(),
-      ],
-    );
-    await c.query(
-      'UPDATE attendance_records SET status = $2, current_rev_no = $3 WHERE id = $1 AND current_rev_no = $4',
-      [rec.id, spec.to, revNo, rec.current_rev_no],
-    );
-    await writeAudit(c, {
-      class: 'DOMAIN',
-      actorType: 'LECTURER',
-      actorUserId: input.actorId,
-      action: spec.kind === 'INVALIDATED' ? 'ATTENDANCE_INVALIDATED' : 'ATTENDANCE_RESTORED',
-      courseId: input.courseId,
-      sessionId: input.sessionId,
-      entityType: 'attendance_record',
-      entityId: rec.id,
-      retainUntil: await courseRetainUntil(c, input.courseId),
-      summary: {
-        from: spec.from,
-        to: spec.to,
-        ...(spec.category ? { category: spec.category } : {}),
-      },
-    });
-    return { attendanceId: rec.id, status: spec.to, revNo };
+    [
+      rec.id,
+      revNo,
+      spec.kind,
+      spec.from,
+      spec.to,
+      input.actorId,
+      spec.category ?? null,
+      input.explanation.trim(),
+    ],
+  );
+  await c.query(
+    'UPDATE attendance_records SET status = $2, current_rev_no = $3 WHERE id = $1 AND current_rev_no = $4',
+    [rec.id, spec.to, revNo, rec.current_rev_no],
+  );
+  await writeAudit(c, {
+    class: 'DOMAIN',
+    actorType: 'LECTURER',
+    actorUserId: input.actorId,
+    action: spec.kind === 'INVALIDATED' ? 'ATTENDANCE_INVALIDATED' : 'ATTENDANCE_RESTORED',
+    courseId: input.courseId,
+    sessionId: input.sessionId,
+    entityType: 'attendance_record',
+    entityId: rec.id,
+    retainUntil: await courseRetainUntil(c, input.courseId),
+    summary: {
+      from: spec.from,
+      to: spec.to,
+      ...(spec.category ? { category: spec.category } : {}),
+    },
   });
+  return { attendanceId: rec.id, status: spec.to, revNo };
 }
+
+const change = (pool: pg.Pool, input: ChangeInput, spec: ChangeSpec) =>
+  withTransaction(pool, (c) => changeWithin(c, input, spec));
+
+/** Invalidates a record inside the caller's transaction (used when a dispute is resolved that way). */
+export const invalidateAttendanceWithin = (
+  c: pg.PoolClient,
+  input: ChangeInput & { category: InvalidationCategory },
+) =>
+  changeWithin(c, input, {
+    kind: 'INVALIDATED',
+    from: 'PRESENT',
+    to: 'INVALIDATED',
+    category: input.category,
+  });
 
 export const invalidateAttendance = (
   pool: pg.Pool,

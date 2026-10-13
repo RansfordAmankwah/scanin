@@ -8,9 +8,16 @@
 4. **Create a session.** Type a title, **Create session**, open it, then **Start check-in (30 minutes)**. Use **Extend** (with a reason) if needed.
 5. **Project the QR.** Choose **Show QR code for the room** and put that page on the projector. It refreshes itself about every 30 seconds. If a code was shared outside the room, press **Invalidate shown codes**.
 6. **Watch and review.** The session page shows live counts. Resolve anything under "Needs review". You can mark a student present, invalidate or restore a record (a written reason is required), and export CSV, Excel, PDF or Word.
-7. **End the session** when class finishes.
+7. **Count the room (about 30 seconds).** On the session page, enter how many people are physically present under **Room headcount**. If more students are recorded than people counted, you see "Review recommended". That is a prompt to look closer, not proof; students arrive late, step out, or have trouble checking in. Add a note if you know why.
+8. **Spot check (optional, a few minutes).** Under **Spot checks**, choose how many students to check. Walk the room: ask each picked student for ID and record **Verified in person** (and how), **Not found in the room** (with what you found), or **Could not verify**. Not finding someone opens a review; their attendance still counts until you decide.
+9. **Records under review.** Read any reply from the student, then **Keep this attendance** or **Invalidate this attendance**, with a written reason. Nothing is ever deleted; every step is on the audit trail.
+10. **End the session** when class finishes.
+
+Full rules, limits and the demonstration script are in `docs/ANTI_PROXY.md`.
 
 ## Student
+
+(If a lecturer is reviewing one of your records you will see a notice on your attendance screen. It still counts while they look at it, and you can reply to your lecturer there.)
 
 1. Create an account once (student ID, name, school e-mail, password). Check the details carefully: ID and name cannot be changed later.
 2. Sign in, tap **Start camera**, allow camera access, and point it at the projected code. You see **You're checked in**.
