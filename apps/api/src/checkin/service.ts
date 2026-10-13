@@ -1,4 +1,5 @@
 import type pg from 'pg';
+import { writeAudit } from '../audit.js';
 import { isTransientDbError, withRetry } from '../db/pool.js';
 import type { TokenPayload } from '../qr/token.js';
 import { sessionLockKey } from '../sessions/service.js';
@@ -17,6 +18,10 @@ import { ensureLink, type LinkState } from '../roster/matching.js';
  *    NOTHING makes concurrent and repeated scans collapse into one record.
  *  - The attendance row, its first revision, the roster link, and the scan record commit together.
  *  - Rejected attempts commit only a scan record, never attendance.
+ *  - Device binding: when the client sends a device hash, a second STUDENT arriving from the same
+ *    device in the same session is rejected (policy BLOCK) or recorded and flagged for the lecturer
+ *    (policy FLAG). The check and the claim run under a per-(session, device) advisory lock, so two
+ *    students on one phone cannot both slip through concurrently.
  *  - Transient database failures retry the whole transaction; the natural key and the client's
  *    attempt id make a retry (or a retry after a lost response) return the original result.
  */
@@ -26,7 +31,13 @@ export interface CheckInInput {
   clientAttemptId: string;
   ipHash: Buffer | null;
   userAgentFamily: string | null;
+  /** Keyed hash of the browser's random device id; null when the client did not send one. */
+  deviceHash?: Buffer | null;
+  /** What to do when the device already checked in someone else. Default BLOCK. */
+  devicePolicy?: DevicePolicy;
 }
+
+export type DevicePolicy = 'BLOCK' | 'FLAG';
 
 export type RejectionReason =
   | 'CODE_EXPIRED'
@@ -34,7 +45,8 @@ export type RejectionReason =
   | 'INVALID_CODE'
   | 'SESSION_NOT_STARTED'
   | 'SESSION_CLOSED'
-  | 'SESSION_ENDED';
+  | 'SESSION_ENDED'
+  | 'DEVICE_ALREADY_USED';
 
 export interface RecordedResult {
   kind: 'RECORDED' | 'ALREADY_RECORDED';
@@ -56,6 +68,7 @@ const OUTCOME_FOR_REASON = {
   SESSION_NOT_STARTED: 'REJECTED_SESSION_NOT_STARTED',
   SESSION_CLOSED: 'REJECTED_SESSION_CLOSED',
   SESSION_ENDED: 'REJECTED_SESSION_ENDED',
+  DEVICE_ALREADY_USED: 'REJECTED_DEVICE_REUSED',
 } as const;
 
 const REASON_FOR_OUTCOME: Record<string, RejectionReason> = {
@@ -64,6 +77,7 @@ const REASON_FOR_OUTCOME: Record<string, RejectionReason> = {
   REJECTED_SESSION_NOT_STARTED: 'SESSION_NOT_STARTED',
   REJECTED_SESSION_CLOSED: 'SESSION_CLOSED',
   REJECTED_SESSION_ENDED: 'SESSION_ENDED',
+  REJECTED_DEVICE_REUSED: 'DEVICE_ALREADY_USED',
 };
 
 async function logAttempt(
@@ -118,6 +132,36 @@ async function presentRecord(
     course: { code: r.code, title: r.title },
     sessionTitle: r.session_title,
   };
+}
+
+/**
+ * FLAG policy: raise a system flag on every attendance record made from the shared device in this
+ * session (this one and the earlier ones), for the lecturer to review. Flags change nothing else.
+ */
+async function flagSharedDevice(
+  c: Client,
+  courseId: string,
+  sessionId: string,
+  deviceHash: Buffer,
+): Promise<void> {
+  const { rows } = await c.query<{ id: string }>(
+    `INSERT INTO investigation_flags (course_id, session_id, attendance_id, kind, origin, detail)
+     SELECT a.course_id, a.session_id, a.id, 'PROXY_SUSPECTED', 'SYSTEM',
+            '{"reason":"DEVICE_SHARED"}'::jsonb
+       FROM attendance_records a
+      WHERE a.session_id = $1 AND a.course_id = $2 AND a.device_hash = $3
+     ON CONFLICT (kind, attendance_id)
+       WHERE attendance_id IS NOT NULL AND state IN ('OPEN', 'UNDER_REVIEW') DO NOTHING
+     RETURNING id`,
+    [sessionId, courseId, deviceHash],
+  );
+  for (const { id } of rows) {
+    await c.query(
+      `INSERT INTO investigation_flag_events (flag_id, event_no, from_state, to_state, actor_user_id, note)
+       VALUES ($1, 1, NULL, 'OPEN', NULL, 'Several students checked in from the same device in this class.')`,
+      [id],
+    );
+  }
 }
 
 async function attempt(pool: pg.Pool, input: CheckInInput): Promise<CheckInResult> {
@@ -210,14 +254,45 @@ async function attempt(pool: pg.Pool, input: CheckInInput): Promise<CheckInResul
       return { kind: 'REJECTED', reason: rejection };
     }
 
+    // (5b) Device binding. Serialise on (session, device) so the check and the claim below are atomic.
+    const deviceHash = input.deviceHash ?? null;
+    let sharedWith: string[] = [];
+    if (deviceHash) {
+      await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+        `device:${input.token.sessionId}:${deviceHash.toString('hex')}`,
+      ]);
+      const others = await c.query<{ student_id: string }>(
+        `SELECT student_id FROM device_sessions
+          WHERE session_id = $1 AND device_hash = $2 AND student_id <> $3`,
+        [input.token.sessionId, deviceHash, input.studentId],
+      );
+      sharedWith = others.rows.map((r) => r.student_id);
+      if (sharedWith.length > 0 && (input.devicePolicy ?? 'BLOCK') === 'BLOCK') {
+        await logAttempt(c, input, OUTCOME_FOR_REASON.DEVICE_ALREADY_USED, null);
+        await writeAudit(c, {
+          class: 'SECURITY',
+          actorType: 'STUDENT',
+          actorUserId: input.studentId,
+          action: 'CHECKIN_DEVICE_REUSED',
+          outcome: 'DENIED',
+          courseId: session.course_id,
+          sessionId: input.token.sessionId,
+          ipHash: input.ipHash,
+          summary: { policy: 'BLOCK', otherStudents: sharedWith.length },
+        });
+        await c.query('COMMIT'); // commits the scan record and audit event only
+        return { kind: 'REJECTED', reason: 'DEVICE_ALREADY_USED' };
+      }
+    }
+
     // (6) Accept: roster link, attendance (unique per student and session), first revision, log.
     const { link } = await ensureLink(c, session.course_id, input.studentId);
     const inserted = await c.query<{ id: string }>(
-      `INSERT INTO attendance_records (session_id, course_id, student_id, link_id, source)
-       VALUES ($1, $2, $3, $4, 'QR_SCAN')
+      `INSERT INTO attendance_records (session_id, course_id, student_id, link_id, source, device_hash)
+       VALUES ($1, $2, $3, $4, 'QR_SCAN', $5)
        ON CONFLICT (session_id, student_id) DO NOTHING
        RETURNING id`,
-      [input.token.sessionId, session.course_id, input.studentId, link.id],
+      [input.token.sessionId, session.course_id, input.studentId, link.id, deviceHash],
     );
     let attendanceId = inserted.rows[0]?.id;
     let kind: RecordedResult['kind'] = 'RECORDED';
@@ -227,6 +302,16 @@ async function attempt(pool: pg.Pool, input: CheckInInput): Promise<CheckInResul
          VALUES ($1, 1, 'CREATED_QR', NULL, 'PRESENT', $2)`,
         [attendanceId, input.studentId],
       );
+      if (deviceHash) {
+        await c.query(
+          `INSERT INTO device_sessions (session_id, device_hash, student_id)
+           VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+          [input.token.sessionId, deviceHash, input.studentId],
+        );
+        if (sharedWith.length > 0) {
+          await flagSharedDevice(c, session.course_id, input.token.sessionId, deviceHash);
+        }
+      }
     } else {
       // Lost a race with this same student's other request: theirs is the record.
       const winner = await c.query<{ id: string }>(

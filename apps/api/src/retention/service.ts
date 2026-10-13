@@ -55,6 +55,10 @@ export async function purgeCourse(pool: pg.Pool, courseId: string): Promise<void
     await c.query('DELETE FROM export_records WHERE course_id = $1', p);
     await c.query('DELETE FROM audit_events WHERE course_id = $1', p);
     await c.query(
+      'DELETE FROM device_sessions WHERE session_id IN (SELECT id FROM class_sessions WHERE course_id = $1)',
+      p,
+    );
+    await c.query(
       'DELETE FROM scan_attempts WHERE session_id IN (SELECT id FROM class_sessions WHERE course_id = $1)',
       p,
     );
@@ -111,6 +115,7 @@ async function purgeInactiveAccounts(pool: pg.Pool): Promise<number> {
     const c = await pool.connect();
     try {
       await c.query('BEGIN');
+      await c.query('DELETE FROM device_sessions WHERE student_id = $1', [id]);
       await c.query('DELETE FROM auth_sessions WHERE user_id = $1', [id]);
       await c.query('DELETE FROM account_tokens WHERE user_id = $1', [id]);
       await c.query('DELETE FROM users WHERE id = $1', [id]);
@@ -131,6 +136,12 @@ export async function runRetention(pool: pg.Pool): Promise<RetentionReport> {
     pool,
     `DELETE FROM scan_attempts WHERE ctid IN (
        SELECT ctid FROM scan_attempts WHERE received_at < clock_timestamp() - make_interval(days => ${SCAN_METADATA_DAYS}) LIMIT $1)`,
+  );
+  // Device-binding rows are scan metadata too: same 90-day window, folded into the same count.
+  const deviceRows = await deleteInBatches(
+    pool,
+    `DELETE FROM device_sessions WHERE ctid IN (
+       SELECT ctid FROM device_sessions WHERE created_at < clock_timestamp() - make_interval(days => ${SCAN_METADATA_DAYS}) LIMIT $1)`,
   );
   const securityAudit = await deleteInBatches(
     pool,
@@ -172,7 +183,7 @@ export async function runRetention(pool: pg.Pool): Promise<RetentionReport> {
   const accountsPurged = await purgeInactiveAccounts(pool);
 
   return {
-    scanAttempts,
+    scanAttempts: scanAttempts + deviceRows,
     securityAudit,
     authSessions,
     accountTokens,

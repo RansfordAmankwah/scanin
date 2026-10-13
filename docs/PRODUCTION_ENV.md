@@ -15,6 +15,7 @@ Set these on the `scanin` service. Names are exactly what the app reads. There i
 | `QR_KEYS`                | `k1:<base64url>`, from `node -e "console.log('k1:'+require('crypto').randomBytes(32).toString('base64url'))"` | yes      |
 | `QR_ACTIVE_KID`          | `k1` (must be a key id listed in `QR_KEYS`)                                                                   | yes      |
 | `TRUST_PROXY`            | `true`                                                                                                        | yes      |
+| `DEVICE_POLICY`          | `BLOCK` (default) rejects a second student on the same phone in one class; `FLAG` records it and raises a flag | no       |
 | `API_PORT`               | `10000`                                                                                                       | yes      |
 | `WEB_DIST_DIR`           | `/opt/render/project/src/apps/web/dist`                                                                       | yes      |
 | `EXPORT_DIR`             | `/tmp/scanin-exports`                                                                                         | no       |

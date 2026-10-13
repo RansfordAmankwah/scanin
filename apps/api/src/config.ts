@@ -41,6 +41,11 @@ const ConfigSchema = z
     MAIL_FROM: z.string().min(3).optional(),
     /** Development convenience only: allows the session cookie over plain HTTP. */
     ALLOW_INSECURE_COOKIES: booleanString,
+    /**
+     * What happens when one device checks in a second student for the same class: BLOCK rejects it,
+     * FLAG records it and raises a flag for the lecturer to review.
+     */
+    DEVICE_POLICY: z.enum(['BLOCK', 'FLAG']).default('BLOCK'),
     /** Set when running behind a trusted reverse proxy so the client IP is read correctly. */
     TRUST_PROXY: booleanString,
   })

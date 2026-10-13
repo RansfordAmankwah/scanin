@@ -68,6 +68,7 @@ const OUTCOME: Record<string, string> = {
   REJECTED_SESSION_NOT_STARTED: 'Rejected: not started',
   REJECTED_SESSION_CLOSED: 'Rejected: check-in closed',
   REJECTED_SESSION_ENDED: 'Rejected: class ended',
+  REJECTED_DEVICE_REUSED: 'Rejected: device already used',
 };
 
 export class ReportNotFound extends Error {}

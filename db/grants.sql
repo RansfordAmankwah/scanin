@@ -70,6 +70,7 @@ GRANT SELECT, INSERT ON
   session_extensions,
   attendance_revisions,
   scan_attempts,
+  device_sessions,
   identity_reviews,
   investigation_flag_events,
   audit_events
@@ -87,7 +88,7 @@ GRANT SELECT, DELETE ON
   terms, courses, lecturer_courses,
   roster_imports, roster_entries, roster_links, identity_reviews,
   class_sessions, session_extensions,
-  attendance_records, attendance_revisions, scan_attempts,
+  attendance_records, attendance_revisions, scan_attempts, device_sessions,
   investigation_flags, investigation_flag_events,
   export_records, audit_events
 TO {{retention}};

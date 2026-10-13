@@ -1,4 +1,5 @@
 import { apiFetch } from '../../api/client';
+import { getDeviceId } from './deviceId';
 
 /** What the student's phone scans is a link like https://host/c#t=<code>; accept a bare code too. */
 export function extractToken(scanned: string): string | null {
@@ -20,6 +21,7 @@ export type CheckInOutcome =
   | { kind: 'closed' }
   | { kind: 'ended' }
   | { kind: 'invalid' }
+  | { kind: 'device-used' }
   | { kind: 'rate-limited'; retryAfterSeconds: number }
   | { kind: 'signed-out' }
   | { kind: 'retryable' } // network failure or a temporary server problem: safe to try again
@@ -41,6 +43,7 @@ const REJECTIONS: Record<string, CheckInOutcome> = {
   SESSION_CLOSED: { kind: 'closed' },
   SESSION_ENDED: { kind: 'ended' },
   INVALID_CODE: { kind: 'invalid' },
+  DEVICE_ALREADY_USED: { kind: 'device-used' },
 };
 
 /**
@@ -51,7 +54,7 @@ export async function submitCheckIn(token: string, attemptId: string): Promise<C
   try {
     const res = await apiFetch<RecordBody>('/checkins', {
       method: 'POST',
-      body: { token, clientAttemptId: attemptId },
+      body: { token, clientAttemptId: attemptId, deviceId: getDeviceId() },
     });
     const body = res.data;
     if (res.ok && body && 'result' in body) {

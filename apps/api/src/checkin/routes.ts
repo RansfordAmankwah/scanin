@@ -17,6 +17,8 @@ const PER_IP_PER_MINUTE = 600;
 const Body = z.object({
   token: z.string().min(1).max(200),
   clientAttemptId: z.string().uuid(),
+  /** The browser's random device id. Optional so an older cached app still works. */
+  deviceId: z.string().uuid().optional(),
 });
 
 const STATUS_FOR_REASON: Record<RejectionReason, number> = {
@@ -26,6 +28,7 @@ const STATUS_FOR_REASON: Record<RejectionReason, number> = {
   SESSION_NOT_STARTED: 409,
   SESSION_CLOSED: 409,
   SESSION_ENDED: 409,
+  DEVICE_ALREADY_USED: 403,
 };
 
 const MESSAGE_FOR_REASON: Record<RejectionReason, string> = {
@@ -35,6 +38,8 @@ const MESSAGE_FOR_REASON: Record<RejectionReason, string> = {
   SESSION_NOT_STARTED: 'Check-in has not started yet.',
   SESSION_CLOSED: 'Check-in is closed for this class.',
   SESSION_ENDED: 'This class has ended.',
+  DEVICE_ALREADY_USED:
+    'This device has already been used to check in another account for this session.',
 };
 
 /** Coarse browser family only; the full user-agent string is never stored. */
@@ -50,7 +55,7 @@ export function userAgentFamily(ua: string | undefined): string {
 
 export function registerCheckInRoutes(
   app: FastifyInstance,
-  deps: { pool: pg.Pool; config: Pick<Config, 'IP_HASH_SECRET'>; keyring: Keyring },
+  deps: { pool: pg.Pool; config: Pick<Config, 'IP_HASH_SECRET' | 'DEVICE_POLICY'>; keyring: Keyring },
 ): void {
   const { pool, config, keyring } = deps;
 
@@ -108,6 +113,10 @@ export function registerCheckInRoutes(
           clientAttemptId: body.data.clientAttemptId,
           ipHash,
           userAgentFamily: userAgentFamily(req.headers['user-agent']),
+          deviceHash: body.data.deviceId
+            ? keyedHash(config.IP_HASH_SECRET, 'device', body.data.deviceId)
+            : null,
+          devicePolicy: config.DEVICE_POLICY,
         });
 
         if (result.kind === 'REJECTED') {

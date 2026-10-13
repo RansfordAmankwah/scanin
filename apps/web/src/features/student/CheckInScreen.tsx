@@ -294,6 +294,16 @@ function Result({
           <Button onClick={onRetry}>Try again</Button>
         </section>
       );
+    case 'device-used':
+      return (
+        <section className="card">
+          <Notice tone="danger" title="Device error" urgent>
+            This device was already used by another student for this session. Use your own phone, or
+            tell your lecturer.
+          </Notice>
+          <Button onClick={onDone}>Done</Button>
+        </section>
+      );
     case 'error':
       return (
         <section className="card">

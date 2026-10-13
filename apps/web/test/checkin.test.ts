@@ -39,15 +39,19 @@ describe('submitCheckIn', () => {
     ...extra,
   });
 
-  it('sends the code and attempt id with the CSRF header, and nothing else', async () => {
+  it('sends the code, attempt id and a stable device id with the CSRF header, and nothing else', async () => {
     const fetchMock = mockApi({ 'POST /checkins': reply(201, record('RECORDED')) });
     await submitCheckIn(TOKEN, '11111111-1111-4111-8111-111111111111');
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('/api/checkins');
-    expect(JSON.parse(init!.body as string)).toEqual({
+    const body = JSON.parse(init!.body as string);
+    expect(body).toEqual({
       token: TOKEN,
       clientAttemptId: '11111111-1111-4111-8111-111111111111',
+      deviceId: expect.stringMatching(/^[0-9a-f-]{36}$/),
     });
+    await submitCheckIn(TOKEN, '22222222-2222-4222-8222-222222222222');
+    expect(JSON.parse(fetchMock.mock.calls[1]![1]!.body as string).deviceId).toBe(body.deviceId);
     expect((init!.headers as Record<string, string>)['X-Requested-With']).toBe('scanin');
   });
 
@@ -58,6 +62,7 @@ describe('submitCheckIn', () => {
     [410, { error: { code: 'CODE_REVOKED' } }, 'revoked'],
     [409, { error: { code: 'SESSION_NOT_STARTED' } }, 'not-started'],
     [409, { error: { code: 'SESSION_CLOSED' } }, 'closed'],
+    [403, { error: { code: 'DEVICE_ALREADY_USED' } }, 'device-used'],
     [409, { error: { code: 'SESSION_ENDED' } }, 'ended'],
     [400, { error: { code: 'INVALID_CODE' } }, 'invalid'],
     [401, { error: { code: 'UNAUTHENTICATED' } }, 'signed-out'],

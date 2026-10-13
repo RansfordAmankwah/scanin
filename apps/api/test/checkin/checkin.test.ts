@@ -105,12 +105,16 @@ async function codeFor(sessionId: string, ageMs = 0): Promise<string> {
 async function scan(
   cookie: string,
   token: string,
-  opts: { attemptId?: string; headers?: Record<string, string> } = {},
+  opts: { attemptId?: string; headers?: Record<string, string>; deviceId?: string } = {},
 ) {
   return post(
     t.app,
     '/checkins',
-    { token, clientAttemptId: opts.attemptId ?? randomUUID() },
+    {
+      token,
+      clientAttemptId: opts.attemptId ?? randomUUID(),
+      ...(opts.deviceId ? { deviceId: opts.deviceId } : {}),
+    },
     { cookie, ip: freshIp(), headers: opts.headers ?? {} },
   );
 }
@@ -875,5 +879,122 @@ describe('QR-08 check-in never writes codes or credentials to logs', () => {
     expect(logs).not.toContain('forged.value');
     expect(logs).not.toContain('ST1.');
     expect(logs).not.toContain(s!.cookie.split('=')[1]);
+  });
+});
+
+describe('device binding: one phone, one student per class', () => {
+  it('blocks a second student on the same device and records only a rejection', async () => {
+    const sessionId = await openSession();
+    const token = await codeFor(sessionId);
+    const [a, b] = await nextStudents(2);
+    const device = randomUUID();
+    expect((await scan(a!.cookie, token, { deviceId: device })).statusCode).toBe(201);
+
+    const blocked = await scan(b!.cookie, token, { deviceId: device });
+    expect(blocked.statusCode).toBe(403);
+    expect(blocked.json().error.code).toBe('DEVICE_ALREADY_USED');
+    expect(await attendanceFor(sessionId)).toBe(1);
+    const outcomes = (await attemptsFor(sessionId)).map((x) => x.outcome);
+    expect(outcomes).toEqual(['ACCEPTED', 'REJECTED_DEVICE_REUSED']);
+    expect(
+      await count(`SELECT 1 FROM audit_events WHERE session_id = $1 AND action = 'CHECKIN_DEVICE_REUSED'`, [
+        sessionId,
+      ]),
+    ).toBe(1);
+    // The raw device id is never stored.
+    const stored = await db.pool.query<{ device_hash: Buffer }>(
+      'SELECT device_hash FROM attendance_records WHERE session_id = $1',
+      [sessionId],
+    );
+    expect(stored.rows[0]!.device_hash.toString('hex')).not.toContain(device.replaceAll('-', ''));
+  });
+
+  it('lets the same student repeat on their own device, and other devices check in freely', async () => {
+    const sessionId = await openSession();
+    const token = await codeFor(sessionId);
+    const [a, b] = await nextStudents(2);
+    const device = randomUUID();
+    expect((await scan(a!.cookie, token, { deviceId: device })).statusCode).toBe(201);
+    expect((await scan(a!.cookie, token, { deviceId: device })).statusCode).toBe(200);
+    expect((await scan(b!.cookie, token, { deviceId: randomUUID() })).statusCode).toBe(201);
+    expect(await attendanceFor(sessionId)).toBe(2);
+  });
+
+  it('allows the same device in a different class session', async () => {
+    const device = randomUUID();
+    const [a, b] = await nextStudents(2);
+    for (const s of [a!, b!]) {
+      const sessionId = await openSession();
+      expect((await scan(s.cookie, await codeFor(sessionId), { deviceId: device })).statusCode).toBe(
+        201,
+      );
+    }
+  });
+
+  it('only one of two simultaneous students on a device gets in', async () => {
+    const sessionId = await openSession();
+    const token = await codeFor(sessionId);
+    const [a, b] = await nextStudents(2);
+    const device = randomUUID();
+    const codes = (
+      await Promise.all([
+        scan(a!.cookie, token, { deviceId: device }),
+        scan(b!.cookie, token, { deviceId: device }),
+      ])
+    )
+      .map((r) => r.statusCode)
+      .sort();
+    expect(codes).toEqual([201, 403]);
+    expect(await attendanceFor(sessionId)).toBe(1);
+  });
+
+  it('FLAG policy records both and raises a system flag on each record, changing nothing else', async () => {
+    const sessionId = await openSession();
+    const token = verifyToken(keyring, await codeFor(sessionId));
+    if (!token.ok) throw new Error('bad token');
+    const [a, b] = await nextStudents(2);
+    const deviceHash = Buffer.alloc(32, 7);
+    for (const s of [a!, b!]) {
+      const r = await checkIn(db.appPool, {
+        studentId: s.id,
+        token: token.payload,
+        clientAttemptId: randomUUID(),
+        ipHash: null,
+        userAgentFamily: null,
+        deviceHash,
+        devicePolicy: 'FLAG',
+      });
+      expect(r.kind).toBe('RECORDED');
+    }
+    expect(await attendanceFor(sessionId)).toBe(2);
+    const flags = await db.pool.query(
+      `SELECT f.kind::text AS kind, f.origin::text AS origin, f.state::text AS state
+         FROM investigation_flags f WHERE f.session_id = $1`,
+      [sessionId],
+    );
+    expect(flags.rows).toHaveLength(2);
+    expect(flags.rows.every((f) => f.kind === 'PROXY_SUSPECTED' && f.origin === 'SYSTEM')).toBe(
+      true,
+    );
+    expect(
+      await count(
+        `SELECT 1 FROM attendance_records WHERE session_id = $1 AND status = 'PRESENT'`,
+        [sessionId],
+      ),
+    ).toBe(2);
+  });
+
+  it('rejects a malformed device id and still works without one (older cached app)', async () => {
+    const sessionId = await openSession();
+    const token = await codeFor(sessionId);
+    const [a, b] = await nextStudents(2);
+    const bad = await post(
+      t.app,
+      '/checkins',
+      { token, clientAttemptId: randomUUID(), deviceId: 'not-a-uuid' },
+      { cookie: a!.cookie, ip: freshIp(), headers: {} },
+    );
+    expect(bad.statusCode).toBe(400);
+    expect((await scan(b!.cookie, token)).statusCode).toBe(201);
   });
 });

@@ -19,6 +19,7 @@ export const TEST_CONFIG: Config = {
   EXPORT_TTL_MINUTES: 60,
   ALLOW_INSECURE_COOKIES: false,
   TRUST_PROXY: false,
+  DEVICE_POLICY: 'BLOCK',
 };
 
 export interface TestApp {

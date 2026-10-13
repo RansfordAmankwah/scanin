@@ -146,6 +146,7 @@ const OUTCOMES = new Set([
   'REJECTED_SESSION_NOT_STARTED',
   'REJECTED_SESSION_CLOSED',
   'REJECTED_SESSION_ENDED',
+  'REJECTED_DEVICE_REUSED',
 ]);
 export const isScanOutcome = (value: string): boolean => OUTCOMES.has(value);
 
