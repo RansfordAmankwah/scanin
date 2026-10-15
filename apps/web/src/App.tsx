@@ -80,9 +80,7 @@ function VerifyEmail() {
   return (
     <main className="auth">
       <div className="auth__brand">
-        <span className="brand__mark" aria-hidden="true">
-          S
-        </span>
+        <img src="/favicon.svg" alt="" className="brand__mark" width="28" height="28" />
         <h1>ScanIn</h1>
       </div>
       <div className="auth__card">

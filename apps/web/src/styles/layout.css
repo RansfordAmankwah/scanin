@@ -37,16 +37,10 @@
 }
 
 .brand__mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   width: 1.75rem;
   height: 1.75rem;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
   border-radius: var(--radius);
-  font-size: var(--text-sm);
-  font-weight: 800;
 }
 
 .main-nav {

@@ -38,9 +38,7 @@ export function AppShell({
       <header className="app-header">
         <div className="app-header__inner">
           <Link to="/" className="brand">
-            <span className="brand__mark" aria-hidden="true">
-              S
-            </span>
+            <img src="/favicon.svg" alt="" className="brand__mark" width="28" height="28" />
             ScanIn
           </Link>
           <nav className="main-nav" aria-label="Main">
