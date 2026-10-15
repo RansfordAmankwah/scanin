@@ -7,6 +7,9 @@ export interface CurrentUser {
   role: Role;
   fullName: string;
   emailVerified: boolean;
+  /** The signed-in user's own e-mail and, for a student, student ID. */
+  email: string;
+  studentId: string | null;
 }
 
 export interface RegistrationInput {
@@ -47,6 +50,22 @@ export async function login(email: string, password: string): Promise<LoginOutco
     return { ok: false, reason: 'ERROR' };
   } catch {
     return { ok: false, reason: 'NETWORK' };
+  }
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ ok: true } | { ok: false; code: string }> {
+  try {
+    const res = await apiFetch<{ error?: { code: string } }>('/auth/password', {
+      method: 'POST',
+      body: { currentPassword, newPassword },
+    });
+    if (res.ok) return { ok: true };
+    return { ok: false, code: res.data?.error?.code ?? 'ERROR' };
+  } catch {
+    return { ok: false, code: 'NETWORK' };
   }
 }
 

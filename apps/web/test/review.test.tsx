@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
+import { courseChrome } from './helpers/fixtures';
 import { bodyOf, mockApi, reply } from './helpers/net';
 
 vi.mock('qr-scanner', () => ({
@@ -66,7 +67,7 @@ function courseRoutes(over: Record<string, unknown> = {}) {
   return {
     'GET /auth/me': reply(200, { user: lecturer }),
     [`GET /courses/${COURSE}`]: reply(200, { course }),
-    [`GET /courses/${COURSE}/sessions`]: reply(200, { sessions: [] }),
+    ...courseChrome([]),
     [`GET /courses/${COURSE}/review-queue`]: () => reply(200, queue),
     [`GET /courses/${COURSE}/links/${LINK}/suggestions`]: reply(200, {
       suggestionOnly: true,
@@ -85,7 +86,7 @@ const flush = () =>
 describe('review queue', () => {
   it('lists matches and flags that need a decision, with honest wording about self-reported details', async () => {
     mockApi(courseRoutes());
-    render(<App pathname={`/courses/${COURSE}`} />);
+    render(<App pathname={`/courses/${COURSE}/review`} />);
     const card = await waitFor(() => screen.getByRole('article', { name: /ZZ100 Ama Mensa/ }));
     expect(card.textContent).toContain('Needs review');
     expect(card.textContent).toContain('(not verified)');
@@ -101,7 +102,7 @@ describe('review queue', () => {
         [`GET /courses/${COURSE}/review-queue`]: reply(200, { links: [], flags: [] }),
       }),
     );
-    render(<App pathname={`/courses/${COURSE}`} />);
+    render(<App pathname={`/courses/${COURSE}/review`} />);
     await waitFor(() => screen.getByText(/nothing needs review right now/i));
   });
 
@@ -114,7 +115,7 @@ describe('review queue', () => {
         [`POST /courses/${COURSE}/links/${LINK}/decision`]: reply(200, { state: 'CONFIRMED' }),
       }),
     );
-    render(<App pathname={`/courses/${COURSE}`} />);
+    render(<App pathname={`/courses/${COURSE}/review`} />);
     fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /decide…/i })));
     const form = await waitFor(() => screen.getByRole('form', { name: /decide ZZ100/i }));
 
@@ -158,7 +159,7 @@ describe('review queue', () => {
         }),
       }),
     );
-    render(<App pathname={`/courses/${COURSE}`} />);
+    render(<App pathname={`/courses/${COURSE}/review`} />);
     fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /decide…/i })));
     const form = await waitFor(() => screen.getByRole('form', { name: /decide ZZ100/i }));
     fireEvent.change(within(form).getByLabelText(/decision/i), { target: { value: 'REJECT' } });
@@ -199,7 +200,7 @@ describe('review queue', () => {
         }),
       }),
     );
-    render(<App pathname={`/courses/${COURSE}`} />);
+    render(<App pathname={`/courses/${COURSE}/review`} />);
     const card = await waitFor(() => screen.getByRole('article', { name: /ZZ100 Ama Mensa/ }));
     fireEvent.click(within(card).getByRole('button', { name: /history/i }));
     const list = await waitFor(() => within(card).getByRole('list', { name: /match history/i }));
@@ -213,7 +214,7 @@ describe('review queue', () => {
         [`POST /courses/${COURSE}/flags/${FLAG}/transition`]: reply(200, { state: 'UNDER_REVIEW' }),
       }),
     );
-    render(<App pathname={`/courses/${COURSE}`} />);
+    render(<App pathname={`/courses/${COURSE}/review`} />);
     const flag = await waitFor(() =>
       screen.getByRole('article', { name: /Flag: Conflicting student ID/ }),
     );
@@ -233,7 +234,7 @@ describe('review queue', () => {
         [`POST /courses/${COURSE}/flags/${FLAG}/transition`]: reply(200, { state: 'DISMISSED' }),
       }),
     );
-    render(<App pathname={`/courses/${COURSE}`} />);
+    render(<App pathname={`/courses/${COURSE}/review`} />);
     fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /dismiss…/i })));
     const form = await waitFor(() => screen.getByRole('form', { name: /dismiss flag/i }));
     expect(within(form).getByText(/does not change attendance/i)).toBeTruthy();

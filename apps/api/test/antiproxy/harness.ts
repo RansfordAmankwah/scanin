@@ -26,6 +26,8 @@ export interface Harness {
   other: { id: string; cookie: string };
   courseId: string;
   otherCourseId: string;
+  /** A brand-new course for the first lecturer (or, with 'other', the second), so a test starts clean. */
+  newCourse(owner?: 'other'): Promise<string>;
   /** Creates and starts a session in `course` (default: the first lecturer's course). */
   openSession(course?: string): Promise<string>;
   /** Creates a session that has not been started. */
@@ -65,6 +67,7 @@ export async function createHarness(overrides: Partial<Config> = {}): Promise<Ha
   });
   const lecturer = await createLecturerSession(db, t.app, 'lec1@school.test');
   const other = await createLecturerSession(db, t.app, 'lec2@school.test');
+  const owners = new Map<string, 'other' | undefined>();
   const course = async (code: string, email: string) => {
     const { id } = await createCourse(db.operatorPool, { operator, term: 'T1', code, title: code });
     await assignLecturer(db.operatorPool, {
@@ -73,8 +76,10 @@ export async function createHarness(overrides: Partial<Config> = {}): Promise<Ha
       courseCode: code,
       lecturerEmail: email,
     });
+    owners.set(id, email === 'lec2@school.test' ? 'other' : undefined);
     return id;
   };
+  let courseCounter = 0;
   const courseId = await course('AP1', 'lec1@school.test');
   const otherCourseId = await course('AP2', 'lec2@school.test');
 
@@ -108,8 +113,15 @@ export async function createHarness(overrides: Partial<Config> = {}): Promise<Ha
     other,
     courseId,
     otherCourseId,
+    async newCourse(owner) {
+      courseCounter += 1;
+      return course(
+        `NC${courseCounter}`,
+        owner === 'other' ? 'lec2@school.test' : 'lec1@school.test',
+      );
+    },
     async newSession(c = courseId) {
-      const owner = c === otherCourseId ? other : lecturer;
+      const owner = owners.get(c) === 'other' ? other : lecturer;
       const res = await post(
         t.app,
         `/courses/${c}/sessions`,
@@ -119,7 +131,7 @@ export async function createHarness(overrides: Partial<Config> = {}): Promise<Ha
       return res.json().session.id as string;
     },
     async openSession(c = courseId) {
-      const owner = c === otherCourseId ? other : lecturer;
+      const owner = owners.get(c) === 'other' ? other : lecturer;
       const id = await h.newSession(c);
       await post(t.app, `/courses/${c}/sessions/${id}/start`, {}, { cookie: owner.cookie });
       return id;

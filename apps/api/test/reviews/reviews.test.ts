@@ -953,9 +953,9 @@ describe('ATT-04 invalidating and restoring attendance', () => {
       expect(await countsFor(course, session)).toMatchObject({ presentTotal: 0, invalidated: 1 });
 
       // The student sees the category, never the explanation.
-      const mine = await get(t.app, '/me/attendance', { cookie: s.cookie });
-      expect(mine.json().courses[0].sessions[0]).toMatchObject({
-        status: 'INVALIDATED',
+      const mine = await get(t.app, `/me/courses/${course}`, { cookie: s.cookie });
+      expect(mine.json().sessions[0]).toMatchObject({
+        outcome: 'INVALIDATED',
         invalidationCategory: category,
       });
       expect(mine.body).not.toContain('Written explanation');
@@ -1175,10 +1175,10 @@ describe('ATT-05 marking a student present without a QR scan', () => {
     const roster = (await G1(`/courses/${course}/sessions/${session}/attendance`)).json();
     expect(roster.records[0]).toMatchObject({ source: 'MANUAL', status: 'PRESENT' }); // distinguishable
     expect(roster.counts).toMatchObject({ presentTotal: 1, provisional: 1, confirmed: 0 }); // marking present does not confirm identity
+    // The student sees it as recorded, but still provisional: marking present does not confirm identity.
     expect(
-      (await get(t.app, '/me/attendance', { cookie: s!.cookie })).json().courses[0].sessions[0]
-        .status,
-    ).toBe('PRESENT');
+      (await get(t.app, `/me/courses/${course}`, { cookie: s!.cookie })).json().sessions[0].outcome,
+    ).toBe('PROVISIONAL');
     expect(await auditCount('ATTENDANCE_MARKED_MANUALLY', res.json().attendanceId)).toBe(1);
   });
 

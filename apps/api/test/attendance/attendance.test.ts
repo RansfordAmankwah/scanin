@@ -553,7 +553,7 @@ describe('the scan-history view', () => {
 });
 
 describe('AUTHZ-01 students see only their own attendance', () => {
-  it('returns each student their own sessions and nothing of anyone else', async () => {
+  it('returns each student their own course history and nothing of anyone else', async () => {
     const course = await newCourse();
     const [alice, bob, carol] = await students(3);
     const s1 = await openSession(course);
@@ -561,37 +561,45 @@ describe('AUTHZ-01 students see only their own attendance', () => {
     await post(t.app, sessionUrl(course, s2, '/end'), {}, { cookie: lecturer1.cookie });
     await scan(alice!, s1);
     await scan(bob!, s1);
-    // Alice also attended s2? Not possible (ended): she has a record for s1 only; Bob likewise.
     await db.pool.query(`UPDATE users SET full_name = 'Alice Wonderland' WHERE id = $1`, [
       alice!.id,
     ]);
     await db.pool.query(`UPDATE users SET full_name = 'Bob Builder' WHERE id = $1`, [bob!.id]);
 
-    const mine = await get(t.app, '/me/attendance', { cookie: alice!.cookie });
-    expect(mine.statusCode).toBe(200);
-    const body = mine.json();
-    expect(body.courses).toHaveLength(1);
-    expect(body.courses[0]).toMatchObject({
-      code: expect.stringMatching(/^A\d+$/),
-      associationState: 'PROVISIONAL',
-      presentCount: 1,
-      sessionCount: 2,
+    const list = await get(t.app, '/me/courses', { cookie: alice!.cookie });
+    expect(list.statusCode).toBe(200);
+    expect(list.json().courses).toHaveLength(1);
+    expect(list.json().courses[0]).toMatchObject({
+      code: expect.stringMatching(/^A[0-9]+$/),
+      association: { state: 'PROVISIONAL' },
     });
-    const statuses = body.courses[0].sessions.map((s: { id: string; status: string }) => [
-      s.id,
-      s.status,
-    ]);
-    expect(statuses).toContainEqual([s1, 'PRESENT']);
-    expect(statuses).toContainEqual([s2, 'NO_RECORD']); // a started session with no record: stated plainly, not as "absent"
-    expect(mine.body).not.toContain('Bob');
-    expect(mine.body).not.toContain(bob!.id);
-    expect(mine.body).not.toContain(bob!.studentId);
+    const history = await get(t.app, `/me/courses/${course}`, { cookie: alice!.cookie });
+    expect(history.statusCode).toBe(200);
+    const outcomes = history
+      .json()
+      .sessions.map((s: { id: string; outcome: string }) => [s.id, s.outcome]);
+    // s1 is still open for check-in, so it is "in progress" for everyone and not yet counted. s2 ended
+    // before Alice was ever associated with the course, so ScanIn does not guess it into her record.
+    expect(outcomes).toContainEqual([s1, 'PROVISIONAL']);
+    expect(outcomes).toContainEqual([s2, 'NOT_COUNTED']);
+    for (const text of [list.body, history.body]) {
+      expect(text).not.toContain('Bob');
+      expect(text).not.toContain(bob!.id);
+      expect(text).not.toContain(bob!.studentId);
+    }
 
-    const theirs = (await get(t.app, '/me/attendance', { cookie: bob!.cookie })).json();
-    expect(theirs.courses[0].presentCount).toBe(1);
-    expect((await get(t.app, '/me/attendance', { cookie: carol!.cookie })).json()).toEqual({
+    const theirs = (await get(t.app, '/me/courses', { cookie: bob!.cookie })).json();
+    expect(theirs.courses).toHaveLength(1);
+    expect((await get(t.app, '/me/courses', { cookie: carol!.cookie })).json()).toEqual({
       courses: [],
     }); // never linked to the course
+    // And a course they are not part of looks exactly like a course that does not exist.
+    const notMine = await get(t.app, `/me/courses/${course}`, { cookie: carol!.cookie });
+    const missing = await get(t.app, `/me/courses/00000000-0000-4000-8000-000000000000`, {
+      cookie: carol!.cookie,
+    });
+    expect(notMine.statusCode).toBe(404);
+    expect(notMine.json()).toEqual(missing.json());
   });
 
   it('cannot be pointed at another student by any parameter', async () => {
@@ -600,11 +608,15 @@ describe('AUTHZ-01 students see only their own attendance', () => {
     const s = await openSession(course);
     await scan(bob!, s);
     for (const q of [`?studentId=${bob!.id}`, `?userId=${bob!.id}`, `?student=${bob!.studentId}`]) {
-      const res = await get(t.app, `/me/attendance${q}`, { cookie: alice!.cookie });
+      const res = await get(t.app, `/me/courses${q}`, { cookie: alice!.cookie });
       expect(res.json()).toEqual({ courses: [] });
+      const one = await get(t.app, `/me/courses/${course}${q}`, { cookie: alice!.cookie });
+      expect(one.statusCode).toBe(404);
     }
-    expect((await get(t.app, `/me/attendance`, { cookie: lecturer1.cookie })).statusCode).toBe(403);
-    expect((await get(t.app, `/me/attendance`)).statusCode).toBe(401);
+    for (const url of ['/me/courses', `/me/courses/${course}`]) {
+      expect((await get(t.app, url, { cookie: lecturer1.cookie })).statusCode).toBe(403);
+      expect((await get(t.app, url)).statusCode).toBe(401);
+    }
   });
 
   it("shows the invalidation category but never the lecturer's explanation or any flags", async () => {
@@ -615,12 +627,16 @@ describe('AUTHZ-01 students see only their own attendance', () => {
     const attendanceId = await seedAttendance(course, session, s!.id, link, { invalidated: true });
     await addFlag(course, { attendanceId }, 'OPEN');
 
-    const res = await get(t.app, '/me/attendance', { cookie: s!.cookie });
-    const entry = res.json().courses[0].sessions[0];
-    expect(entry).toMatchObject({ status: 'INVALIDATED', invalidationCategory: 'CONFIRMED_PROXY' });
-    expect(res.body).not.toContain('Secret investigation note');
-    expect(res.body.toLowerCase()).not.toContain('flag');
-    expect(res.body).not.toContain('PROXY_SUSPECTED');
+    const res = await get(t.app, `/me/courses/${course}`, { cookie: s!.cookie });
+    const entry = res.json().sessions[0];
+    expect(entry).toMatchObject({
+      outcome: 'INVALIDATED',
+      invalidationCategory: 'CONFIRMED_PROXY',
+    });
+    const everything = res.body + (await get(t.app, '/me/courses', { cookie: s!.cookie })).body;
+    expect(everything).not.toContain('Secret investigation note');
+    expect(everything.toLowerCase()).not.toContain('flag');
+    expect(everything).not.toContain('PROXY_SUSPECTED');
   });
 
   it('hides sessions that have not started', async () => {
@@ -629,7 +645,7 @@ describe('AUTHZ-01 students see only their own attendance', () => {
     await createLink(db.pool, course, s!.id);
     await createSession(db.pool, course, lecturer1.id, 'NOT_STARTED');
     const open = await createSession(db.pool, course, lecturer1.id, 'CHECK_IN_OPEN');
-    const sessions = (await get(t.app, '/me/attendance', { cookie: s!.cookie })).json().courses[0]
+    const sessions = (await get(t.app, `/me/courses/${course}`, { cookie: s!.cookie })).json()
       .sessions;
     expect(sessions.map((x: { id: string }) => x.id)).toEqual([open]);
   });

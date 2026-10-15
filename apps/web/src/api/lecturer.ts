@@ -295,40 +295,168 @@ export interface RosterPreview {
   missing: Array<{ entryId: string; studentId: string; fullName: string; heldBy: string | null }>;
 }
 
-export interface MyAttendance {
-  courses: Array<{
-    id: string;
-    code: string;
-    title: string;
-    associationState: string;
-    presentCount: number;
-    sessionCount: number;
-    sessions: Array<{
-      id: string;
-      title: string;
-      date: string;
-      status: 'PRESENT' | 'INVALIDATED' | 'NO_RECORD';
-      source: string | null;
-      invalidationCategory: string | null;
-      /** Present only while a lecturer is reviewing, or after they reviewed, this record. */
-      review: {
-        id: string;
-        state: 'OPEN' | 'RESOLVED_UPHELD' | 'RESOLVED_INVALIDATED';
-        openedAt: string;
-        resolvedAt: string | null;
-        repliesLeft: number;
-      } | null;
-    }>;
-  }>;
+// --- Course-based attendance (see docs/COURSE_ATTENDANCE.md) -------------------------------------
+
+export type Outcome =
+  | 'CONFIRMED'
+  | 'PROVISIONAL'
+  | 'AWAITING_CONFIRMATION'
+  | 'INVALIDATED'
+  | 'NO_RECORD'
+  | 'IN_PROGRESS'
+  | 'NOT_COUNTED';
+
+export type PercentReason = 'OK' | 'NO_ELIGIBLE_SESSIONS' | 'NOT_CONFIRMED' | 'NOT_MATCHED';
+export type LinkState = 'PROVISIONAL' | 'REVIEW_REQUIRED' | 'CONFIRMED' | 'REJECTED';
+
+export interface AttendanceSummary {
+  sessionsStarted: number;
+  eligibleSessions: number;
+  inProgress: number;
+  notCounted: number;
+  tally: {
+    confirmed: number;
+    provisional: number;
+    awaitingConfirmation: number;
+    invalidated: number;
+    noRecord: number;
+  };
+  percent: number | null;
+  percentReason: PercentReason;
+}
+
+export interface Review {
+  id: string;
+  state: 'OPEN' | 'RESOLVED_UPHELD' | 'RESOLVED_INVALIDATED';
+  openedAt: string;
+  resolvedAt: string | null;
+  repliesLeft: number;
+}
+
+export interface CourseSession {
+  id: string;
+  title: string;
+  date: string;
+  phase: 'CLOSED' | 'IN_PROGRESS';
+  outcome: Outcome;
+  counted: boolean;
+  source: 'QR_SCAN' | 'MANUAL' | null;
+  invalidationCategory: string | null;
+  review: Review | null;
+}
+
+export interface StudentCourseSummary {
+  id: string;
+  code: string;
+  title: string;
+  term: { id: string; name: string; startsOn: string; endsOn: string };
+  association: { state: LinkState };
+  summary: AttendanceSummary;
+  latestSession: { id: string; title: string; date: string; outcome: Outcome } | null;
+  openReviews: number;
+}
+
+export interface StudentCourseHistory {
+  course: { id: string; code: string; title: string; term: StudentCourseSummary['term'] };
+  association: { state: LinkState };
+  summary: AttendanceSummary;
+  countedFrom: string | null;
+  sessions: CourseSession[];
 }
 
 export const studentApi = {
-  attendance: () => call<MyAttendance>('/me/attendance'),
+  courses: () => call<{ courses: StudentCourseSummary[] }>('/me/courses'),
+  course: (courseId: string) => call<StudentCourseHistory>(`/me/courses/${courseId}`),
   respondToReview: (disputeId: string, note: string) =>
     call<{ disputeId: string }>(`/me/disputes/${disputeId}/response`, {
       method: 'POST',
       body: { note },
     }),
+};
+
+export interface LecturerCourseOverview {
+  id: string;
+  code: string;
+  title: string;
+  term: { id: string; name: string; startsOn: string; endsOn: string };
+  sessions: { total: number; started: number };
+  openSession: {
+    id: string;
+    title: string;
+    date: string;
+    present: number;
+    checkInDeadline: string | null;
+  } | null;
+  lastSession: { id: string; title: string; date: string; state: string; present: number } | null;
+  attention: { matchesToReview: number; openFlags: number; openReviews: number };
+  students: { registered: number; notRegistered: number };
+}
+
+export interface CourseStudentRow {
+  linkId: string;
+  studentId: string;
+  fullName: string;
+  associationState: LinkState;
+  summary: AttendanceSummary;
+  flaggedRecords: number;
+  openReviews: number;
+}
+
+export interface CourseSessionRow {
+  id: string;
+  title: string;
+  date: string;
+  state: SessionView['state'];
+  present: number;
+  confirmed: number;
+  provisional: number;
+  awaitingConfirmation: number;
+  invalidated: number;
+  flagged: number;
+  headcount: number | null;
+}
+
+export interface CourseAttendanceSummary {
+  students: CourseStudentRow[];
+  notRegistered: Array<{ entryId: string; studentId: string; fullName: string }>;
+  sessions: CourseSessionRow[];
+}
+
+export interface LecturerStudentHistory {
+  student: { linkId: string; studentId: string; fullName: string; associationState: LinkState };
+  summary: AttendanceSummary;
+  countedFrom: string | null;
+  sessions: Array<
+    CourseSession & {
+      attendanceId: string | null;
+      flagged: boolean;
+      verification: string | null;
+      disputeState: string | null;
+    }
+  >;
+}
+
+export interface ClassList {
+  hasRoster: boolean;
+  entries: Array<{
+    id: string;
+    studentId: string;
+    fullName: string;
+    schoolEmail: string | null;
+    registered: boolean;
+    link: { id: string; state: LinkState; basis: string | null } | null;
+  }>;
+  /** Accounts linked to the course without a class-list entry: self-reported, not confirmed enrollment. */
+  unmatchedLinks: Array<{ linkId: string; studentId: string; fullName: string; state: LinkState }>;
+}
+
+export const courseApi = {
+  classList: (courseId: string) => call<ClassList>(`/courses/${courseId}/roster`),
+  overview: () => call<{ courses: LecturerCourseOverview[] }>('/courses/overview'),
+  summary: (courseId: string) =>
+    call<CourseAttendanceSummary>(`/courses/${courseId}/attendance-summary`),
+  student: (courseId: string, linkId: string) =>
+    call<LecturerStudentHistory>(`/courses/${courseId}/students/${linkId}/attendance`),
 };
 
 // --- Anti-proxy controls: room headcount, spot checks and reviews ----------------------------

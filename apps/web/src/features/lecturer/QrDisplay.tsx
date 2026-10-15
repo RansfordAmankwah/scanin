@@ -1,6 +1,8 @@
 import QRCode from 'qrcode';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../api/client';
+import { ConfirmDialog } from '../../components/ui';
+import { Link } from '../../router';
 
 interface MintResponse {
   qrUrl: string;
@@ -37,6 +39,7 @@ export function QrDisplay({ courseId, sessionId }: { courseId: string; sessionId
   const expiresAt = useRef<number>(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const cancelled = useRef(false);
+  const [confirming, setConfirming] = useState(false);
 
   const base = `/courses/${courseId}/sessions/${sessionId}`;
 
@@ -94,10 +97,7 @@ export function QrDisplay({ courseId, sessionId }: { courseId: string; sessionId
   }, [refresh]);
 
   const invalidate = async () => {
-    if (
-      !window.confirm('Invalidate the codes currently on screen? Students must scan the new code.')
-    )
-      return;
+    setConfirming(false);
     await apiFetch(`${base}/qr/invalidate`, { method: 'POST', body: {} });
     await refresh();
   };
@@ -109,9 +109,9 @@ export function QrDisplay({ courseId, sessionId }: { courseId: string; sessionId
   const secondsLeft = deadline === null ? null : Math.max(0, Math.floor((deadline - now) / 1000));
 
   return (
-    <main style={styles.page}>
+    <main className="present">
       <h1 className="visually-hidden">Class check-in code</h1>
-      <div role="status" aria-live="polite" style={styles.message}>
+      <div role="status" aria-live="polite" className="present__message">
         {status.kind === 'loading' && 'Loading code…'}
         {status.kind === 'reconnecting' &&
           'Reconnecting… the code on screen is still valid for a short time.'}
@@ -122,52 +122,33 @@ export function QrDisplay({ courseId, sessionId }: { courseId: string; sessionId
       </div>
 
       {showImage && (
-        <img src={image} alt="QR code for checking in to this class" style={styles.qr} />
+        <img src={image} alt="QR code for checking in to this class" className="present__qr" />
       )}
 
       {secondsLeft !== null && status.kind !== 'closed' && (
-        <p style={styles.timer}>
+        <p className="present__timer">
           Check-in closes in {Math.floor(secondsLeft / 60)}:
           {String(secondsLeft % 60).padStart(2, '0')}
         </p>
       )}
 
       {status.kind !== 'closed' && status.kind !== 'signed-out' && (
-        <button type="button" onClick={() => void invalidate()} style={styles.button}>
+        <button type="button" onClick={() => setConfirming(true)} className="present__button">
           Invalidate shown codes
         </button>
       )}
+      <Link to={`/courses/${courseId}/sessions/${sessionId}`} className="present__button">
+        Back to the session
+      </Link>
+      <ConfirmDialog
+        open={confirming}
+        title="Invalidate the codes on screen?"
+        confirmLabel="Invalidate codes"
+        onConfirm={() => void invalidate()}
+        onCancel={() => setConfirming(false)}
+      >
+        <p>Students must scan the new code that appears. Check-in stays open.</p>
+      </ConfirmDialog>
     </main>
   );
 }
-
-const styles = {
-  page: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '1.5rem',
-    padding: '1rem',
-    background: '#ffffff',
-    color: '#111111',
-    fontFamily: 'system-ui, sans-serif',
-  },
-  message: { fontSize: 'clamp(1.25rem, 3vw, 2rem)', fontWeight: 600, textAlign: 'center' },
-  qr: {
-    width: 'min(80vh, 90vw)',
-    height: 'min(80vh, 90vw)',
-    imageRendering: 'pixelated',
-  },
-  timer: { fontSize: 'clamp(1.25rem, 3vw, 2rem)', margin: 0 },
-  button: {
-    minHeight: '44px',
-    padding: '0.5rem 1rem',
-    fontSize: '1rem',
-    border: '2px solid #111111',
-    background: '#ffffff',
-    color: '#111111',
-    cursor: 'pointer',
-  },
-} as const satisfies Record<string, React.CSSProperties>;

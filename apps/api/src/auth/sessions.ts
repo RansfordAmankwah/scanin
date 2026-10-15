@@ -17,6 +17,9 @@ export interface AuthContext {
   role: Role;
   fullName: string;
   emailVerified: boolean;
+  /** The signed-in user's own e-mail and, for a student, student ID. Shown only to them. */
+  email: string;
+  studentId: string | null;
 }
 
 export interface NewSession {
@@ -46,9 +49,11 @@ export async function findSession(db: Db, token: string): Promise<AuthContext | 
     role: Role;
     full_name: string;
     email_verified_at: Date | null;
+    email: string;
+    student_id_display: string | null;
     since_seen_s: number;
   }>(
-    `SELECT u.id AS user_id, u.role, u.full_name, u.email_verified_at,
+    `SELECT u.id AS user_id, u.role, u.full_name, u.email_verified_at, u.email::text AS email, u.student_id_display,
             extract(epoch FROM (clock_timestamp() - s.last_seen_at))::float AS since_seen_s
        FROM auth_sessions s
        JOIN users u ON u.id = s.user_id
@@ -79,6 +84,8 @@ export async function findSession(db: Db, token: string): Promise<AuthContext | 
     role: row.role,
     fullName: row.full_name,
     emailVerified: row.email_verified_at !== null,
+    email: row.email,
+    studentId: row.student_id_display,
   };
 }
 

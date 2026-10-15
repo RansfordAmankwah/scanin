@@ -7,7 +7,8 @@ const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 test.describe('importing a class list from a spreadsheet', () => {
   test.beforeEach(async ({ page }) => {
     await lecturerSignIn(page);
-    await page.getByRole('link', { name: /E2E101/ }).click();
+    await page.getByRole('link', { name: /^E2E101 / }).click();
+    await page.getByRole('link', { name: 'Class list' }).click();
     await expect(page.getByLabel('Spreadsheet or CSV file')).toBeVisible();
   });
 

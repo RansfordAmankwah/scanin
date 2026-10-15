@@ -1,6 +1,16 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
+import {
+  courseChrome,
+  courseSession,
+  emptyClassList,
+  overview,
+  overviewCourse,
+  studentCourse,
+  studentHistory,
+  summaryFor,
+} from './helpers/fixtures';
 import { bodyOf, mockApi, reply } from './helpers/net';
 
 vi.mock('qr-scanner', () => ({
@@ -106,25 +116,29 @@ const signedInLecturer = {
 
 describe('lecturer: courses and sessions', () => {
   it("lists the lecturer's courses and links to each", async () => {
-    mockApi({ ...signedInLecturer, 'GET /courses': reply(200, { courses: [course] }) });
+    mockApi({ ...signedInLecturer, 'GET /courses/overview': overview() });
     render(<App pathname="/" />);
     const link = await waitFor(() => screen.getByRole('link', { name: /CS101 Intro to CS/ }));
     expect(link.getAttribute('href')).toBe(`/courses/${COURSE}`);
-    expect(screen.getByText('Autumn 2026')).toBeTruthy();
+    expect(screen.getByText(/Autumn 2026/)).toBeTruthy();
   });
 
   it('invites a lecturer with no courses to create their first one', async () => {
-    mockApi({ ...signedInLecturer, 'GET /courses': reply(200, { courses: [] }) });
+    mockApi({ ...signedInLecturer, 'GET /courses/overview': overview([]) });
     render(<App pathname="/" />);
     await waitFor(() => screen.getByText(/create your first course below/i));
     expect(screen.getByRole('form', { name: /create course/i })).toBeTruthy();
   });
 
   it('creates a course with a new term of their own, and shows it in the list', async () => {
+    let created = false;
     const fetchMock = mockApi({
       ...signedInLecturer,
-      'GET /courses': reply(200, { courses: [] }),
-      'POST /courses': reply(201, { course }),
+      'GET /courses/overview': () => overview(created ? [overviewCourse()] : []),
+      'POST /courses': () => {
+        created = true;
+        return reply(201, { course });
+      },
     });
     render(<App pathname="/" />);
     await waitFor(() => screen.getByRole('form', { name: /create course/i }));
@@ -150,7 +164,7 @@ describe('lecturer: courses and sessions', () => {
       'GET /terms': reply(200, {
         terms: [{ id: 't9', name: 'Autumn 2026', startsOn: '2026-09-01', endsOn: '2026-12-20' }],
       }),
-      'GET /courses': reply(200, { courses: [course] }),
+      'GET /courses/overview': overview(),
       'POST /courses': reply(409, { error: { code: 'COURSE_EXISTS' } }),
     });
     render(<App pathname="/" />);
@@ -172,8 +186,8 @@ describe('lecturer: courses and sessions', () => {
     const fetchMock = mockApi({
       ...signedInLecturer,
       [`GET /courses/${COURSE}`]: reply(200, { course }),
-      [`GET /courses/${COURSE}/review-queue`]: reply(200, { links: [], flags: [] }),
-      [`GET /courses/${COURSE}/sessions`]: () => reply(200, { sessions }),
+      'GET /courses/overview': overview(),
+      [`GET /courses/${COURSE}/attendance-summary`]: () => reply(200, summaryFor(sessions)),
       [`POST /courses/${COURSE}/sessions`]: (init) => {
         sessions = [
           sessionView({
@@ -195,6 +209,7 @@ describe('lecturer: courses and sessions', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /create session/i }));
     await waitFor(() => screen.getByText(/Week 4 lab/));
+    expect(screen.getByText(/Week 4 lab/).closest('li')?.textContent).toContain('Not started');
 
     const create = fetchMock.mock.calls.find(
       ([u, i]) => String(u).endsWith('/sessions') && (i as RequestInit)?.method === 'POST',
@@ -208,10 +223,11 @@ describe('lecturer: courses and sessions', () => {
     mockApi({
       ...signedInLecturer,
       [`GET /courses/${COURSE}`]: reply(404, { error: { code: 'NOT_FOUND' } }),
-      [`GET /courses/${COURSE}/sessions`]: reply(404, { error: { code: 'NOT_FOUND' } }),
+      'GET /courses/overview': overview([]),
+      [`GET /courses/${COURSE}/attendance-summary`]: reply(404, { error: { code: 'NOT_FOUND' } }),
     });
     render(<App pathname={`/courses/${COURSE}`} />);
-    await waitFor(() => screen.getByText(/course not found/i));
+    await waitFor(() => screen.getByRole('heading', { name: /course not found/i, level: 1 }));
   });
 });
 
@@ -220,16 +236,16 @@ describe('lecturer: roster import', () => {
     mockApi({
       ...signedInLecturer,
       [`GET /courses/${COURSE}`]: reply(200, { course }),
-      [`GET /courses/${COURSE}/review-queue`]: reply(200, { links: [], flags: [] }),
-      [`GET /courses/${COURSE}/sessions`]: reply(200, { sessions: [] }),
+      ...courseChrome([]),
+      [`GET /courses/${COURSE}/roster`]: emptyClassList,
     });
 
   it('shows what will change before anything is applied, then applies with the preview token', async () => {
     const routes = {
       ...signedInLecturer,
       [`GET /courses/${COURSE}`]: reply(200, { course }),
-      [`GET /courses/${COURSE}/review-queue`]: reply(200, { links: [], flags: [] }),
-      [`GET /courses/${COURSE}/sessions`]: reply(200, { sessions: [] }),
+      ...courseChrome([]),
+      [`GET /courses/${COURSE}/roster`]: emptyClassList,
       [`POST /courses/${COURSE}/roster/preview`]: reply(200, {
         previewToken: 'p'.repeat(64),
         counts: { added: 1, changed: 1, unchanged: 5, missing: 1 },
@@ -252,7 +268,7 @@ describe('lecturer: roster import', () => {
       }),
     };
     const fetchMock = mockApi(routes);
-    render(<App pathname={`/courses/${COURSE}`} />);
+    render(<App pathname={`/courses/${COURSE}/class-list`} />);
     await waitFor(() => screen.getByLabelText(/or paste the csv/i));
     fireEvent.change(screen.getByLabelText(/or paste the csv/i), {
       target: { value: 'student_id,full_name\nN1,New Person' },
@@ -288,8 +304,8 @@ describe('lecturer: roster import', () => {
     const routes = () => ({
       ...signedInLecturer,
       [`GET /courses/${COURSE}`]: reply(200, { course }),
-      [`GET /courses/${COURSE}/review-queue`]: reply(200, { links: [], flags: [] }),
-      [`GET /courses/${COURSE}/sessions`]: reply(200, { sessions: [] }),
+      ...courseChrome([]),
+      [`GET /courses/${COURSE}/roster`]: emptyClassList,
       [`POST /courses/${COURSE}/roster/preview`]: previewReply(),
     });
     const previewBody = (fetchMock: ReturnType<typeof mockApi>) =>
@@ -299,7 +315,7 @@ describe('lecturer: roster import', () => {
 
     it('turns an uploaded tab-separated file into comma-separated text, shows it, and previews that', async () => {
       const fetchMock = mockApi(routes());
-      render(<App pathname={`/courses/${COURSE}`} />);
+      render(<App pathname={`/courses/${COURSE}/class-list`} />);
       await waitFor(() => screen.getByLabelText(/spreadsheet or csv file/i));
       fireEvent.change(screen.getByLabelText(/spreadsheet or csv file/i), {
         target: { files: [new File([TAB_CSV], 'class.tsv')] },
@@ -315,7 +331,7 @@ describe('lecturer: roster import', () => {
 
     it('converts cells pasted from a spreadsheet when previewing', async () => {
       const fetchMock = mockApi(routes());
-      render(<App pathname={`/courses/${COURSE}`} />);
+      render(<App pathname={`/courses/${COURSE}/class-list`} />);
       await waitFor(() => screen.getByLabelText(/or paste the csv/i));
       fireEvent.change(screen.getByLabelText(/or paste the csv/i), { target: { value: TAB_CSV } });
       fireEvent.click(screen.getByRole('button', { name: /preview changes/i }));
@@ -325,7 +341,7 @@ describe('lecturer: roster import', () => {
 
     it('tells the lecturer what to do with a file it cannot read', async () => {
       mockApi(routes());
-      render(<App pathname={`/courses/${COURSE}`} />);
+      render(<App pathname={`/courses/${COURSE}/class-list`} />);
       await waitFor(() => screen.getByLabelText(/spreadsheet or csv file/i));
       const old = new File([new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 1, 2])], 'old.xls');
       fireEvent.change(screen.getByLabelText(/spreadsheet or csv file/i), {
@@ -343,14 +359,15 @@ describe('lecturer: roster import', () => {
         const path = String(url).replace('/api', '');
         if (path === '/auth/me') return reply(200, { user: lecturer });
         if (path.endsWith(`/courses/${COURSE}`)) return reply(200, { course });
-        if (path.endsWith('/sessions')) return reply(200, { sessions: [] });
-        if (path.endsWith('/review-queue')) return reply(200, { links: [], flags: [] });
+        if (path.endsWith('/attendance-summary')) return reply(200, summaryFor([]));
+        if (path.endsWith('/courses/overview')) return overview();
+        if (path.endsWith('/roster')) return emptyClassList;
         if (path.endsWith('/roster/preview'))
           return reply(400, { error: { code: 'INVALID_ROSTER' } });
         throw new Error(`unrouted ${init?.method} ${path}`);
       }),
     );
-    render(<App pathname={`/courses/${COURSE}`} />);
+    render(<App pathname={`/courses/${COURSE}/class-list`} />);
     await waitFor(() => screen.getByLabelText(/or paste the csv/i));
     fireEvent.change(screen.getByLabelText(/or paste the csv/i), { target: { value: 'garbage' } });
     fireEvent.click(screen.getByRole('button', { name: /preview changes/i }));
@@ -546,13 +563,18 @@ describe('lecturer: a live session', () => {
     render(<App pathname={`/courses/${COURSE}/sessions/${SESSION}`} />);
     const end = await waitFor(() => screen.getByRole('button', { name: /end session/i }));
 
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
     fireEvent.click(end);
+    const dialog = await waitFor(() =>
+      screen.getByRole('dialog', { name: /end this class session/i }),
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
     await flush();
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/end'))).toBe(false);
 
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
     fireEvent.click(end);
+    const again = await waitFor(() => screen.getByRole('dialog'));
+    fireEvent.click(within(again).getByRole('button', { name: 'End session now' }));
     await waitFor(() =>
       expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/end'))).toBe(true),
     );
@@ -571,7 +593,7 @@ describe('lecturer: a live session', () => {
       }),
     );
     render(<App pathname={`/courses/${COURSE}/sessions/${SESSION}`} />);
-    await waitFor(() => screen.getByText(/check-in closed/i, { selector: 'strong' }));
+    await waitFor(() => screen.getAllByText(/check-in closed/i));
     expect(screen.queryByRole('form', { name: /extend check-in/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /start check-in/i })).toBeNull();
     expect(screen.getByRole('table')).toBeTruthy();
@@ -598,67 +620,218 @@ describe('lecturer: a live session', () => {
   });
 });
 
-describe('student: my attendance', () => {
-  it("shows only the student's own record with plain wording and no flags", async () => {
-    mockApi({
-      'GET /auth/me': reply(200, { user: student }),
-      'GET /me/attendance': reply(200, {
-        courses: [
-          {
-            id: COURSE,
-            code: 'CS101',
-            title: 'Intro to CS',
-            associationState: 'PROVISIONAL',
-            presentCount: 1,
-            sessionCount: 3,
-            sessions: [
-              {
-                id: 'a',
-                title: 'Week 3',
-                date: '2026-10-10',
-                status: 'PRESENT',
-                source: 'QR_SCAN',
-                invalidationCategory: null,
+describe('student: my courses', () => {
+  const studentRoutes = (extra: Record<string, unknown> = {}) => ({
+    'GET /auth/me': reply(200, { user: student }),
+    ...extra,
+  });
+
+  it('shows each course on its own card with confirmed attendance, never one mixed total', async () => {
+    const other = '33333333-3333-4333-8333-333333333333';
+    mockApi(
+      studentRoutes({
+        'GET /me/courses': reply(200, {
+          courses: [
+            studentCourse(),
+            studentCourse({
+              id: other,
+              code: 'MA201',
+              title: 'Linear algebra',
+              association: { state: 'PROVISIONAL' },
+              summary: {
+                sessionsStarted: 4,
+                eligibleSessions: 4,
+                inProgress: 0,
+                notCounted: 0,
+                tally: {
+                  confirmed: 0,
+                  provisional: 3,
+                  awaitingConfirmation: 0,
+                  invalidated: 0,
+                  noRecord: 1,
+                },
+                percent: null,
+                percentReason: 'NOT_CONFIRMED',
               },
-              {
-                id: 'b',
-                title: 'Week 2',
-                date: '2026-10-03',
-                status: 'INVALIDATED',
-                source: 'QR_SCAN',
-                invalidationCategory: 'CONFIRMED_PROXY',
-              },
-              {
-                id: 'c',
-                title: 'Week 1',
-                date: '2026-09-26',
-                status: 'NO_RECORD',
-                source: null,
-                invalidationCategory: null,
-              },
-            ],
-          },
-        ],
+              latestSession: null,
+            }),
+          ],
+        }),
       }),
-    });
+    );
     render(<App pathname="/" />);
-    await waitFor(() => screen.getByRole('heading', { name: 'My attendance' }));
-    const card = screen.getByRole('article', { name: /CS101/ });
-    expect(card.textContent).toContain('Present at 1 of 3 classes');
-    expect(card.textContent).toContain('still matching you to the class list');
-    expect(within(card).getByText('✓ Present')).toBeTruthy();
-    expect(within(card).getByText('No record')).toBeTruthy();
-    expect(card.textContent).toContain('Confirmed proxy attendance; ask your lecturer');
-    expect(card.textContent?.toLowerCase()).not.toContain('flag');
-    expect(card.textContent?.toLowerCase()).not.toContain('absent');
+    const cs = await waitFor(() => screen.getByRole('article', { name: /CS101/ }));
+    const ma = screen.getByRole('article', { name: /MA201/ });
+    expect(cs.textContent).toContain('1 confirmed of 2 counted sessions');
+    expect(within(cs).getByRole('progressbar')).toBeTruthy();
+    expect(within(ma).queryByRole('progressbar')).toBeNull(); // no percentage until the match is confirmed
+    expect(ma.textContent).toContain('3 awaiting confirmation');
+    expect(within(cs).getByRole('link', { name: 'Intro to CS' }).getAttribute('href')).toBe(
+      `/my/courses/${COURSE}`,
+    );
+    expect(within(ma).getByRole('link', { name: 'Linear algebra' }).getAttribute('href')).toBe(
+      `/my/courses/${other}`,
+    );
+    expect(document.body.textContent?.toLowerCase()).not.toContain('flag');
+    expect(document.body.textContent?.toLowerCase()).not.toContain('absent');
   });
 
   it('invites a new student to check in', async () => {
-    mockApi({
-      'GET /auth/me': reply(200, { user: student }),
-      'GET /me/attendance': reply(200, { courses: [] }),
-    });
+    mockApi(studentRoutes({ 'GET /me/courses': reply(200, { courses: [] }) }));
     render(<App pathname="/" />);
     await waitFor(() => screen.getByText(/after your first check-in/i));
+  });
+
+  it('says so when the courses cannot be loaded, and retries', async () => {
+    let fail = true;
+    mockApi(
+      studentRoutes({
+        'GET /me/courses': () =>
+          fail ? reply(500, {}) : reply(200, { courses: [studentCourse()] }),
+      }),
+    );
+    render(<App pathname="/" />);
+    await waitFor(() => screen.getByText(/could not load your courses/i));
+    fail = false;
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+    await waitFor(() => screen.getByRole('article', { name: /CS101/ }));
+  });
+
+  it('lists every course on the My courses page and searches them when there are many', async () => {
+    const many = ['AA100', 'BB200', 'CC300', 'DD400'].map((code, i) =>
+      studentCourse({
+        id: `4444444${i}-4444-4444-8444-444444444444`,
+        code,
+        title: `Title ${code}`,
+      }),
+    );
+    mockApi(studentRoutes({ 'GET /me/courses': reply(200, { courses: many }) }));
+    render(<App pathname="/my/courses" />);
+    await waitFor(() => screen.getAllByRole('article'));
+    expect(screen.getAllByRole('article')).toHaveLength(4);
+    fireEvent.change(screen.getByLabelText('Search courses'), { target: { value: 'cc3' } });
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText('Search courses'), { target: { value: 'zzz' } });
+    expect(screen.getByText(/no courses match/i)).toBeTruthy();
+  });
+});
+
+describe('student: one course', () => {
+  const sessions = [
+    courseSession({ id: 'a', title: 'Week 3', date: '2026-10-10', outcome: 'CONFIRMED' }),
+    courseSession({ id: 'b', title: 'Week 2', date: '2026-10-03', outcome: 'PROVISIONAL' }),
+    courseSession({
+      id: 'c',
+      title: 'Week 1',
+      date: '2026-09-26',
+      outcome: 'INVALIDATED',
+      invalidationCategory: 'CONFIRMED_PROXY',
+    }),
+    courseSession({
+      id: 'd',
+      title: 'Week 0',
+      date: '2026-09-19',
+      outcome: 'NO_RECORD',
+      source: null,
+    }),
+    courseSession({
+      id: 'e',
+      title: 'Week 4',
+      date: '2026-10-17',
+      outcome: 'IN_PROGRESS',
+      phase: 'IN_PROGRESS',
+      counted: false,
+      source: null,
+    }),
+  ];
+  const open = (history = studentHistory(sessions)) => {
+    mockApi({
+      'GET /auth/me': reply(200, { user: student }),
+      [`GET /me/courses/${COURSE}`]: reply(200, history),
+    });
+    render(<App pathname={`/my/courses/${COURSE}`} />);
+  };
+  const rowsNow = () =>
+    within(screen.getByRole('list', { name: 'Sessions' })).getAllByRole('listitem');
+
+  it('summarises this course only, then lists its sessions with plain outcomes and no flags', async () => {
+    open();
+    await waitFor(() => screen.getByRole('heading', { name: /CS101 Intro to CS/, level: 1 }));
+    await waitFor(() => screen.getByRole('list', { name: 'Sessions' }));
+    const rows = rowsNow();
+    expect(rows).toHaveLength(5);
+    expect(rows[0]!.textContent).toContain('Week 3');
+    expect(rows[0]!.textContent).toContain('Present');
+    expect(rows[1]!.textContent).toContain('Recorded, not yet confirmed');
+    expect(rows[2]!.textContent).toContain('Invalidated');
+    expect(rows[3]!.textContent).toContain('No record');
+    expect(rows[4]!.textContent).toContain('In progress');
+    expect(document.body.textContent).toContain('50%');
+    expect(document.body.textContent?.toLowerCase()).not.toContain('flag');
+    expect(document.body.textContent?.toLowerCase()).not.toContain('absent');
+    const crumbs = screen.getByRole('navigation', { name: /breadcrumb/i });
+    expect(within(crumbs).getByRole('link', { name: 'My courses' }).getAttribute('href')).toBe(
+      '/my/courses',
+    );
+  });
+
+  it('explains what a session means when its details are opened', async () => {
+    open();
+    fireEvent.click(
+      await waitFor(() => screen.getByRole('button', { name: /show details for week 1/i })),
+    );
+    expect(screen.getByText(/ask your lecturer/i)).toBeTruthy();
+  });
+
+  it('filters by outcome and searches by title', async () => {
+    open();
+    await waitFor(() => screen.getByRole('list', { name: 'Sessions' }));
+    const show = screen.getByLabelText('Show', { selector: 'select' });
+    fireEvent.change(show, { target: { value: 'PROVISIONAL' } });
+    expect(rowsNow()).toHaveLength(1);
+    fireEvent.change(show, { target: { value: 'ALL' } });
+    fireEvent.change(screen.getByLabelText('Search sessions'), { target: { value: 'week 0' } });
+    expect(rowsNow()).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText('Search sessions'), { target: { value: 'nothing' } });
+    expect(screen.getByText(/no sessions match/i)).toBeTruthy();
+  });
+
+  it('gives the reason instead of a percentage when the match is not confirmed', async () => {
+    open(
+      studentHistory(sessions, {
+        association: { state: 'PROVISIONAL' },
+        summary: {
+          sessionsStarted: 5,
+          eligibleSessions: 4,
+          inProgress: 1,
+          notCounted: 0,
+          tally: {
+            confirmed: 0,
+            provisional: 1,
+            awaitingConfirmation: 0,
+            invalidated: 1,
+            noRecord: 1,
+          },
+          percent: null,
+          percentReason: 'NOT_CONFIRMED',
+        },
+      }),
+    );
+    await waitFor(() => screen.getByRole('list', { name: 'Sessions' }));
+    expect(document.body.textContent).not.toMatch(/\d+(\.\d)?%/);
+  });
+
+  it('says plainly when the course is not one of theirs', async () => {
+    mockApi({
+      'GET /auth/me': reply(200, { user: student }),
+      [`GET /me/courses/${COURSE}`]: reply(404, { error: { code: 'NOT_FOUND' } }),
+    });
+    render(<App pathname={`/my/courses/${COURSE}`} />);
+    await waitFor(() => screen.getAllByText(/course not found|could not find/i));
+  });
+
+  it('shows an empty state when no session has started', async () => {
+    open(studentHistory([]));
+    await waitFor(() => screen.getByText(/no session has started/i));
   });
 });

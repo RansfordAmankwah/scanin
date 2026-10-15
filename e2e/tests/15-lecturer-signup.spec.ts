@@ -41,8 +41,8 @@ test.describe('a lecturer signing themselves up', () => {
     await page.getByLabel('Term starts on').fill('2026-09-01');
     await page.getByLabel('Term ends on').fill('2027-06-30');
     await page.getByRole('button', { name: 'Create course' }).click();
-    await expect(page.getByRole('link', { name: /SELF101/ })).toBeVisible();
-    await page.getByRole('link', { name: /SELF101/ }).click();
+    await expect(page.getByRole('link', { name: /^SELF101 / })).toBeVisible();
+    await page.getByRole('link', { name: /^SELF101 / }).click();
     await expect(page.getByRole('heading', { name: /SELF101/ })).toBeVisible();
 
     // The seeded course belongs to someone else: this lecturer cannot reach it by address either.

@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QrDisplay } from '../src/features/lecturer/QrDisplay';
 
@@ -190,13 +190,18 @@ describe('QrDisplay (projector view)', () => {
     await flush();
     const button = screen.getByRole('button', { name: /invalidate shown codes/i });
 
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
     fireEvent.click(button);
     await flush();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i }));
+    await flush();
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/invalidate'))).toBe(false);
 
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
     fireEvent.click(button);
+    await flush();
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Invalidate codes' }),
+    );
     await flush();
     const post = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/invalidate'))!;
     expect(post[1].method).toBe('POST');

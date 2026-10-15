@@ -1,3 +1,4 @@
+import type { LinkState, Outcome, PercentReason } from '../../api/lecturer';
 import type { BadgeTone } from '../../components/ui';
 
 /** Plain-language labels. Never claims more certainty than the system has. */
@@ -142,4 +143,74 @@ export const DISPUTE_TONE: Record<string, BadgeTone> = {
   OPEN: 'attention',
   RESOLVED_UPHELD: 'success',
   RESOLVED_INVALIDATED: 'danger',
+};
+
+// --- Course-based attendance ----------------------------------------------------------------------
+
+export const ATTENDANCE_OUTCOME_LABEL: Record<Outcome, string> = {
+  CONFIRMED: 'Present',
+  PROVISIONAL: 'Recorded, not yet confirmed',
+  AWAITING_CONFIRMATION: 'Recorded, awaiting review',
+  INVALIDATED: 'Invalidated',
+  NO_RECORD: 'No record',
+  IN_PROGRESS: 'In progress',
+  NOT_COUNTED: 'Not counted',
+};
+
+export const ATTENDANCE_OUTCOME_TONE: Record<Outcome, BadgeTone> = {
+  CONFIRMED: 'success',
+  PROVISIONAL: 'warning',
+  AWAITING_CONFIRMATION: 'attention',
+  INVALIDATED: 'danger',
+  NO_RECORD: 'neutral',
+  IN_PROGRESS: 'info',
+  NOT_COUNTED: 'neutral',
+};
+
+/** What each outcome means, in a student's words. Never mentions flags or how a record was found. */
+export const ATTENDANCE_OUTCOME_HELP: Record<Outcome, string> = {
+  CONFIRMED: 'Confirmed against the class list, or by your lecturer.',
+  PROVISIONAL:
+    'Your check-in is recorded. It counts as confirmed once your lecturer matches you to the class list.',
+  AWAITING_CONFIRMATION:
+    'Your check-in is recorded. Your lecturer is still deciding whether you match the class list.',
+  INVALIDATED: 'Your lecturer invalidated this record.',
+  NO_RECORD: 'You did not check in to this session.',
+  IN_PROGRESS:
+    'Check-in for this session is still open. It counts toward your attendance once it closes.',
+  NOT_COUNTED:
+    'This session started before ScanIn knew you were in this course, so it is not counted for or against you.',
+};
+
+/** The same outcomes, described for the lecturer. */
+export const ATTENDANCE_OUTCOME_HELP_LECTURER: Record<Outcome, string> = {
+  CONFIRMED: 'Present, and the student is confirmed against the class list.',
+  PROVISIONAL: 'Present, but the student is not yet confirmed against the class list.',
+  AWAITING_CONFIRMATION: 'Present, but the match to the class list is still under review.',
+  INVALIDATED: 'Invalidated by a lecturer.',
+  NO_RECORD: 'No check-in was recorded for this session. That is not a finding about the student.',
+  IN_PROGRESS: 'Check-in for this session is still open.',
+  NOT_COUNTED:
+    'Not counted: the session started before ScanIn knew the student belonged to this course.',
+};
+
+export const PERCENT_REASON_HELP: Record<Exclude<PercentReason, 'OK'>, string> = {
+  NO_ELIGIBLE_SESSIONS: 'No session has closed yet, so there is nothing to calculate.',
+  NOT_CONFIRMED:
+    'Your lecturer has not yet confirmed you against the class list, so a confirmed percentage is not available yet.',
+  NOT_MATCHED: 'Your lecturer has not matched you to this course’s class list.',
+};
+
+export const LINK_STATE_LABEL: Record<LinkState, string> = {
+  PROVISIONAL: 'Not yet confirmed',
+  REVIEW_REQUIRED: 'Under review',
+  CONFIRMED: 'Confirmed',
+  REJECTED: 'Not matched',
+};
+
+export const LINK_STATE_TONE: Record<LinkState, BadgeTone> = {
+  PROVISIONAL: 'warning',
+  REVIEW_REQUIRED: 'attention',
+  CONFIRMED: 'success',
+  REJECTED: 'danger',
 };

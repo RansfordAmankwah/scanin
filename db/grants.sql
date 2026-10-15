@@ -91,6 +91,9 @@ GRANT USAGE ON SEQUENCE audit_events_id_seq TO {{app}};
 -- Read-only classification used for counts everywhere (see migration 0004).
 GRANT SELECT ON attendance_classified TO {{app}};
 
+-- The counting rule for course attendance history (see migration 0008).
+GRANT SELECT ON course_session_attendance TO {{app}};
+
 -- Retention jobs: read and delete only (course-level purge in dependency order, plus the 90-day
 -- scan-metadata purge and expired-session cleanup).
 GRANT SELECT, DELETE ON

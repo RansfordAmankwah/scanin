@@ -32,16 +32,19 @@ export function Link({
   to,
   children,
   className,
+  'aria-current': ariaCurrent,
 }: {
   to: string;
   children: ReactNode;
   className?: string;
+  'aria-current'?: 'page' | undefined;
 }) {
   const { navigate } = useRouter();
   return (
     <a
       href={to}
       className={className}
+      aria-current={ariaCurrent}
       onClick={(e) => {
         // Let the browser handle new-tab / modified clicks.
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;

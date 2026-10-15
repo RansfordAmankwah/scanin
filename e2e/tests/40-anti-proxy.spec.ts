@@ -163,7 +163,8 @@ test('a spot check picks students at random and records what the checker found',
 
 test('the student is told only that the record is being reviewed, and can reply', async () => {
   const page = await targetContext.newPage();
-  await page.goto('/'); // this browser is already signed in as the student
+  await page.goto(`/my/courses/${courseId}`); // this browser is already signed in as the student
+  await page.getByRole('button', { name: /Show details for Week 5 lecture/ }).click();
   await expect(page.getByText('Your lecturer is reviewing this record')).toBeVisible();
   await expect(page.getByText(/still counts as present/i)).toBeVisible();
   const text = (await page.locator('body').innerText()).toLowerCase();
@@ -205,7 +206,8 @@ test('the lecturer reads the reply, decides with a written reason, and the numbe
 
 test('the student sees the outcome in the same plain way', async () => {
   const page = await targetContext.newPage();
-  await page.goto('/'); // this browser is already signed in as the student
+  await page.goto(`/my/courses/${courseId}`); // this browser is already signed in as the student
+  await page.getByRole('button', { name: /Show details for Week 5 lecture/ }).click();
   await expect(
     page.getByText('Your lecturer reviewed this record. Ask them if you have questions.'),
   ).toBeVisible();

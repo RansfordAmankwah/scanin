@@ -98,7 +98,7 @@ test.describe('a student on a phone', () => {
     await expect(page.getByRole('heading', { name: 'Check in to class' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start camera' })).toBeVisible();
     await expect(page.getByText("phone's normal camera app")).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'My attendance' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your courses' })).toBeVisible();
     await expectGoodScreen(page, 'student home');
   });
 

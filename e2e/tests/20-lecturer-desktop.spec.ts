@@ -46,15 +46,24 @@ test.describe('a lecturer at a desktop', () => {
   }) => {
     await lecturerSignIn(page);
     await expectGoodScreen(page, 'courses');
-    await page.getByRole('link', { name: /E2E101/ }).click();
+    await page.getByRole('link', { name: /^E2E101 / }).click();
     await expect(page.getByRole('heading', { name: /E2E101/ })).toBeVisible();
-    await expect(page.getByText('Nothing needs review right now')).toBeVisible();
     await expectGoodScreen(page, 'course page');
+    await page.getByRole('link', { name: 'Attendance' }).click();
+    await expect(page.getByText('No sessions yet')).toBeVisible();
+    await expectGoodScreen(page, 'course attendance');
+    await page.getByRole('link', { name: 'Review' }).click();
+    await expect(page.getByText('Nothing needs review right now')).toBeVisible();
+    await expectGoodScreen(page, 'course review');
+    await page.getByRole('link', { name: 'Class list' }).click();
+    await expect(page.getByLabel('Spreadsheet or CSV file')).toBeVisible();
+    await expectGoodScreen(page, 'course class list');
   });
 
   test('imports a class list: previews the changes first, then applies them', async ({ page }) => {
     await lecturerSignIn(page);
-    await page.getByRole('link', { name: /E2E101/ }).click();
+    await page.getByRole('link', { name: /^E2E101 / }).click();
+    await page.getByRole('link', { name: 'Class list' }).click();
     await page
       .getByLabel('Or paste the CSV')
       .fill(
@@ -80,7 +89,7 @@ test.describe('a lecturer at a desktop', () => {
     page,
   }) => {
     await lecturerSignIn(page);
-    await page.getByRole('link', { name: /E2E101/ }).click();
+    await page.getByRole('link', { name: /^E2E101 / }).click();
     await page.getByLabel('New session title').fill('Desktop test lecture');
     await page.getByRole('button', { name: 'Create session' }).click();
     await page.getByRole('link', { name: /Desktop test lecture/ }).click();
@@ -110,7 +119,7 @@ test.describe('a lecturer at a desktop', () => {
     page,
   }) => {
     await lecturerSignIn(page);
-    await page.getByRole('link', { name: /E2E101/ }).click();
+    await page.getByRole('link', { name: /^E2E101 / }).click();
     await page.getByRole('link', { name: /Desktop test lecture/ }).click();
     await page.getByRole('link', { name: 'Show QR code for the room' }).click();
     const qr = page.getByRole('img', { name: /QR code/i });
@@ -127,9 +136,9 @@ test.describe('a lecturer at a desktop', () => {
       .toBe(true);
     expect(mints.length).toBeGreaterThanOrEqual(1);
 
-    page.once('dialog', (d) => void d.accept());
     const before = await qr.getAttribute('src');
     await page.getByRole('button', { name: 'Invalidate shown codes' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Invalidate codes' }).click();
     await expect
       .poll(async () => (await qr.getAttribute('src')) !== before, { timeout: 10_000 })
       .toBe(true); // a fresh code straight away

@@ -1,80 +1,140 @@
 /*
- * Design tokens shared by the student (mobile) and lecturer (desktop) experiences.
- * Colour pairs below meet WCAG AA contrast (4.5:1 for text). Status is never conveyed by colour
- * alone: every status also carries an icon and words.
+ * ScanIn design tokens. Every colour, size and radius used anywhere in the app comes from here.
+ *
+ * Contrast: text and surface pairs below meet WCAG AA (4.5:1 for text, 3:1 for the borders of form
+ * controls). The real-browser test suite measures this on every screen in both colour schemes.
+ * Status is never conveyed by colour alone: every status also carries words (and usually an icon).
  */
 :root {
-  --color-bg: #f4f6f9; /* page */
-  --color-surface: #ffffff; /* cards */
-  --color-text: #14171c;
-  --color-text-muted: #4a5260;
-  --color-border: #c4c9d2; /* form controls: strong enough to see */
-  --color-border-soft: #e2e6ec; /* cards, table rules: a hint, not a line */
-  --color-row-hover: rgba(27, 79, 216, 0.06);
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.04);
-  --shadow-button: 0 1px 2px rgba(16, 24, 40, 0.2);
-  --color-primary: #1b4fd8;
-  --color-primary-hover: #153fb0;
-  --color-primary-text: #ffffff;
-  --color-focus: #1b4fd8;
+  color-scheme: light dark;
 
-  --color-success-bg: #e3f5e8;
-  --color-success-text: #0b4d1f;
-  --color-warning-bg: #fff3d6;
-  --color-warning-text: #5c3b00;
-  --color-danger-bg: #fde7e7;
-  --color-danger-text: #7a1010;
-  --color-info-bg: #e6eefc;
-  --color-info-text: #12306f;
-  --color-attention-bg: #ffe9d6;
-  --color-attention-text: #6b2e00;
-  --color-neutral-bg: #e9ecf1;
-  --color-neutral-text: #2d3441;
+  /* Surfaces */
+  --color-bg: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f2f4f7;
+  --color-overlay: rgba(16, 24, 40, 0.55);
 
+  /* Lines */
+  --color-border: #e4e7ec; /* containers and table rules: a hint, not a line */
+  --color-border-strong: #838c9b; /* form controls: clearly visible (3:1) */
+
+  /* Text */
+  --color-text: #101828;
+  --color-text-muted: #475467;
+  --color-text-subtle: #596275;
+
+  /* Brand */
+  --color-primary: #2f55d4;
+  --color-primary-hover: #2442b0;
+  --color-on-primary: #ffffff;
+  --color-primary-soft: #eef2ff;
+  --color-primary-soft-text: #1e3a9a;
+  --color-focus: #2f55d4;
+
+  /* Destructive */
+  --color-danger: #b42318;
+  --color-danger-hover: #912018;
+  --color-on-danger: #ffffff;
+
+  /* Status pairs: tinted background + same-hue text */
+  --color-success-bg: #ecfdf3;
+  --color-success-text: #05603a;
+  --color-warning-bg: #fffaeb;
+  --color-warning-text: #93370d;
+  --color-attention-bg: #fff4ed;
+  --color-attention-text: #9a3412;
+  --color-danger-bg: #fef3f2;
+  --color-danger-text: #912018;
+  --color-info-bg: #eff8ff;
+  --color-info-text: #175cd3;
+  --color-neutral-bg: #f2f4f7;
+  --color-neutral-text: #344054;
+
+  --color-row-hover: rgba(47, 85, 212, 0.06);
+
+  /* Spacing (4px grid) */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
+  --space-5: 1.25rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
 
-  --radius: 0.625rem;
-  --tap-target: 2.75rem; /* 44px */
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* One corner radius for every control and container; pills are fully round. */
+  --radius: 0.5rem;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-popover: 0 12px 32px rgba(16, 24, 40, 0.18);
+
+  /* Controls are 40px with a mouse and 44px on a touch screen. */
+  --control-height: 2.5rem;
+
+  /* Type */
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
-  --text-lg: 1.125rem; /* h2 */
-  --text-xl: 1.5rem; /* h1 */
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+
+  /* Page widths */
+  --width-narrow: 28rem;
+  --width-medium: 46rem;
+  --width-wide: 74rem;
+}
+
+@media (pointer: coarse) {
+  :root {
+    --control-height: 2.75rem;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #0d1117;
-    --color-surface: #161b22;
-    --color-text: #eef0f4;
-    --color-text-muted: #b4bbc8;
-    --color-border: #4a5262;
-    --color-border-soft: rgba(255, 255, 255, 0.1);
-    --color-row-hover: rgba(143, 176, 255, 0.08);
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-button: 0 1px 2px rgba(0, 0, 0, 0.5);
-    --color-primary: #8fb0ff;
-    --color-primary-hover: #aac3ff;
-    --color-primary-text: #0b1530;
-    --color-focus: #8fb0ff;
+    --color-bg: #0b1017;
+    --color-surface: #121923;
+    --color-surface-subtle: #18212d;
+    --color-overlay: rgba(0, 0, 0, 0.65);
 
-    --color-success-bg: #12301b;
-    --color-success-text: #bdf0ca;
-    --color-warning-bg: #3a2c08;
-    --color-warning-text: #ffe1a3;
-    --color-danger-bg: #3d1414;
-    --color-danger-text: #ffc9c9;
-    --color-info-bg: #14264d;
-    --color-info-text: #cddcff;
-    --color-attention-bg: #3d2210;
+    --color-border: #232d3a;
+    --color-border-strong: #6b7686;
+
+    --color-text: #f2f4f7;
+    --color-text-muted: #b4bdc9;
+    --color-text-subtle: #98a2b3;
+
+    --color-primary: #8ea6ff;
+    --color-primary-hover: #a9bbff;
+    --color-on-primary: #0a1330;
+    --color-primary-soft: #1a2547;
+    --color-primary-soft-text: #c7d4ff;
+    --color-focus: #8ea6ff;
+
+    --color-danger: #f97066;
+    --color-danger-hover: #fda29b;
+    --color-on-danger: #1a0705;
+
+    --color-success-bg: #0f2a1c;
+    --color-success-text: #a6f4c5;
+    --color-warning-bg: #33270a;
+    --color-warning-text: #fedf89;
+    --color-attention-bg: #38200f;
     --color-attention-text: #ffd3ad;
-    --color-neutral-bg: #252c37;
-    --color-neutral-text: #d6dbe5;
+    --color-danger-bg: #3a1512;
+    --color-danger-text: #fecdca;
+    --color-info-bg: #11264a;
+    --color-info-text: #b2ddff;
+    --color-neutral-bg: #222b38;
+    --color-neutral-text: #d0d5dd;
+
+    --color-row-hover: rgba(142, 166, 255, 0.08);
+
+    --shadow-sm: none;
+    --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.6);
   }
 }

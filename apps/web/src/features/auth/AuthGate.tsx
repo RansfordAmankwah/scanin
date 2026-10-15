@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { fetchMe, login, logout, type CurrentUser } from '../../api/auth';
-import { Button, Notice, TextField } from '../../components/ui';
+import { Button, Loading, Notice, TextField } from '../../components/ui';
 import { LecturerRegister } from './LecturerRegister';
 import { RegisterFlow } from './RegisterFlow';
 
@@ -45,7 +45,7 @@ function LoginForm({ onSignedIn }: { onSignedIn: (u: CurrentUser) => void }) {
   };
 
   return (
-    <form className="card" onSubmit={(e) => void submit(e)} aria-label="Sign in">
+    <form className="auth__card" onSubmit={(e) => void submit(e)} aria-label="Sign in">
       <h2>Sign in</h2>
       <TextField
         label="E-mail"
@@ -64,7 +64,7 @@ function LoginForm({ onSignedIn }: { onSignedIn: (u: CurrentUser) => void }) {
         required
       />
       {error && <Notice tone="danger" title={error} urgent />}
-      <button type="submit" className="btn" disabled={busy}>
+      <button type="submit" className="btn btn--block" disabled={busy}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
     </form>
@@ -96,31 +96,35 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (user === undefined) {
     return (
-      <main className="page">
-        <p role="status">Loading…</p>
+      <main className="auth">
+        <Loading label="Loading…" />
       </main>
     );
   }
 
   if (user === null) {
     return (
-      <main className="page">
-        <h1>ScanIn</h1>
+      <main className="auth">
+        <div className="auth__brand">
+          <span className="brand__mark" aria-hidden="true">
+            S
+          </span>
+          <h1>ScanIn</h1>
+          <p>Attendance for your classes.</p>
+        </div>
         {mode === 'login' ? (
           <>
             <LoginForm onSignedIn={setUser} />
-            <p>
-              New student?{' '}
-              <Button variant="secondary" onClick={() => setMode('register')}>
+            <div className="auth__alt">
+              <span>New student?</span>
+              <Button variant="ghost" onClick={() => setMode('register')}>
                 Create an account
               </Button>
-            </p>
-            <p>
-              Lecturer?{' '}
-              <Button variant="secondary" onClick={() => setMode('register-lecturer')}>
+              <span>Teach a course?</span>
+              <Button variant="ghost" onClick={() => setMode('register-lecturer')}>
                 Create a lecturer account
               </Button>
-            </p>
+            </div>
           </>
         ) : mode === 'register-lecturer' ? (
           <LecturerRegister onDone={() => setMode('login')} onCancel={() => setMode('login')} />

@@ -69,7 +69,7 @@ export function RegisterFlow({ onDone, onCancel }: { onDone: () => void; onCance
 
   if (step.kind === 'done') {
     return (
-      <div className="card">
+      <div className="auth__card">
         <Notice tone="success" title="Account created">
           Check your e-mail for a link to verify your address, then sign in.
         </Notice>
@@ -80,9 +80,9 @@ export function RegisterFlow({ onDone, onCancel }: { onDone: () => void; onCance
 
   if (step.kind === 'confirm') {
     return (
-      <section className="card" aria-labelledby="confirm-heading">
+      <section className="auth__card" aria-labelledby="confirm-heading">
         <h2 id="confirm-heading">Is this correct?</h2>
-        <dl>
+        <dl className="details">
           <dt>Student ID</dt>
           <dd>{step.studentId}</dd>
           <dt>Full name</dt>
@@ -107,7 +107,7 @@ export function RegisterFlow({ onDone, onCancel }: { onDone: () => void; onCance
   }
 
   return (
-    <form className="card" onSubmit={(e) => void review(e)} aria-label="Create account">
+    <form className="auth__card" onSubmit={(e) => void review(e)} aria-label="Create account">
       <h2>Create your account</h2>
       <TextField
         label="Student ID"

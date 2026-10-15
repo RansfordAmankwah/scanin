@@ -2,6 +2,15 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
+import {
+  courseSession,
+  emptyClassList,
+  overview,
+  overviewCourse,
+  studentCourse,
+  studentHistory,
+  summaryFor,
+} from './helpers/fixtures';
 import { mockApi, reply } from './helpers/net';
 
 vi.mock('qr-scanner', () => ({
@@ -230,11 +239,11 @@ describe('UX-02 accessibility (axe) on every screen', () => {
     if (outcome) sessionStorage.setItem('scanin.pendingToken', token);
     mockApi({
       'GET /auth/me': reply(200, { user: student }),
-      'GET /me/attendance': reply(200, { courses: [] }),
+      'GET /me/courses': reply(200, { courses: [] }),
       'POST /checkins': outcome ? reply(outcome.status, outcome.body) : reply(500, {}),
     });
     render(<App pathname="/" />);
-    await waitFor(() => screen.getByRole('heading', { name: /my attendance/i }));
+    await waitFor(() => screen.getByRole('heading', { name: /your courses/i }));
     if (outcome) await waitFor(() => expect(screen.queryByText(/checking you in/i)).toBeNull());
     expect(await violations()).toEqual([]);
   });
@@ -242,7 +251,7 @@ describe('UX-02 accessibility (axe) on every screen', () => {
   it('student: camera problems and the live camera view', async () => {
     mockApi({
       'GET /auth/me': reply(200, { user: student }),
-      'GET /me/attendance': reply(200, { courses: [] }),
+      'GET /me/courses': reply(200, { courses: [] }),
     });
     render(<App pathname="/" />);
     fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /start camera/i })));
@@ -250,61 +259,54 @@ describe('UX-02 accessibility (axe) on every screen', () => {
     expect(await violations()).toEqual([]);
   });
 
-  it('student: my attendance with every kind of entry', async () => {
+  it('student: courses list and a course history with every kind of entry', async () => {
+    const sessions = [
+      courseSession({ id: 'a', title: 'Week 3', outcome: 'CONFIRMED' }),
+      courseSession({
+        id: 'b',
+        title: 'Week 2',
+        outcome: 'INVALIDATED',
+        invalidationCategory: 'OTHER',
+        review: {
+          id: 'r1',
+          state: 'OPEN',
+          openedAt: '2026-10-04T10:00:00.000Z',
+          resolvedAt: null,
+          repliesLeft: 2,
+        },
+      }),
+      courseSession({ id: 'c', title: 'Week 1', outcome: 'NO_RECORD', source: null }),
+      courseSession({ id: 'd', title: 'Week 4', outcome: 'PROVISIONAL' }),
+    ];
     mockApi({
       'GET /auth/me': reply(200, { user: student }),
-      'GET /me/attendance': reply(200, {
-        courses: [
-          {
-            id: COURSE,
-            code: 'CS101',
-            title: 'Intro',
-            associationState: 'PROVISIONAL',
-            presentCount: 1,
-            sessionCount: 3,
-            sessions: [
-              {
-                id: 'a',
-                title: 'Week 3',
-                date: '2026-10-10',
-                status: 'PRESENT',
-                source: 'QR_SCAN',
-                invalidationCategory: null,
-              },
-              {
-                id: 'b',
-                title: 'Week 2',
-                date: '2026-10-03',
-                status: 'INVALIDATED',
-                source: 'QR_SCAN',
-                invalidationCategory: 'OTHER',
-              },
-              {
-                id: 'c',
-                title: 'Week 1',
-                date: '2026-09-26',
-                status: 'NO_RECORD',
-                source: null,
-                invalidationCategory: null,
-              },
-            ],
-          },
-        ],
-      }),
+      'GET /me/courses': reply(200, { courses: [studentCourse()] }),
+      [`GET /me/courses/${COURSE}`]: reply(200, studentHistory(sessions)),
     });
     render(<App pathname="/" />);
     await waitFor(() => screen.getByRole('article', { name: /CS101/ }));
     expect(await violations()).toEqual([]);
+    cleanup();
+
+    render(<App pathname={`/my/courses/${COURSE}`} />);
+    await waitFor(() => screen.getByText('Week 3'));
+    expect(await violations()).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: /show details for week 2/i }));
+    await waitFor(() => screen.getByRole('form', { name: /reply about this record/i }));
+    expect(await violations()).toEqual([]);
   });
 
-  it('lecturer: courses list and course page with review queue and class-list import', async () => {
+  it('lecturer: courses, course workspace tabs, review queue and class list', async () => {
     mockApi({
       'GET /auth/me': reply(200, { user: lecturer }),
-      'GET /courses': reply(200, { courses: [course] }),
+      'GET /courses/overview': overview([
+        overviewCourse({ attention: { matchesToReview: 1, openFlags: 1, openReviews: 1 } }),
+      ]),
       'GET /terms': reply(200, { terms: [] }),
       [`GET /courses/${COURSE}`]: reply(200, { course }),
-      [`GET /courses/${COURSE}/sessions`]: reply(200, { sessions: [sessionView] }),
+      [`GET /courses/${COURSE}/attendance-summary`]: reply(200, summaryFor([sessionView])),
       [`GET /courses/${COURSE}/review-queue`]: reply(200, queue),
+      [`GET /courses/${COURSE}/roster`]: emptyClassList,
       [`GET /courses/${COURSE}/links/${LINK}/suggestions`]: reply(200, {
         candidates: [
           { entryId: 'e1', studentId: 'FZ900', fullName: 'Ama Mensah', similarity: 0.8 },
@@ -316,7 +318,15 @@ describe('UX-02 accessibility (axe) on every screen', () => {
     expect(await violations()).toEqual([]);
     cleanup();
 
-    render(<App pathname={`/courses/${COURSE}`} />);
+    for (const tab of ['', '/attendance', '/class-list']) {
+      render(<App pathname={`/courses/${COURSE}${tab}`} />);
+      await waitFor(() => screen.getByRole('navigation', { name: /course sections/i }));
+      await flush();
+      expect(await violations(), tab).toEqual([]);
+      cleanup();
+    }
+
+    render(<App pathname={`/courses/${COURSE}/review`} />);
     const card = await waitFor(() => screen.getByRole('article', { name: /ZZ100/ }));
     expect(await violations()).toEqual([]);
 
@@ -394,7 +404,7 @@ describe('UX-02 accessibility (axe) on every screen', () => {
   it('every page has exactly one level-one heading, a main landmark, and no positive tabindex', async () => {
     mockApi({
       'GET /auth/me': reply(200, { user: lecturer }),
-      'GET /courses': reply(200, { courses: [course] }),
+      'GET /courses/overview': overview(),
     });
     const { container } = render(<App pathname="/" />);
     await waitFor(() => screen.getByRole('heading', { name: /your courses/i }));

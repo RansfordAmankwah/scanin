@@ -278,6 +278,18 @@ describe('AUTH-05 session security, rotation and revocation', () => {
     expect((await get(t.app, '/auth/me', { cookie: cookieHeader(res) })).statusCode).toBe(200);
   });
 
+  it('tells a signed-in user their own e-mail and student id, and nothing about anyone else', async () => {
+    const { cookie, reg } = await registerAndLogin(t.app);
+    const body = (await get(t.app, '/auth/me', { cookie })).json() as {
+      user: Record<string, unknown>;
+    };
+    expect(body.user.email).toBe(reg.email.toLowerCase());
+    expect(typeof body.user.studentId).toBe('string');
+    expect(Object.keys(body.user).sort()).toEqual(
+      ['email', 'emailVerified', 'fullName', 'id', 'role', 'studentId'].sort(),
+    );
+  });
+
   it('changing the password revokes every other session and rotates the current one', async () => {
     const { cookie: first, reg } = await registerAndLogin(t.app);
     const second = cookieHeader(

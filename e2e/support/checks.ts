@@ -26,10 +26,15 @@ export async function expectNoHorizontalScroll(page: Page, label = ''): Promise<
   ).toBeLessThanOrEqual(width + 1);
 }
 
-/** Primary controls must be comfortable to hit with a thumb; inline text links need at least 24px (WCAG 2.5.8). */
+/**
+ * Controls follow the design system's --control-height: 40px with a mouse, 44px on touch screens.
+ * Inline text links need at least 24px (WCAG 2.5.8).
+ */
 export async function expectTouchTargets(page: Page, label = ''): Promise<void> {
   const small = await page.evaluate(() => {
     const out: string[] = [];
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const control = touch ? 44 : 40;
     const visible = (el: Element) => {
       const r = el.getBoundingClientRect();
       const style = getComputedStyle(el);
@@ -45,8 +50,8 @@ export async function expectTouchTargets(page: Page, label = ''): Promise<void> 
       const isLink = el.tagName === 'A' && !el.classList.contains('btn');
       const isCheck = el instanceof HTMLInputElement && ['checkbox', 'radio'].includes(el.type);
       // A checkbox is operated through its (large) label; the box itself only needs to be 24px.
-      const need = isLink || isCheck ? 24 : 44;
-      if (r.height + 0.5 < need || (!isLink && r.width + 0.5 < Math.min(need, 44))) {
+      const need = isLink || isCheck ? 24 : control;
+      if (r.height + 0.5 < need || (!isLink && r.width + 0.5 < Math.min(need, control))) {
         out.push(
           `${el.tagName.toLowerCase()} "${(el.textContent || (el as HTMLInputElement).name || el.id || '').trim().slice(0, 30)}" is ${Math.round(r.width)}x${Math.round(r.height)}`,
         );

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
+import { courseSession, studentHistory } from './helpers/fixtures';
 import { bodyOf, mockApi, reply } from './helpers/net';
 
 vi.mock('qr-scanner', () => ({
@@ -653,34 +654,20 @@ describe('records under review (lecturer)', () => {
 });
 
 describe('what a student sees', () => {
-  const attendance = (review: unknown) => ({
-    courses: [
-      {
-        id: COURSE,
-        code: 'CS101',
-        title: 'Intro',
-        associationState: 'CONFIRMED',
-        presentCount: 1,
-        sessionCount: 1,
-        sessions: [
-          {
-            id: SESSION,
-            title: 'Week 3 lecture',
-            date: '2026-10-10',
-            status: 'PRESENT',
-            source: 'QR_SCAN',
-            invalidationCategory: null,
-            review,
-          },
-        ],
-      },
-    ],
-  });
+  const attendance = (review: unknown) =>
+    studentHistory([courseSession({ id: SESSION, title: 'Week 3 lecture', review })]);
   const studentRoutes = (review: unknown, extra: Record<string, unknown> = {}) => ({
     'GET /auth/me': reply(200, { user: student }),
-    'GET /me/attendance': () => reply(200, attendance(review)),
+    [`GET /me/courses/${COURSE}`]: () => reply(200, attendance(review)),
     ...extra,
   });
+  const openStudentCourse = async () => {
+    const result = render(<App pathname={`/my/courses/${COURSE}`} />);
+    fireEvent.click(
+      await waitFor(() => screen.getByRole('button', { name: /show details for week 3 lecture/i })),
+    );
+    return result;
+  };
   const openReview = {
     id: 'd1',
     state: 'OPEN',
@@ -691,7 +678,7 @@ describe('what a student sees', () => {
 
   it('is told only that the record is being reviewed and that it still counts', async () => {
     mockApi(studentRoutes(openReview));
-    render(<App pathname="/" />);
+    await openStudentCourse();
     await waitFor(() => screen.getByText('Your lecturer is reviewing this record'));
     expect(screen.getByText(/still counts as present/i)).toBeTruthy();
     const page = document.body.textContent!.toLowerCase();
@@ -719,7 +706,7 @@ describe('what a student sees', () => {
         },
       }),
     );
-    render(<App pathname="/" />);
+    await openStudentCourse();
     const box = await waitFor(() => screen.getByLabelText('Your reply'));
     expect((screen.getByRole('button', { name: 'Send reply' }) as HTMLButtonElement).disabled).toBe(
       true,
@@ -738,7 +725,7 @@ describe('what a student sees', () => {
 
   it('explains when replies have run out, and shows the outcome once closed', async () => {
     mockApi(studentRoutes({ ...openReview, repliesLeft: 0 }));
-    render(<App pathname="/" />);
+    await openStudentCourse();
     await waitFor(() => screen.getByText(/used all your replies/i));
     expect(screen.queryByLabelText('Your reply')).toBeNull();
     cleanup();
@@ -749,15 +736,15 @@ describe('what a student sees', () => {
         resolvedAt: '2026-10-10T10:00:00.000Z',
       }),
     );
-    render(<App pathname="/" />);
+    await openStudentCourse();
     await waitFor(() => screen.getByText('Your lecturer reviewed this record and it stands.'));
     expect(screen.queryByLabelText('Your reply')).toBeNull();
   });
 
   it('shows nothing extra for a record that is not under review', async () => {
     mockApi(studentRoutes(null));
-    render(<App pathname="/" />);
-    await waitFor(() => screen.getByText('Week 3 lecture', { exact: false }));
+    await openStudentCourse();
+    await waitFor(() => screen.getByText(/Recorded by/i));
     expect(screen.queryByText(/reviewing/i)).toBeNull();
   });
 });
@@ -832,38 +819,28 @@ describe('accessibility of the new screens', () => {
   it('the student review notice and reply form have no axe violations', async () => {
     mockApi({
       'GET /auth/me': reply(200, { user: student }),
-      'GET /me/attendance': () =>
-        reply(200, {
-          courses: [
-            {
-              id: COURSE,
-              code: 'CS101',
-              title: 'Intro',
-              associationState: 'CONFIRMED',
-              presentCount: 1,
-              sessionCount: 1,
-              sessions: [
-                {
-                  id: SESSION,
-                  title: 'Week 3 lecture',
-                  date: '2026-10-10',
-                  status: 'PRESENT',
-                  source: 'QR_SCAN',
-                  invalidationCategory: null,
-                  review: {
-                    id: 'd1',
-                    state: 'OPEN',
-                    openedAt: '2026-10-10T09:20:00.000Z',
-                    resolvedAt: null,
-                    repliesLeft: 5,
-                  },
-                },
-              ],
-            },
-          ],
-        }),
+      [`GET /me/courses/${COURSE}`]: () =>
+        reply(
+          200,
+          studentHistory([
+            courseSession({
+              id: SESSION,
+              title: 'Week 3 lecture',
+              review: {
+                id: 'd1',
+                state: 'OPEN',
+                openedAt: '2026-10-10T09:20:00.000Z',
+                resolvedAt: null,
+                repliesLeft: 5,
+              },
+            }),
+          ]),
+        ),
     });
-    const { container } = render(<App pathname="/" />);
+    const { container } = render(<App pathname={`/my/courses/${COURSE}`} />);
+    fireEvent.click(
+      await waitFor(() => screen.getByRole('button', { name: /show details for week 3 lecture/i })),
+    );
     await waitFor(() => screen.getByLabelText('Your reply'));
     expect(await violations(container)).toEqual([]);
   });

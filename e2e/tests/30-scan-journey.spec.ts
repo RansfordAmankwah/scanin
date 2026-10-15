@@ -101,7 +101,8 @@ test('a student scans the projected code with the phone camera and is checked in
     await expectGoodScreen(page, 'checked in');
 
     await page.getByRole('button', { name: 'Done' }).tap();
-    await expect(page.getByText('Scan journey lecture')).toBeVisible(); // in "My attendance"
+    await page.getByRole('link', { name: 'View attendance' }).tap(); // the course's own history
+    await expect(page.getByText('Scan journey lecture')).toBeVisible();
   } finally {
     await camBrowser.close();
     await projector.close();

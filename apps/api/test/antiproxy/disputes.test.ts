@@ -52,19 +52,8 @@ const resolve = (c: Case, body: object, cookie?: string) =>
 const reply = (cookie: string, disputeId: string, note: unknown) =>
   h.post(`/me/disputes/${disputeId}/response`, { note }, cookie);
 const myReview = async (c: Case) => {
-  const mine = (await h.get('/me/attendance', c.student.cookie)).json();
-  return mine.courses
-    .flatMap(
-      (co: {
-        sessions: Array<{
-          id: string;
-          review: unknown;
-          status: string;
-          invalidationCategory: string | null;
-        }>;
-      }) => co.sessions,
-    )
-    .find((x: { id: string }) => x.id === c.s);
+  const history = (await h.get(`/me/courses/${h.courseId}`, c.student.cookie)).json();
+  return history.sessions.find((x: { id: string }) => x.id === c.s);
 };
 const attendance = async (id: string) =>
   (
@@ -78,9 +67,12 @@ describe('what the student sees and can do', () => {
   it('sees only that their record is under review, can reply, and cannot see the spot check, flags or anyone else', async () => {
     const c = await openDispute();
     const row = await myReview(c);
-    expect(row.status).toBe('PRESENT'); // their attendance still stands while it is reviewed
+    expect(row.outcome).toBe('PROVISIONAL'); // their attendance still stands while it is reviewed
     expect(row.review).toMatchObject({ state: 'OPEN', repliesLeft: 5 });
-    const raw = JSON.stringify((await h.get('/me/attendance', c.student.cookie)).json());
+    const raw = JSON.stringify([
+      (await h.get('/me/courses', c.student.cookie)).json(),
+      (await h.get(`/me/courses/${h.courseId}`, c.student.cookie)).json(),
+    ]);
     for (const hidden of [
       'spot',
       'NOT_PRESENT',
@@ -244,7 +236,7 @@ describe('how a lecturer resolves it', () => {
     expect(await h.audit('DISPUTE_RESOLVED', c.s)).toHaveLength(1);
     // What the student is told: the category the app already shows for any invalidation, no more.
     expect(await myReview(c)).toMatchObject({
-      status: 'INVALIDATED',
+      outcome: 'INVALIDATED',
       invalidationCategory: 'CONFIRMED_PROXY',
       review: { state: 'RESOLVED_INVALIDATED' },
     });

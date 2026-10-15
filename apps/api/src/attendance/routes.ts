@@ -2,7 +2,15 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import type pg from 'pg';
 import { z } from 'zod';
 import { LECTURER_ONLY, STUDENT_ONLY } from '../authz/index.js';
-import { isScanOutcome, scanHistory, sessionRoster, studentAttendance } from './service.js';
+import { ReviewError } from '../reviews/errors.js';
+import {
+  courseAttendanceSummary,
+  courseStudentHistory,
+  lecturerOverview,
+  studentCourseHistory,
+  studentCourses,
+} from './history.js';
+import { isScanOutcome, scanHistory, sessionRoster } from './service.js';
 
 const COURSE_ROUTE = { config: { authz: { roles: LECTURER_ONLY, course: 'courseId' } } };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -91,11 +99,48 @@ export function registerAttendanceRoutes(app: FastifyInstance, deps: { pool: pg.
     };
   });
 
-  /**
-   * The signed-in student's own attendance. There is no id parameter: the student is always the
-   * session's user, so no request can ask for anyone else's records.
-   */
-  app.get('/me/attendance', { config: { authz: { roles: STUDENT_ONLY } } }, async (req) => {
-    return studentAttendance(pool, req.auth?.userId as string);
+  // --- Course-based history (see docs/COURSE_ATTENDANCE.md) ---------------------------------------
+
+  const guard = async <T>(reply: FastifyReply, run: () => Promise<T>) => {
+    try {
+      return await run();
+    } catch (err) {
+      if (err instanceof ReviewError) {
+        return reply.code(err.status).send({ error: { code: err.code, message: err.message } });
+      }
+      throw err;
+    }
+  };
+
+  /** Every course the signed-in student belongs to. The student is always the signed-in account. */
+  app.get('/me/courses', { config: { authz: { roles: STUDENT_ONLY } } }, async (req) =>
+    studentCourses(pool, req.auth?.userId as string),
+  );
+
+  /** One course's history for the signed-in student; a course they are not in looks like "not found". */
+  app.get(
+    '/me/courses/:courseId',
+    { config: { authz: { roles: STUDENT_ONLY } } },
+    async (req, reply) => {
+      const { courseId } = req.params as { courseId: string };
+      return guard(reply, () => studentCourseHistory(pool, req.auth?.userId as string, courseId));
+    },
+  );
+
+  /** The lecturer's home: each assigned course, what is running now, and what needs attention. */
+  app.get('/courses/overview', { config: { authz: { roles: LECTURER_ONLY } } }, async (req) =>
+    lecturerOverview(pool, req.auth?.userId as string),
+  );
+
+  /** Per-session totals and each student's cumulative attendance for one course. */
+  app.get('/courses/:courseId/attendance-summary', COURSE_ROUTE, async (req) => {
+    const { courseId } = req.params as { courseId: string };
+    return courseAttendanceSummary(pool, courseId);
+  });
+
+  /** One student's attendance across a course's sessions, as the lecturer sees it. */
+  app.get('/courses/:courseId/students/:linkId/attendance', COURSE_ROUTE, async (req, reply) => {
+    const { courseId, linkId } = req.params as { courseId: string; linkId: string };
+    return guard(reply, () => courseStudentHistory(pool, courseId, linkId));
   });
 }

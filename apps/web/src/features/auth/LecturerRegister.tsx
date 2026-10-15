@@ -50,7 +50,7 @@ export function LecturerRegister({
 
   if (created) {
     return (
-      <div className="card">
+      <div className="auth__card">
         <Notice tone="success" title="Lecturer account created">
           Sign in to continue. You will see your courses once the person who runs ScanIn has
           assigned them to you.
@@ -61,7 +61,11 @@ export function LecturerRegister({
   }
 
   return (
-    <form className="card" onSubmit={(e) => void submit(e)} aria-label="Create lecturer account">
+    <form
+      className="auth__card"
+      onSubmit={(e) => void submit(e)}
+      aria-label="Create lecturer account"
+    >
       <h2>Create a lecturer account</h2>
       <TextField
         label="Full name"

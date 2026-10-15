@@ -402,8 +402,10 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
       password_hash: string;
       status: string;
       email_verified_at: Date | null;
+      email: string;
+      student_id_display: string | null;
     }>(
-      `SELECT id, role, full_name, password_hash, status, email_verified_at FROM users WHERE email = $1`,
+      `SELECT id, role, full_name, password_hash, status, email_verified_at, email::text AS email, student_id_display FROM users WHERE email = $1`,
       [email],
     );
     const user = rows[0];
@@ -445,6 +447,8 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
         role: user.role,
         fullName: user.full_name,
         emailVerified: user.email_verified_at !== null,
+        email: user.email,
+        studentId: user.student_id_display,
       },
     };
   });
@@ -473,6 +477,8 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
         role: auth.role,
         fullName: auth.fullName,
         emailVerified: auth.emailVerified,
+        email: auth.email,
+        studentId: auth.studentId,
       },
     };
   });

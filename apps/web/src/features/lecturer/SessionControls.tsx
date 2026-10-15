@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { lecturerApi, type SessionView } from '../../api/lecturer';
-import { Button, Notice, TextField } from '../../components/ui';
-import { Link } from '../../router';
+import {
+  Badge,
+  Button,
+  ConfirmDialog,
+  LinkButton,
+  Notice,
+  SelectField,
+  TextField,
+} from '../../components/ui';
 import { SESSION_STATE_LABEL } from './labels';
 
 const MESSAGES: Record<string, string> = {
@@ -28,6 +35,7 @@ export function SessionControls({
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmEnd, setConfirmEnd] = useState(false);
   const { courseId, id } = session;
 
   const run = async (action: () => ReturnType<typeof lecturerApi.start>) => {
@@ -43,12 +51,7 @@ export function SessionControls({
   };
 
   const end = () => {
-    if (
-      !window.confirm(
-        'End this class session now? Check-in closes immediately and this cannot be undone.',
-      )
-    )
-      return;
+    setConfirmEnd(false);
     void run(() => lecturerApi.end(courseId, id));
   };
 
@@ -60,65 +63,76 @@ export function SessionControls({
     ).then(() => setReason(''));
   };
 
+  const STATE_TONE = {
+    NOT_STARTED: 'neutral',
+    CHECK_IN_OPEN: 'info',
+    CHECK_IN_CLOSED: 'warning',
+    ENDED: 'neutral',
+  } as const;
+
   return (
     <section className="card" aria-labelledby="controls-heading">
-      <h2 id="controls-heading">Session controls</h2>
-      <p>
-        Status: <strong>{SESSION_STATE_LABEL[session.state]}</strong>
-        {session.state === 'CHECK_IN_OPEN' && session.checkInDeadline && (
-          <> · closes at {timeLabel(session.checkInDeadline)}</>
-        )}
-        {session.state === 'CHECK_IN_CLOSED' && (
-          <> · closed at {timeLabel(session.checkInClosedAt)}</>
-        )}
-      </p>
-
-      {session.state === 'NOT_STARTED' && (
+      <div className="card__header">
         <div>
+          <h2 id="controls-heading">Session controls</h2>
+          <p className="card__description cluster">
+            <span>Status:</span>
+            <Badge tone={STATE_TONE[session.state]}>{SESSION_STATE_LABEL[session.state]}</Badge>
+            {session.state === 'CHECK_IN_OPEN' && session.checkInDeadline && (
+              <span>closes at {timeLabel(session.checkInDeadline)}</span>
+            )}
+            {session.state === 'CHECK_IN_CLOSED' && (
+              <span>closed at {timeLabel(session.checkInClosedAt)}</span>
+            )}
+          </p>
+        </div>
+        {session.state === 'CHECK_IN_OPEN' && (
+          <LinkButton to={`/present/${courseId}/${id}`}>Show QR code for the room</LinkButton>
+        )}
+        {session.state === 'NOT_STARTED' && (
           <Button onClick={() => void run(() => lecturerApi.start(courseId, id))} disabled={busy}>
             Start check-in (30 minutes)
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {session.state === 'CHECK_IN_OPEN' && (
-        <>
-          <Link to={`/present/${courseId}/${id}`} className="btn">
-            Show QR code for the room
-          </Link>
-          <form className="stack" onSubmit={extend} aria-label="Extend check-in">
-            <div className="field">
-              <label htmlFor="extend-minutes">Extend by</label>
-              <select
-                id="extend-minutes"
-                value={minutes}
-                onChange={(e) => setMinutes(Number(e.target.value))}
-              >
-                {[5, 10, 15, 30].map((m) => (
-                  <option key={m} value={m}>
-                    {m} minutes
-                  </option>
-                ))}
-              </select>
-            </div>
+        <form className="stack" onSubmit={extend} aria-label="Extend check-in">
+          <div className="form-grid form-grid--2">
+            <SelectField
+              label="Extend by"
+              value={minutes}
+              onChange={(e) => setMinutes(Number(e.target.value))}
+            >
+              {[5, 10, 15, 30].map((m) => (
+                <option key={m} value={m}>
+                  {m} minutes
+                </option>
+              ))}
+            </SelectField>
             <TextField
               label="Reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               required
               minLength={3}
+              hint="Recorded with the extension."
             />
+          </div>
+          <div className="actions">
             <button type="submit" className="btn btn--secondary" disabled={busy}>
               Extend check-in
             </button>
-          </form>
-        </>
+          </div>
+        </form>
       )}
 
       {(session.state === 'CHECK_IN_OPEN' || session.state === 'CHECK_IN_CLOSED') && (
-        <Button variant="secondary" onClick={end} disabled={busy}>
-          End session
-        </Button>
+        <div className="actions">
+          <Button variant="danger" onClick={() => setConfirmEnd(true)} disabled={busy}>
+            End session
+          </Button>
+        </div>
       )}
 
       {session.state === 'ENDED' && (
@@ -128,6 +142,18 @@ export function SessionControls({
         <p className="muted">Extended {session.extensions.length} time(s).</p>
       )}
       {error && <Notice tone="danger" title={error} urgent />}
+
+      <ConfirmDialog
+        open={confirmEnd}
+        title="End this class session now?"
+        confirmLabel="End session now"
+        danger
+        busy={busy}
+        onConfirm={end}
+        onCancel={() => setConfirmEnd(false)}
+      >
+        <p>Check-in closes immediately and this cannot be undone.</p>
+      </ConfirmDialog>
     </section>
   );
 }

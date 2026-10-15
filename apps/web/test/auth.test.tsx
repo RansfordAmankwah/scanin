@@ -34,7 +34,7 @@ describe('signing in', () => {
     const fetchMock = mockApi({
       'GET /auth/me': reply(401, { error: { code: 'UNAUTHENTICATED' } }),
       'POST /auth/login': reply(200, { user: student }),
-      'GET /me/attendance': reply(200, { courses: [] }),
+      'GET /me/courses': reply(200, { courses: [] }),
     });
     render(<App pathname="/" />);
     await waitFor(() => screen.getByRole('heading', { name: /sign in/i, level: 2 }));
@@ -97,7 +97,7 @@ describe('signing in', () => {
   it('shows lecturers a lecturer view, not the student scanner', async () => {
     mockApi({
       'GET /auth/me': reply(200, { user: lecturer }),
-      'GET /courses': reply(200, { courses: [] }),
+      'GET /courses/overview': reply(200, { courses: [] }),
       'GET /terms': reply(200, { terms: [] }),
     });
     render(<App pathname="/" />);
@@ -108,7 +108,7 @@ describe('signing in', () => {
   it('signs out through the server', async () => {
     const fetchMock = mockApi({
       'GET /auth/me': reply(200, { user: student }),
-      'GET /me/attendance': reply(200, { courses: [] }),
+      'GET /me/courses': reply(200, { courses: [] }),
       'POST /auth/logout': reply(204, null),
     });
     render(<App pathname="/" />);
