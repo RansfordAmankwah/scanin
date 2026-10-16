@@ -3,6 +3,7 @@ import type { FastifyInstance, InjectOptions } from 'fastify';
 import { buildApp } from '../../src/app.js';
 import { MemoryMailer } from '../../src/auth/mailer.js';
 import { MemoryStorage } from '../../src/exports/storage.js';
+import { FakeFaceVerifier, type FaceVerifier } from '../../src/face/verifier.js';
 import type { Config } from '../../src/config.js';
 import type { MigratedTestDatabase } from './testDb.js';
 
@@ -16,6 +17,15 @@ export const TEST_CONFIG: Config = {
   IP_HASH_SECRET: 'test-only-ip-hash-secret-0123456789abcdef',
   QR_KEYS: `k1:${'A'.repeat(43)},k0:${'B'.repeat(43)}`,
   QR_ACTIVE_KID: 'k1',
+  QR_TOKEN_TTL_SECONDS: 15,
+  FACE_VERIFIER: 'fake',
+  FACE_TEMPLATE_KEY: 'C'.repeat(43),
+  FACE_ENROLLMENT_SESSION_TTL_SECONDS: 300,
+  FACE_NOTICE_VERSION: 'test-notice-v1',
+  FACE_CHALLENGE_TTL_SECONDS: 90,
+  FACE_MATCH_THRESHOLD: 0.8,
+  FACE_MAX_ATTEMPTS: 5,
+  FACE_DETAIL_RETENTION_DAYS: 90,
   EXPORT_TTL_MINUTES: 60,
   ALLOW_INSECURE_COOKIES: false,
   TRUST_PROXY: false,
@@ -30,6 +40,7 @@ export const TEST_CONFIG: Config = {
   SPOT_CHECK_DEFAULT_SIZE: 5,
   SPOT_CHECK_MAX_SIZE: 20,
   SPOT_CHECK_HISTORY_SESSIONS: 2,
+  SPOT_CHECK_FACE_VERIFIED_MIN: 1,
 };
 
 export interface TestApp {
@@ -37,6 +48,8 @@ export interface TestApp {
   mailer: MemoryMailer;
   /** In-memory export store, so tests can inspect (and tamper with) generated files. */
   storage: MemoryStorage;
+  /** The face verifier in use, so tests can assert templates were enrolled and deleted. */
+  faceVerifier: FaceVerifier;
   /** Everything the API wrote to its log, for asserting that secrets never appear. */
   logs: () => string;
   close: () => Promise<void>;
@@ -46,6 +59,7 @@ export interface TestApp {
 export async function createTestApp(
   db: MigratedTestDatabase,
   overrides: Partial<Config> = {},
+  opts: { faceVerifier?: FaceVerifier } = {},
 ): Promise<TestApp> {
   const mailer = new MemoryMailer();
   const storage = new MemoryStorage();
@@ -56,15 +70,24 @@ export async function createTestApp(
       cb();
     },
   });
+  const faceVerifier = opts.faceVerifier ?? new FakeFaceVerifier();
   const app = await buildApp({
     config: { ...TEST_CONFIG, ...overrides },
     pool: db.appPool,
     mailer,
     exportStorage: storage,
+    faceVerifier,
     logger: { level: 'trace', stream },
   });
   await app.ready();
-  return { app, mailer, storage, logs: () => chunks.join(''), close: () => app.close() };
+  return {
+    app,
+    mailer,
+    storage,
+    faceVerifier,
+    logs: () => chunks.join(''),
+    close: () => app.close(),
+  };
 }
 
 let ipCounter = 0;

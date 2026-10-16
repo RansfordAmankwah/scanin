@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { changePassword } from '../../api/auth';
 import { AppShell } from '../../components/AppShell';
-import { Badge, Button, Card, Notice, PageHeader, TextField } from '../../components/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  LinkButton,
+  Notice,
+  PageHeader,
+  TextField,
+} from '../../components/ui';
 import { useAuth } from '../auth/AuthGate';
 
 const PROBLEMS: Record<string, string> = {
@@ -123,6 +131,19 @@ export function AccountPage() {
       </Card>
 
       <ChangePassword />
+
+      {user.role === 'STUDENT' && (
+        <Card
+          title="Face verification & privacy"
+          description="See what is held for face checks, complete or withdraw an enrollment, and download your data."
+        >
+          <div className="actions">
+            <LinkButton to="/account/privacy" variant="secondary">
+              Open privacy settings
+            </LinkButton>
+          </div>
+        </Card>
+      )}
 
       <Card title="Sign out">
         <div className="actions">

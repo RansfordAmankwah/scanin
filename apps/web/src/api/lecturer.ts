@@ -4,6 +4,8 @@ export interface Course {
   id: string;
   code: string;
   title: string;
+  /** Whether this course is in the face-verification pilot. */
+  faceVerificationEnabled?: boolean;
   term: { id: string; name: string; startsOn: string; endsOn: string };
 }
 
@@ -494,7 +496,7 @@ export interface SpotCheckItem {
   attendanceId: string;
   studentId: string;
   fullName: string;
-  selectionReason: 'RANDOM' | 'RISK_WEIGHTED';
+  selectionReason: 'RANDOM' | 'RISK_WEIGHTED' | 'IN_PERSON_REQUIRED';
   riskFactors: string[];
   state: SpotState;
   disputeId: string | null;

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import type { Config } from '../../src/config.js';
+import type { FaceVerifier } from '../../src/face/verifier.js';
 import { assignLecturer, createCourse, createTerm } from '../../src/operator/commands.js';
 import { mintToken, parseKeyring } from '../../src/qr/token.js';
 import {
@@ -55,9 +56,12 @@ export interface Harness {
   close(): Promise<void>;
 }
 
-export async function createHarness(overrides: Partial<Config> = {}): Promise<Harness> {
+export async function createHarness(
+  overrides: Partial<Config> = {},
+  opts: { faceVerifier?: FaceVerifier } = {},
+): Promise<Harness> {
   const db = await createMigratedTestDatabase();
-  const t = await createTestApp(db, overrides);
+  const t = await createTestApp(db, overrides, opts);
   const operator = 'antiproxy-test';
   await createTerm(db.operatorPool, {
     operator,

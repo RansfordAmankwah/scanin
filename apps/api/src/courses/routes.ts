@@ -14,6 +14,7 @@ interface CourseRow {
   term_name: string;
   starts_on: string;
   ends_on: string;
+  face_verification_enabled: boolean;
 }
 
 function present(row: CourseRow) {
@@ -22,11 +23,12 @@ function present(row: CourseRow) {
     code: row.code,
     title: row.title,
     term: { id: row.term_id, name: row.term_name, startsOn: row.starts_on, endsOn: row.ends_on },
+    faceVerificationEnabled: row.face_verification_enabled,
   };
 }
 
 const COURSE_SELECT = `
-  SELECT c.id, c.code, c.title, t.id AS term_id, t.name AS term_name,
+  SELECT c.id, c.code, c.title, c.face_verification_enabled, t.id AS term_id, t.name AS term_name,
          to_char(t.starts_on, 'YYYY-MM-DD') AS starts_on, to_char(t.ends_on, 'YYYY-MM-DD') AS ends_on
     FROM courses c
     JOIN terms t ON t.id = c.term_id

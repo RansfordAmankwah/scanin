@@ -13,6 +13,8 @@ import { registerAuthorization } from './authz/index.js';
 import type { Config } from './config.js';
 import { registerExportRoutes } from './exports/routes.js';
 import { LocalDiskStorage, type ExportStorage } from './exports/storage.js';
+import { registerFaceRoutes } from './face/routes.js';
+import { createFaceVerifier, type FaceVerifier } from './face/verifier.js';
 import { registerCourseRoutes } from './courses/routes.js';
 import { parseKeyring } from './qr/token.js';
 import { registerQrRoutes } from './qr/routes.js';
@@ -28,6 +30,8 @@ export interface AppOptions {
   mailer: Mailer;
   /** Where export files are kept until they expire. Defaults to a private local directory. */
   exportStorage?: ExportStorage;
+  /** The face verifier. Defaults to the one named by FACE_VERIFIER; tests inject a fake to inspect it. */
+  faceVerifier?: FaceVerifier;
   /** `true` for default logging, an options object (e.g. a custom stream), or `false`. */
   logger?: boolean | { level?: string; stream?: NodeJS.WritableStream };
 }
@@ -103,6 +107,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   registerAttendanceRoutes(app, { pool });
   registerReviewRoutes(app, { pool });
   registerAntiProxyRoutes(app, { pool, config });
+  const faceVerifier = options.faceVerifier ?? createFaceVerifier(config.FACE_VERIFIER);
+  registerFaceRoutes(app, { pool, config, verifier: faceVerifier });
   const storage =
     options.exportStorage ??
     new LocalDiskStorage(config.EXPORT_DIR ?? join(tmpdir(), 'scanin-exports'));

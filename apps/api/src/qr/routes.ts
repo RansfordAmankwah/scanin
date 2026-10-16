@@ -6,12 +6,12 @@ import { hit } from '../auth/rateLimit.js';
 import type { Config } from '../config.js';
 import { withTransaction } from '../db/pool.js';
 import { effectiveState, lockSession, SessionError } from '../sessions/service.js';
-import { mintToken, REFRESH_INTERVAL_SECONDS, type Keyring } from './token.js';
+import { mintToken, type Keyring } from './token.js';
 
 const COURSE_ROUTE = { config: { authz: { roles: LECTURER_ONLY, course: 'courseId' } } };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** A display refreshes about every 30 s; this leaves room for several displays and retries. */
+/** Headroom for several displays and retries at a 15 s refresh: 12/min is comfortably above need. */
 const MINT_LIMIT_PER_MINUTE = 12;
 
 const notFound = (reply: FastifyReply) =>
@@ -19,7 +19,11 @@ const notFound = (reply: FastifyReply) =>
 
 export function registerQrRoutes(
   app: FastifyInstance,
-  deps: { pool: pg.Pool; config: Pick<Config, 'APP_ORIGIN'>; keyring: Keyring },
+  deps: {
+    pool: pg.Pool;
+    config: Pick<Config, 'APP_ORIGIN' | 'QR_TOKEN_TTL_SECONDS'>;
+    keyring: Keyring;
+  },
 ): void {
   const { pool, config, keyring } = deps;
 
@@ -69,8 +73,13 @@ export function registerQrRoutes(
       });
     }
 
-    const minted = mintToken(keyring, sessionId, Number(s.now_ms));
-    // The code is a credential for the next three minutes: never cache it.
+    const minted = mintToken(
+      keyring,
+      sessionId,
+      Number(s.now_ms),
+      config.QR_TOKEN_TTL_SECONDS * 1000,
+    );
+    // The code is a short-lived credential: never cache it.
     void reply.header('Cache-Control', 'no-store');
     return {
       token: minted.token,
@@ -78,7 +87,9 @@ export function registerQrRoutes(
       qrUrl: `${config.APP_ORIGIN}/c#t=${minted.token}`,
       issuedAt: new Date(minted.issuedAtMs).toISOString(),
       expiresAt: new Date(minted.expiresAtMs).toISOString(),
-      refreshAfterSeconds: REFRESH_INTERVAL_SECONDS,
+      // Refresh once per lifetime so the code on screen is always current and never blanks between
+      // mints; a scan of the code just replaced is still accepted for one more window at check-in.
+      refreshAfterSeconds: config.QR_TOKEN_TTL_SECONDS,
       checkInDeadline: s.deadline_text,
     };
   });

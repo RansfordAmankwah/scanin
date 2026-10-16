@@ -22,6 +22,8 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
   const [notFound, setNotFound] = useState(false);
   // Bumped when a spot check or review changes, so the other panels reload.
   const [reviewKey, setReviewKey] = useState(0);
+  // A blind headcount: the recorded totals stay hidden until the lecturer enters their own count.
+  const [headcountEntered, setHeadcountEntered] = useState(false);
   const course = useLoad(() => lecturerApi.course(courseId), [courseId]);
   const code = course.state.status === 'ready' ? course.state.data.course.code : 'Course';
 
@@ -94,7 +96,9 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
         meta={
           <>
             <span>{formatDate(session.sessionDate)}</span>
-            <span>{plural(counts.presentTotal, 'student')} recorded present</span>
+            {headcountEntered && (
+              <span>{plural(counts.presentTotal, 'student')} recorded present</span>
+            )}
           </>
         }
       />
@@ -118,7 +122,7 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
         />
       </div>
 
-      <CountsPanel counts={counts} />
+      <CountsPanel counts={counts} revealTotals={headcountEntered} />
 
       {attention.length > 0 && (
         <Notice tone="warning" title="Needs your attention">
@@ -141,6 +145,7 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
           courseId={courseId}
           sessionId={sessionId}
           presentTotal={counts.presentTotal}
+          onHeadcountKnown={setHeadcountEntered}
         />
       </div>
       <div id="attendance">

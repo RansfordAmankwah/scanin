@@ -33,11 +33,14 @@ export function ReconciliationPanel({
   courseId,
   sessionId,
   presentTotal,
+  onHeadcountKnown,
 }: {
   courseId: string;
   sessionId: string;
   /** When this changes (someone checked in or was corrected) the comparison is fetched again. */
   presentTotal: number;
+  /** Reports whether a headcount exists yet, so the page can keep the recorded total hidden until then. */
+  onHeadcountKnown?: (entered: boolean) => void;
 }) {
   const [data, setData] = useState<Reconciliation | null>(null);
   const [failed, setFailed] = useState(false);
@@ -53,8 +56,12 @@ export function ReconciliationPanel({
     if (r.ok) {
       setData(r.data);
       setFailed(false);
-    } else setFailed(true);
-  }, [courseId, sessionId]);
+      onHeadcountKnown?.(r.data.headcount != null);
+    } else {
+      setFailed(true);
+      onHeadcountKnown?.(false);
+    }
+  }, [courseId, sessionId, onHeadcountKnown]);
 
   useEffect(() => {
     void load();
@@ -87,6 +94,7 @@ export function ReconciliationPanel({
     setBusy(false);
     if (r.ok) {
       setData(r.data.reconciliation);
+      onHeadcountKnown?.(r.data.reconciliation.headcount != null);
       setValue('');
       setWhy('');
       setMessage({
@@ -129,6 +137,13 @@ export function ReconciliationPanel({
         trouble checking in.
       </p>
 
+      {!hc && (
+        <Notice tone="info" title="Count the room before you see the recorded total">
+          Enter your own count first. The number of students recorded present is hidden until then,
+          so your count is independent of it.
+        </Notice>
+      )}
+
       <dl className="counts">
         <div>
           <dt>People in the room</dt>
@@ -136,12 +151,12 @@ export function ReconciliationPanel({
         </div>
         <div>
           <dt>Students recorded present</dt>
-          <dd>{data.recordedAttendance}</dd>
+          <dd>{hc ? data.recordedAttendance : '—'}</dd>
         </div>
         <div>
           <dt>Difference</dt>
           <dd>
-            {data.difference === null
+            {!hc || data.difference === null
               ? '—'
               : data.difference > 0
                 ? `+${data.difference}`

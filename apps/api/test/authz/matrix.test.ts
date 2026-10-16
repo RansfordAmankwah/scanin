@@ -83,6 +83,11 @@ beforeAll(async () => {
     courseCode: 'C',
     lecturerEmail: 'l3@school.test',
   });
+  // Course A is in the face pilot, so the flag-gated face routes behave like any other course route
+  // for the authorization matrix (the pilot gate is covered by the face tests).
+  await db.pool.query('UPDATE courses SET face_verification_enabled = true WHERE id = $1', [
+    ids.courseA,
+  ]);
 
   cookies.student = (await registerAndLogin(t.app)).cookie;
 });

@@ -36,12 +36,12 @@ there is at least one counted session; otherwise `percentReason` says why
 
 ## Endpoints
 
-| Who      | Endpoint                                                     |
-| -------- | ------------------------------------------------------------ |
-| Student  | `GET /me/courses`, `GET /me/courses/:courseId`               |
-| Lecturer | `GET /courses/overview`                                      |
-| Lecturer | `GET /courses/:courseId/attendance-summary`                  |
-| Lecturer | `GET /courses/:courseId/students/:linkId/attendance`         |
+| Who      | Endpoint                                             |
+| -------- | ---------------------------------------------------- |
+| Student  | `GET /me/courses`, `GET /me/courses/:courseId`       |
+| Lecturer | `GET /courses/overview`                              |
+| Lecturer | `GET /courses/:courseId/attendance-summary`          |
+| Lecturer | `GET /courses/:courseId/students/:linkId/attendance` |
 
 A student asking for a course they have no link to gets the same 404 as for a course that does not exist.
 Lecturer endpoints require assignment to the course. Students never receive flags, spot-check results,

@@ -324,17 +324,30 @@ describe('QR-05 a valid code does not authorise check-in unless the session is o
 });
 
 describe('QR-02 / QR-07 code lifetime and revocation, end to end', () => {
-  it('accepts a code issued just under three minutes ago and rejects one just over', async () => {
+  it('accepts a code within its window plus the previous one (~30s), and rejects an older one', async () => {
+    // Default lifetime is 15s; check-in also honours the immediately previous window, so a code is
+    // usable for up to ~30s from issue. This keeps a slow upload working while capping a relay.
     const sessionId = await openSession();
     const [a, b] = await nextStudents(2);
-    expect((await scan(a!.cookie, await codeFor(sessionId, 170_000))).statusCode).toBe(201);
-    const res = await scan(b!.cookie, await codeFor(sessionId, 181_000));
+    expect((await scan(a!.cookie, await codeFor(sessionId, 29_000))).statusCode).toBe(201);
+    const res = await scan(b!.cookie, await codeFor(sessionId, 31_000));
     expect(res.statusCode).toBe(410);
     expect(res.json().error.code).toBe('CODE_EXPIRED');
     expect((await attemptsFor(sessionId)).map((x) => x.outcome)).toEqual([
       'ACCEPTED',
       'REJECTED_TOKEN_EXPIRED',
     ]);
+    expect(await attendanceFor(sessionId)).toBe(1);
+  });
+
+  it('accepts a slow upload of a code the projector has already rotated past (previous window)', async () => {
+    // The student scanned the code at the end of its 15s life; by the time their request lands the
+    // projector has shown a newer code, so this one is past its own expiry but still in the window
+    // immediately before the current one. It must be accepted.
+    const sessionId = await openSession();
+    const [a] = await nextStudents(1);
+    const res = await scan(a!.cookie, await codeFor(sessionId, 18_000));
+    expect(res.statusCode).toBe(201);
     expect(await attendanceFor(sessionId)).toBe(1);
   });
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { verifyEmail } from './api/auth';
 import { Notice } from './components/ui';
 import { AccountPage } from './features/account/AccountPage';
+import { PrivacyPage } from './features/account/PrivacyPage';
 import { AuthGate, useAuth } from './features/auth/AuthGate';
 import { CourseWorkspace, type CourseTab } from './features/lecturer/CourseWorkspace';
 import { CoursesPage } from './features/lecturer/CoursesPage';
@@ -22,6 +23,7 @@ const STUDENT = new RegExp(`^/courses/${ID}/students/${ID}/?$`, 'i');
 const MY_COURSE = new RegExp(`^/my/courses/${ID}/?$`, 'i');
 const MY_COURSES = /^\/my\/courses\/?$/;
 const ACCOUNT = /^\/account\/?$/;
+const PRIVACY = /^\/account\/privacy\/?$/;
 
 function StudentRoutes({ path }: { path: string }) {
   const course = MY_COURSE.exec(path);
@@ -64,6 +66,7 @@ function Routes() {
     }
     return <QrDisplay courseId={present[1]} sessionId={present[2]} key={present[2]} />;
   }
+  if (PRIVACY.test(path) && user.role === 'STUDENT') return <PrivacyPage />;
   if (ACCOUNT.test(path)) return <AccountPage />;
   return user.role === 'STUDENT' ? <StudentRoutes path={path} /> : <LecturerRoutes path={path} />;
 }

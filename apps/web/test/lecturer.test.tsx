@@ -376,17 +376,70 @@ describe('lecturer: roster import', () => {
 });
 
 describe('lecturer: a live session', () => {
+  const reconciliation = (headcount: number | null) => ({
+    sessionState: 'CHECK_IN_OPEN',
+    headcount:
+      headcount === null
+        ? null
+        : {
+            revNo: 1,
+            headcount,
+            previousHeadcount: null,
+            explanation: null,
+            recordedAt: '2026-10-10T09:10:00.000Z',
+            recordedBy: 'Dr Owusu',
+          },
+    history: [],
+    recordedAttendance: 3,
+    invalidated: 1,
+    difference: headcount === null ? null : 3 - headcount,
+    status: headcount === null ? 'NO_HEADCOUNT' : 'CONSISTENT',
+    tolerance: { percent: 15, minimum: 3, allowed: headcount === null ? null : 3 },
+    stale: { isStale: false, checkInsSince: 0, minutesSince: 0 },
+    notes: [],
+    limits: { headcountMax: 2000 },
+  });
   const routes = (over: Record<string, unknown> = {}) => ({
     ...signedInLecturer,
     [`GET /courses/${COURSE}/sessions/${SESSION}`]: () => reply(200, { session: sessionView() }),
     [`GET /courses/${COURSE}/sessions/${SESSION}/attendance`]: () => reply(200, roster()),
+    // A headcount is present by default so the (blind) recorded totals are revealed.
+    [`GET /courses/${COURSE}/sessions/${SESSION}/reconciliation`]: () =>
+      reply(200, reconciliation(3)),
     ...over,
+  });
+
+  it('keeps the recorded totals blind until a headcount is entered', async () => {
+    mockApi(
+      routes({
+        [`GET /courses/${COURSE}/sessions/${SESSION}/reconciliation`]: () =>
+          reply(200, reconciliation(null)),
+      }),
+    );
+    render(<App pathname={`/courses/${COURSE}/sessions/${SESSION}`} />);
+    const counts = (
+      await waitFor(() => screen.getByRole('heading', { name: 'Attendance counts' }))
+    ).closest('section')!;
+    // The numeric breakdown is hidden; a prompt explains why. The header total is hidden too.
+    expect(within(counts).queryByText('Present (all)')).toBeNull();
+    expect(counts.textContent).toMatch(/hidden until you enter a headcount/i);
+    // The page header's recorded-present total is withheld too (the attention notice, a review
+    // signal, is a different number and may still appear).
+    expect(screen.queryByText(/^\d+ students? recorded present$/)).toBeNull();
+    // The headcount panel also withholds "Students recorded present" until a count is entered.
+    const panel = (
+      await waitFor(() => screen.getByRole('heading', { name: 'Room headcount' }))
+    ).closest('section')!;
+    expect(
+      within(panel).getByText('Students recorded present').nextElementSibling?.textContent,
+    ).toBe('—');
   });
 
   it('shows the counts as a clear breakdown that never double counts', async () => {
     mockApi(routes());
     render(<App pathname={`/courses/${COURSE}/sessions/${SESSION}`} />);
     await waitFor(() => screen.getByRole('heading', { name: 'Attendance counts' }));
+    await waitFor(() => screen.getByText('Present (all)'));
     const counts = screen.getByRole('heading', { name: 'Attendance counts' }).closest('section')!;
     const value = (label: string) =>
       within(counts).getByText(label).nextElementSibling?.textContent;

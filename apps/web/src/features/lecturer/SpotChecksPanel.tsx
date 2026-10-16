@@ -101,11 +101,13 @@ function SpotItem({
         </Badge>
       </p>
       <p className="muted">
-        {item.selectionReason === 'RANDOM'
-          ? 'Picked at random.'
-          : `Picked at random, with a higher chance because ${item.riskFactors
-              .map((f) => RISK_FACTOR_LABEL[f] ?? f)
-              .join(' and ')}. This is not a finding about the student.`}
+        {item.selectionReason === 'IN_PERSON_REQUIRED'
+          ? 'An in-person check is required for this student. This is not a finding about them.'
+          : item.selectionReason === 'RANDOM'
+            ? 'Picked at random.'
+            : `Picked at random, with a higher chance because ${item.riskFactors
+                .map((f) => RISK_FACTOR_LABEL[f] ?? f)
+                .join(' and ')}. This is not a finding about the student.`}
       </p>
       {item.state === 'COULD_NOT_VERIFY' && (
         <p>This check is not settled. Look again, or record what you found.</p>

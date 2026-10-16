@@ -25,6 +25,12 @@ const ConfigSchema = z
     QR_KEYS: z.string().min(1, 'QR_KEYS is required'),
     /** Id of the key used to sign new codes. Must be one of QR_KEYS. */
     QR_ACTIVE_KID: z.string().min(1, 'QR_ACTIVE_KID is required'),
+    /**
+     * How long a QR code stays usable, in seconds. Short on purpose: a code relayed outside the room
+     * is useful for seconds, not minutes. The projector refreshes this often, and check-in also
+     * accepts the immediately previous window, so the real acceptance window is up to twice this.
+     */
+    QR_TOKEN_TTL_SECONDS: z.coerce.number().int().min(5).max(120).default(15),
     /** Private directory for generated export files (pilot). Defaults to a temp folder. */
     EXPORT_DIR: z.string().min(1).optional(),
     /** How long a generated export stays downloadable. Provisional: 60 minutes. */
@@ -61,6 +67,8 @@ const ConfigSchema = z
     SPOT_CHECK_MAX_SIZE: z.coerce.number().int().min(1).max(1000).default(20),
     /** Students sampled in this many of the course's previous sessions are less likely to be picked. */
     SPOT_CHECK_HISTORY_SESSIONS: z.coerce.number().int().min(0).max(20).default(2),
+    /** Each spot-check round also includes at least this many face-verified students, when any exist. */
+    SPOT_CHECK_FACE_VERIFIED_MIN: z.coerce.number().int().min(0).max(100).default(1),
     /**
      * Per-address limits. A whole lecture hall on campus Wi-Fi shares one public address, so these
      * are generous by default: a class must be able to sign up together. Raise REGISTER if a large
@@ -70,6 +78,29 @@ const ConfigSchema = z
     LOGIN_MAX_FAILURES_PER_IP: z.coerce.number().int().min(1).max(100_000).default(30),
     /** Set when running behind a trusted reverse proxy so the client IP is read correctly. */
     TRUST_PROXY: booleanString,
+    /**
+     * Face-verification pilot. The verifier is `fake` (deterministic, for development and tests) or
+     * `production` (a real vendor; the stub throws NOT_CONFIGURED until one is integrated). The
+     * per-course flag gates whether checks happen at all; this only selects the implementation.
+     */
+    FACE_VERIFIER: z.enum(['fake', 'production']).default('production'),
+    /**
+     * Key that encrypts the vendor template reference at rest (AES-256-GCM): 32 bytes, base64url.
+     * Required before any enrollment can be stored; without it the face routes refuse to enroll.
+     */
+    FACE_TEMPLATE_KEY: z.string().optional(),
+    /** How long a supervised enrollment session stays open for the student to complete capture. */
+    FACE_ENROLLMENT_SESSION_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(300),
+    /** The current privacy-notice version a student must have consented to before enrolling. */
+    FACE_NOTICE_VERSION: z.string().min(1).max(100).default('2026-10-face-pilot-v1'),
+    /** How long a single-use face-check challenge stays valid (seconds). */
+    FACE_CHALLENGE_TTL_SECONDS: z.coerce.number().int().min(30).max(600).default(90),
+    /** A match at or above this score (0–1), with a live capture, passes the check. */
+    FACE_MATCH_THRESHOLD: z.coerce.number().min(0).max(1).default(0.8),
+    /** How many attempts a student gets before the check is left for an in-person decision. */
+    FACE_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),
+    /** Liveness and match-score detail is deleted after this many days; the outcome is kept longer. */
+    FACE_DETAIL_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
   })
   .refine((c) => c.NODE_ENV !== 'production' || (c.RESEND_API_KEY && c.MAIL_FROM), {
     message: 'RESEND_API_KEY and MAIL_FROM are required in production',
@@ -86,7 +117,16 @@ const ConfigSchema = z
   .refine((c) => !(c.NODE_ENV === 'production' && c.ALLOW_INSECURE_COOKIES), {
     message: 'ALLOW_INSECURE_COOKIES must not be enabled in production',
     path: ['ALLOW_INSECURE_COOKIES'],
-  });
+  })
+  .refine(
+    (c) =>
+      c.FACE_TEMPLATE_KEY === undefined ||
+      Buffer.from(c.FACE_TEMPLATE_KEY, 'base64url').length >= 32,
+    {
+      message: 'FACE_TEMPLATE_KEY must be at least 32 bytes, base64url',
+      path: ['FACE_TEMPLATE_KEY'],
+    },
+  );
 
 export type Config = z.infer<typeof ConfigSchema>;
 

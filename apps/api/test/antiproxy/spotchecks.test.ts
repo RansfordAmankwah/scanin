@@ -218,7 +218,7 @@ describe('who can be selected and how many', () => {
     await generateSpotCheck(
       h.db.appPool,
       { courseId: h.courseId, sessionId: earlier, actorId: h.lecturer.id, size: 2 },
-      { defaultSize: 5, maxSize: 20, historySessions: 2 },
+      { defaultSize: 5, maxSize: 20, historySessions: 2, faceVerifiedMin: 1 },
       seeded(1),
     );
     const sampledBefore = (
@@ -234,7 +234,7 @@ describe('who can be selected and how many', () => {
       await generateSpotCheck(
         h.db.appPool,
         { courseId: h.courseId, sessionId: next, actorId: h.lecturer.id, size: 4 },
-        { defaultSize: 5, maxSize: 20, historySessions: 2 },
+        { defaultSize: 5, maxSize: 20, historySessions: 2, faceVerifiedMin: 1 },
         seeded(2),
       );
       return list(h, next);
@@ -255,7 +255,7 @@ describe('who can be selected and how many', () => {
     await generateSpotCheck(
       h.db.appPool,
       { courseId: h.courseId, sessionId: third, actorId: h.lecturer.id, size: 4 },
-      { defaultSize: 5, maxSize: 20, historySessions: 0 },
+      { defaultSize: 5, maxSize: 20, historySessions: 0, faceVerifiedMin: 1 },
       seeded(3),
     );
     const flat = (
@@ -265,6 +265,44 @@ describe('who can be selected and how many', () => {
       )
     ).rows;
     expect(flat).toEqual([{ weight: 1 }]);
+  });
+
+  it('does not suppress a student whose most recent result was not-present or could-not-verify', async () => {
+    // Earlier session: sample three students and record a different outcome for each.
+    const earlier = await h.openSession();
+    const [a, b, c] = await h.checkInStudents(earlier, 3);
+    expect((await gen(h, earlier, { size: 3 })).statusCode).toBe(201);
+    const earlierItems = (
+      await h.db.pool.query<{ id: string; student_id: string }>(
+        'SELECT id, student_id FROM spot_check_items WHERE session_id = $1',
+        [earlier],
+      )
+    ).rows;
+    const itemFor = (id: string) => earlierItems.find((i) => i.student_id === id)!.id;
+    expect(
+      (await result(h, earlier, itemFor(a!.id), { outcome: 'COULD_NOT_VERIFY' })).statusCode,
+    ).toBe(200);
+    expect((await result(h, earlier, itemFor(b!.id), missingBody)).statusCode).toBe(200); // NOT_PRESENT, dispute left open
+    // c!'s item stays PENDING.
+
+    // Next session: the same three are present again and a fresh sample is drawn.
+    const next = await h.openSession();
+    for (const st of [a!, b!, c!]) expect((await h.scan(st, next)).statusCode).toBe(201);
+    expect((await gen(h, next, { size: 3 })).statusCode).toBe(201);
+    const weights = new Map(
+      (
+        await h.db.pool.query<{ student_id: string; weight: number }>(
+          'SELECT student_id, weight::float AS weight FROM spot_check_items WHERE session_id = $1',
+          [next],
+        )
+      ).rows.map((r) => [r.student_id, r.weight]),
+    );
+    // a!: could-not-verify last time, so the 0.3 recent-sample reduction must NOT apply → weight 1.
+    expect(weights.get(a!.id)).toBeCloseTo(1);
+    // b!: an unresolved not-present raises the chance (x2) and is not reduced by 0.3 → weight 2.
+    expect(weights.get(b!.id)).toBeCloseTo(2);
+    // c!: sampled recently with a benign (pending) result, so the reduction applies as before → 0.3.
+    expect(weights.get(c!.id)).toBeCloseTo(0.3);
   });
 
   it('cannot be listed or run by students', async () => {

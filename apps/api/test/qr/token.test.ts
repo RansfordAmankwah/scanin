@@ -1,7 +1,8 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
-  TOKEN_LIFETIME_MS,
+  DEFAULT_TOKEN_TTL_MS,
+  MAX_TOKEN_TTL_MS,
   MAX_FUTURE_SKEW_MS,
   checkTokenTimes,
   mintToken,
@@ -37,7 +38,7 @@ function forge(
   Buffer.from(SESSION.replaceAll('-', ''), 'hex').copy(payload, 1);
   Buffer.alloc(16, 7).copy(payload, 17);
   payload.writeBigUInt64BE(BigInt(NOW), 33);
-  payload.writeBigUInt64BE(BigInt(NOW + (opts.lifetimeMs ?? TOKEN_LIFETIME_MS)), 41);
+  payload.writeBigUInt64BE(BigInt(NOW + (opts.lifetimeMs ?? DEFAULT_TOKEN_TTL_MS)), 41);
   const mac = createHmac('sha256', r.keys.get(kid)!)
     .update(opts.domain ?? 'scanin-qr-v1')
     .update('\0')
@@ -59,17 +60,19 @@ describe('QR-01 token format, signature and version', () => {
         sessionId: SESSION,
         jti: m.jti,
         issuedAtMs: NOW,
-        expiresAtMs: NOW + 180_000,
+        expiresAtMs: NOW + 15_000,
       },
     });
     expect(m.jti).toMatch(/^[0-9a-f]{32}$/);
     expect(m.token.startsWith('ST1.k1.')).toBe(true);
   });
 
-  it('has a fixed three-minute lifetime and a compact, scannable size', () => {
-    expect(TOKEN_LIFETIME_MS).toBe(3 * 60 * 1000);
+  it('has a short default lifetime, honours a caller-supplied one, and stays compact', () => {
+    expect(DEFAULT_TOKEN_TTL_MS).toBe(15_000);
     const m = mintToken(k1, SESSION, NOW);
-    expect(m.expiresAtMs - m.issuedAtMs).toBe(180_000);
+    expect(m.expiresAtMs - m.issuedAtMs).toBe(15_000);
+    const custom = mintToken(k1, SESSION, NOW, 20_000);
+    expect(custom.expiresAtMs - custom.issuedAtMs).toBe(20_000);
     expect(m.token.length).toBeLessThan(130); // small QR code, easy to scan from the back of a room
   });
 
@@ -134,10 +137,16 @@ describe('QR-01 token format, signature and version', () => {
       ok: false,
       reason: 'UNSUPPORTED_VERSION',
     });
-    expect(verifyToken(k1, forge(k1, { lifetimeMs: 3_600_000 }))).toEqual({
+    // A lifetime past the sanity cap could only be our own bug; a plausible non-default one is fine.
+    expect(verifyToken(k1, forge(k1, { lifetimeMs: MAX_TOKEN_TTL_MS + 1 }))).toEqual({
       ok: false,
       reason: 'MALFORMED',
     });
+    expect(verifyToken(k1, forge(k1, { lifetimeMs: 0 }))).toEqual({
+      ok: false,
+      reason: 'MALFORMED',
+    });
+    expect(verifyToken(k1, forge(k1, { lifetimeMs: 30_000 }))).toMatchObject({ ok: true });
     expect(verifyToken(k1, forge(k1))).toMatchObject({ ok: true }); // the forge itself is faithful
   });
 
@@ -165,16 +174,22 @@ describe('QR-01 token format, signature and version', () => {
   });
 });
 
-describe('QR-02 the three-minute lifetime is enforced from issue and expiry times', () => {
-  const payload = { issuedAtMs: NOW, expiresAtMs: NOW + 180_000 };
+describe('QR-02 the lifetime is enforced from issue and expiry times', () => {
+  const payload = { issuedAtMs: NOW, expiresAtMs: NOW + 15_000 };
 
-  it('is valid from issue until just before expiry, and expired at expiry', () => {
+  it('is valid from issue until just before expiry, and expired at expiry (no grace)', () => {
     expect(checkTokenTimes(payload, NOW, null)).toBe('OK');
-    expect(checkTokenTimes(payload, NOW + 30_000, null)).toBe('OK'); // one refresh later
-    expect(checkTokenTimes(payload, NOW + 179_999, null)).toBe('OK');
-    expect(checkTokenTimes(payload, NOW + 180_000, null)).toBe('EXPIRED');
-    expect(checkTokenTimes(payload, NOW + 180_001, null)).toBe('EXPIRED');
+    expect(checkTokenTimes(payload, NOW + 14_999, null)).toBe('OK');
+    expect(checkTokenTimes(payload, NOW + 15_000, null)).toBe('EXPIRED');
+    expect(checkTokenTimes(payload, NOW + 15_001, null)).toBe('EXPIRED');
     expect(checkTokenTimes(payload, NOW + 24 * 3_600_000, null)).toBe('EXPIRED');
+  });
+
+  it('with one window of grace, the immediately previous code is still accepted', () => {
+    const grace = 15_000; // one token lifetime, as check-in passes
+    expect(checkTokenTimes(payload, NOW + 15_000, null, grace)).toBe('OK'); // just past its own expiry
+    expect(checkTokenTimes(payload, NOW + 29_999, null, grace)).toBe('OK');
+    expect(checkTokenTimes(payload, NOW + 30_000, null, grace)).toBe('EXPIRED'); // two windows is the cap
   });
 
   it('rejects a token issued implausibly far in the future, but tolerates a few seconds', () => {
@@ -182,20 +197,21 @@ describe('QR-02 the three-minute lifetime is enforced from issue and expiry time
     expect(checkTokenTimes(payload, NOW - MAX_FUTURE_SKEW_MS - 1, null)).toBe('NOT_YET_VALID');
   });
 
-  it('refresh and lifetime are independent: about six codes are valid at once', () => {
-    const refreshMs = 30_000;
+  it('at a 15s refresh, the current code and the one before it are accepted (two windows)', () => {
+    const refreshMs = 15_000;
+    const grace = 15_000;
     const issued = Array.from({ length: 10 }, (_, i) => ({
       issuedAtMs: NOW + i * refreshMs,
-      expiresAtMs: NOW + i * refreshMs + 180_000,
+      expiresAtMs: NOW + i * refreshMs + 15_000,
     }));
     const now = NOW + 9 * refreshMs;
-    const valid = issued.filter((p) => checkTokenTimes(p, now, null) === 'OK');
-    expect(valid).toHaveLength(6);
+    const valid = issued.filter((p) => checkTokenTimes(p, now, null, grace) === 'OK');
+    expect(valid).toHaveLength(2); // the code on screen now, plus the one immediately before it
   });
 });
 
 describe('QR-07 invalidating issued codes (token side)', () => {
-  const payload = { issuedAtMs: NOW, expiresAtMs: NOW + 180_000 };
+  const payload = { issuedAtMs: NOW, expiresAtMs: NOW + 15_000 };
 
   it('rejects codes issued before the mark and accepts codes issued at or after it', () => {
     expect(checkTokenTimes(payload, NOW + 1000, NOW - 500)).toBe('OK'); // mark set before it was issued

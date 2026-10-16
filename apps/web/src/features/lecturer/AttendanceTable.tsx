@@ -12,7 +12,25 @@ import {
   STATUS_TONE,
 } from './labels';
 
-export function CountsPanel({ counts }: { counts: Counts }) {
+export function CountsPanel({
+  counts,
+  revealTotals = true,
+}: {
+  counts: Counts;
+  /** False keeps the recorded totals hidden until a headcount is entered (a blind count). */
+  revealTotals?: boolean;
+}) {
+  if (!revealTotals) {
+    return (
+      <section className="card" aria-labelledby="counts-heading">
+        <h2 id="counts-heading">Attendance counts</h2>
+        <p className="muted">
+          The recorded totals are hidden until you enter a headcount below, so your count of the
+          room is your own. Enter it in <strong>Room headcount</strong> to reveal them.
+        </p>
+      </section>
+    );
+  }
   return (
     <section className="card" aria-labelledby="counts-heading">
       <h2 id="counts-heading">Attendance counts</h2>

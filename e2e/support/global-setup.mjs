@@ -108,6 +108,23 @@ export default async function globalSetup() {
     courseCode: 'E2E101',
     lecturerEmail,
   });
+  // A second course in the face-verification pilot, so face tests do not change the behaviour of the
+  // main course. Only the operator may turn the flag on.
+  const faceCourse = await ops.createCourse(opPool, {
+    operator: 'e2e',
+    term: 'E2E term',
+    code: 'FACE101',
+    title: 'Face Pilot',
+  });
+  await ops.assignLecturer(opPool, {
+    operator: 'e2e',
+    term: 'E2E term',
+    courseCode: 'FACE101',
+    lecturerEmail,
+  });
+  await opPool.query('UPDATE courses SET face_verification_enabled = true WHERE id = $1', [
+    faceCourse.id,
+  ]);
   await opPool.end();
 
   const port = await freePort();
@@ -128,6 +145,10 @@ export default async function globalSetup() {
       IP_HASH_SECRET: randomBytes(32).toString('base64url'),
       QR_KEYS: `k1:${randomBytes(32).toString('base64url')}`,
       QR_ACTIVE_KID: 'k1',
+      // The face pilot runs against the deterministic fake verifier in e2e.
+      FACE_VERIFIER: 'fake',
+      FACE_TEMPLATE_KEY: randomBytes(32).toString('base64url'),
+      FACE_NOTICE_VERSION: 'e2e-face-notice',
       WEB_DIST_DIR: join(root, 'apps', 'web', 'dist'),
       EXPORT_DIR: exportDir,
     },
@@ -160,6 +181,7 @@ export default async function globalSetup() {
     logPath,
     exportDir,
     courseId: course.id,
+    faceCourseId: faceCourse.id,
     lecturer: { email: lecturerEmail, password: lecturer.temporaryPassword, id: lecturer.id },
   };
   const statePath = join(tmpdir(), `scanin-e2e-state-${suffix}.json`);

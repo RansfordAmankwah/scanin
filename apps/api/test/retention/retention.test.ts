@@ -424,6 +424,7 @@ describe('RET-04 retention is a function of the data, so it is safe after a rest
     const second = await runRetention(db.retentionPool);
     expect(second).toEqual({
       scanAttempts: 0,
+      faceDetail: 0,
       securityAudit: 0,
       authSessions: 0,
       accountTokens: 0,

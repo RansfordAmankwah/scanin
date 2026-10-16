@@ -13,7 +13,14 @@ export function extractToken(scanned: string): string | null {
 }
 
 export type CheckInOutcome =
-  | { kind: 'recorded'; course: string; session: string; association: string }
+  | {
+      kind: 'recorded';
+      course: string;
+      session: string;
+      association: string;
+      /** Present when the course runs face checks: the attendance to run one against. */
+      faceCheck?: { attendanceId: string };
+    }
   | { kind: 'already'; course: string; session: string; invalidated: boolean }
   | { kind: 'expired' }
   | { kind: 'revoked' }
@@ -34,6 +41,9 @@ interface RecordBody {
   associationState: string;
   course: { code: string; title: string };
   sessionTitle: string;
+  /** Face-enabled courses only. */
+  attendanceId?: string;
+  faceCheck?: { required?: boolean };
   error?: { code?: string };
 }
 
@@ -67,6 +77,9 @@ export async function submitCheckIn(token: string, attemptId: string): Promise<C
             course,
             session: body.sessionTitle,
             association: body.associationState,
+            ...(body.faceCheck?.required && body.attendanceId
+              ? { faceCheck: { attendanceId: body.attendanceId } }
+              : {}),
           }
         : {
             kind: 'already',

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Notice } from '../../components/ui';
 import { extractToken, submitCheckIn, type CheckInOutcome } from './checkin';
+import { FaceCheck } from './FaceCheck';
 import { Scanner, type CameraProblem } from './Scanner';
 
 const PENDING_KEY = 'scanin.pendingToken';
@@ -189,6 +190,7 @@ function Result({
               the class list.
             </p>
           )}
+          {outcome.faceCheck && <FaceCheck attendanceId={outcome.faceCheck.attendanceId} />}
           <Button onClick={onDone}>Done</Button>
         </section>
       );

@@ -50,6 +50,9 @@ export type RejectionReason =
 
 export interface RecordedResult {
   kind: 'RECORDED' | 'ALREADY_RECORDED';
+  /** The attendance record's id and course, so the client can start a face check where one applies. */
+  attendanceId: string;
+  courseId: string;
   /** PRESENT normally; INVALIDATED if a lecturer later invalidated the record. */
   attendanceStatus: 'PRESENT' | 'INVALIDATED';
   /** The student's own association with the course. Never includes flags or lecturer notes. */
@@ -110,13 +113,14 @@ async function presentRecord(
   attendanceId: string,
 ): Promise<Omit<RecordedResult, 'kind'>> {
   const { rows } = await c.query<{
+    course_id: string;
     status: 'PRESENT' | 'INVALIDATED';
     link_state: LinkState;
     code: string;
     title: string;
     session_title: string;
   }>(
-    `SELECT a.status, l.state AS link_state, co.code, co.title, s.title AS session_title
+    `SELECT a.course_id, a.status, l.state AS link_state, co.code, co.title, s.title AS session_title
        FROM attendance_records a
        JOIN roster_links l ON l.id = a.link_id
        JOIN class_sessions s ON s.id = a.session_id
@@ -127,6 +131,8 @@ async function presentRecord(
   const r = rows[0];
   if (!r) throw new Error('attendance record vanished');
   return {
+    attendanceId,
+    courseId: r.course_id,
     attendanceStatus: r.status,
     associationState: r.link_state,
     course: { code: r.code, title: r.title },
@@ -238,7 +244,10 @@ async function attempt(pool: pg.Pool, input: CheckInInput): Promise<CheckInResul
     // (5) Rejections: the code must be current, AND the session must be accepting check-ins.
     // Both are required; a valid signature alone authorises nothing.
     const notBeforeMs = session.not_before_ms === null ? null : Number(session.not_before_ms);
-    const times = checkTokenTimes(input.token, nowMs, notBeforeMs);
+    // Accept the current code and the one immediately before it: grace is one token lifetime, read
+    // from the token itself, so the window follows whatever TTL was in force when it was minted.
+    const graceMs = input.token.expiresAtMs - input.token.issuedAtMs;
+    const times = checkTokenTimes(input.token, nowMs, notBeforeMs, graceMs);
     let rejection: RejectionReason | null = null;
     if (times === 'EXPIRED') rejection = 'CODE_EXPIRED';
     else if (times === 'REVOKED') rejection = 'CODE_REVOKED';

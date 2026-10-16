@@ -27,9 +27,10 @@ type Status =
 const RETRY_AFTER_NETWORK_ERROR_MS = 5_000;
 
 /**
- * Full-screen QR display for the room projector. Fetches a fresh signed code about every 30 s.
- * Codes stay valid for three minutes, so a brief network drop does not blank the screen; the
- * previous code keeps showing (with a notice) until it actually expires.
+ * Full-screen QR display for the room projector. Fetches a fresh signed code each time the server
+ * says to (once per code lifetime, ~15 s). Check-in also accepts the code shown immediately before
+ * this one, so a brief network drop or a scan caught mid-rotation still works; the code on screen
+ * keeps showing (with a notice) until it actually expires.
  */
 export function QrDisplay({ courseId, sessionId }: { courseId: string; sessionId: string }) {
   const [status, setStatus] = useState<Status>({ kind: 'loading' });

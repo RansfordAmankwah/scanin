@@ -146,6 +146,7 @@ Audit actions (all `DOMAIN`, with actor and retention date, none containing cred
 - **Students can still collude on sessions where they are not sampled.**
 - **Device binding** is easy to evade by clearing browser data or using another browser, and the id can be copied. It is a speed bump.
 - **A failed spot check is not misconduct.** The student could have stepped out. ScanIn never penalises automatically; what follows is a decision for a person, under institutional policy.
+- **Face verification** (the pilot, where enabled) raises the cost of the several-phones attack by putting any student it cannot confirm onto the in-person list. It still does not prove who holds a phone: a live relay within the short QR window, camera injection on a web client, and students who are not enrolled (checked in person instead) remain open. See `docs/FACE_VERIFICATION.md`.
 
 ## Institutional decisions still open
 
@@ -159,7 +160,9 @@ Audit actions (all `DOMAIN`, with actor and retention date, none containing cred
 
 ## Privacy
 
-Reuses existing identity data (student ID and name from the account). Stores **no biometrics, no photos, no precise location**. Verification outcomes, the method used and the checker's explanation are personal data about the student, visible only to lecturers assigned to that course and to the student's own review notice. Device claims keep only a keyed hash and are purged after 90 days.
+Reuses existing identity data (student ID and name from the account). Stores **no photos and no precise location**. Verification outcomes, the method used and the checker's explanation are personal data about the student, visible only to lecturers assigned to that course and to the student's own review notice. Device claims keep only a keyed hash and are purged after 90 days.
+
+**Biometrics** are stored only for courses in the opt-in **face-verification pilot** (`docs/FACE_VERIFICATION.md`), and even then only as an **encrypted reference to a vendor template** — never a photo or a video frame, which are used in memory and discarded. Face verification is consent-based and withdrawable, the student controls and can export their own face data, and a lecturer never sees the face sub-reason — only that an in-person check is required. A non-pilot course stores no biometrics at all.
 
 ## Demonstration for the Head of Department (about 10 minutes)
 

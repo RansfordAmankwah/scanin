@@ -151,8 +151,20 @@ export function registerCheckInRoutes(
             MESSAGE_FOR_REASON[result.reason],
           );
         }
-        const { kind, ...record } = result;
-        return reply.code(kind === 'RECORDED' ? 201 : 200).send({ result: kind, ...record });
+        const { kind, attendanceId, courseId, ...record } = result;
+        // A face-enabled course additionally tells the client to run a face check; every other
+        // course's response is byte-for-byte what it was before the pilot.
+        const faceOn =
+          (
+            await pool.query<{ on: boolean }>(
+              'SELECT face_verification_enabled AS on FROM courses WHERE id = $1',
+              [courseId],
+            )
+          ).rows[0]?.on === true;
+        const extra = faceOn ? { attendanceId, faceCheck: { required: true } } : {};
+        return reply
+          .code(kind === 'RECORDED' ? 201 : 200)
+          .send({ result: kind, ...record, ...extra });
       } catch (err) {
         if (err instanceof TransientDbError) {
           // Nothing was recorded as far as the student is concerned; retrying with the same

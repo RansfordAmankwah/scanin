@@ -15,6 +15,7 @@ import {
 import { useLoad } from '../../components/useLoad';
 import { AttendanceTab } from './AttendanceTab';
 import { ClassListTab } from './ClassListTab';
+import { FacePilotMetrics } from './FacePilotMetrics';
 import { ReviewQueue } from './ReviewQueue';
 import { SessionsTab } from './SessionsTab';
 
@@ -98,6 +99,8 @@ export function CourseWorkspace({ courseId, tab }: { courseId: string; tab: Cour
       />
 
       <Tabs label="Course sections" items={tabs} current={current} />
+
+      {info.faceVerificationEnabled && <FacePilotMetrics courseId={courseId} />}
 
       {tab === 'sessions' && (
         <SessionsTab

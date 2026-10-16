@@ -206,3 +206,77 @@ describe('the control that does work at the door: one phone, one student', () =>
     expect(await h.count('SELECT 1 FROM attendance_records WHERE session_id = $1', [s])).toBe(1);
   });
 });
+
+/**
+ * The version of the attack the headcount and random spot check cannot reliably catch — several
+ * phones, several accounts — is what face verification is for. A proxy's face does not match the
+ * absent student's enrolled template, so every proxy lands on the in-person list by itself, with no
+ * reliance on the luck of the random draw.
+ */
+describe('face verification catches the several-phones attack deterministically', () => {
+  it('puts every proxy on the in-person list, whatever the random sample is', async () => {
+    const courseId = await h.newCourse();
+    await h.db.pool.query('UPDATE courses SET face_verification_enabled = true WHERE id = $1', [
+      courseId,
+    ]);
+    const session = await h.openSession(courseId);
+
+    // Four students enrolled with their own faces. Two are really here; two are absent, their
+    // accounts scanned by one attacker on two phones.
+    const everyone = await createBulkStudents(h.db, 4);
+    const [h1, h2, p1, p2] = everyone;
+    const present = new Set([h1!.id, h2!.id]);
+    const att: Record<string, string> = {};
+    const dev: Record<string, string> = {};
+    for (const s of everyone) {
+      const d = randomUUID();
+      dev[s.id] = d;
+      att[s.id] = (await h.scan(s, session, d)).json().attendanceId;
+      const linkId = (
+        await h.db.pool.query(
+          'SELECT id FROM roster_links WHERE course_id = $1 AND student_id = $2',
+          [courseId, s.id],
+        )
+      ).rows[0]!.id;
+      await h.post('/me/biometric-consent', {}, s.cookie);
+      const opened = await h.post(
+        `/courses/${courseId}/face-enrollments`,
+        { linkId, idMethod: 'STUDENT_ID_CARD' },
+        h.lecturer.cookie,
+      );
+      await h.post(
+        `/me/face-enrollments/${opened.json().sessionId}/complete`,
+        { frames: [`subject:${s.id}`, 'live:true'] },
+        s.cookie,
+      );
+    }
+
+    // At check-in each phone captures a face. The two present students match; the two proxy phones
+    // are held by the attacker, so their capture does not match the absent account's template.
+    for (const s of everyone) {
+      const ch = await h.post('/me/face-checks/challenge', { attendanceId: att[s.id] }, s.cookie);
+      const face = present.has(s.id) ? s.id : 'the-attacker';
+      const sub = await h.post(
+        `/me/face-checks/${ch.json().challengeId}/frames`,
+        { frames: [`subject:${face}`, 'live:true'], deviceId: dev[s.id] },
+        s.cookie,
+      );
+      expect(sub.json().outcome).toBe(present.has(s.id) ? 'VERIFIED' : 'FAILED');
+    }
+
+    // The smallest possible random sample. The proxies are on the list regardless, as IN_PERSON_REQUIRED.
+    await h.post(`${base(courseId, session)}/spot-checks`, { size: 1 });
+    const items = (await h.get(`${base(courseId, session)}/spot-checks`))
+      .json()
+      .rounds.flatMap(
+        (r: { items: Array<{ attendanceId: string; selectionReason: string }> }) => r.items,
+      );
+    const forced = items
+      .filter((i: { selectionReason: string }) => i.selectionReason === 'IN_PERSON_REQUIRED')
+      .map((i: { attendanceId: string }) => i.attendanceId);
+    expect(forced.sort()).toEqual([att[p1!.id], att[p2!.id]].sort());
+    // And the lecturer is never told why, only that an in-person check is required.
+    const body = (await h.get(`${base(courseId, session)}/spot-checks`)).body.toLowerCase();
+    expect(body).not.toContain('failed');
+  });
+});

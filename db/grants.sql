@@ -71,6 +71,22 @@ GRANT UPDATE (state, current_event_no, resolved_at, resolved_by) ON attendance_d
 GRANT SELECT, INSERT ON export_records TO {{app}};
 GRANT UPDATE (status, row_count, file_sha256, storage_key, ready_at, expires_at) ON export_records TO {{app}};
 
+-- Face-verification pilot (migration 0009). Consent is append-only. A face enrollment is mutable
+-- only to record its deletion; an enrollment session only to complete or cancel it. No raw frame is
+-- ever stored, only an encrypted template reference.
+GRANT SELECT, INSERT ON biometric_consent_events TO {{app}};
+GRANT SELECT, INSERT ON face_enrollments TO {{app}};
+GRANT UPDATE (deleted_at, deletion_state) ON face_enrollments TO {{app}};
+GRANT SELECT, INSERT ON face_enrollment_sessions TO {{app}};
+GRANT UPDATE (state, completed_at, enrollment_id) ON face_enrollment_sessions TO {{app}};
+
+-- Face checks (migration 0010). Challenges are single-use (only used_at may change); the event and
+-- detail tables are append-only.
+GRANT SELECT, INSERT ON face_check_challenges TO {{app}};
+GRANT UPDATE (used_at) ON face_check_challenges TO {{app}};
+GRANT SELECT, INSERT ON attendance_face_check_events TO {{app}};
+GRANT SELECT, INSERT ON face_check_details TO {{app}};
+
 -- Append-only history: INSERT and SELECT only. No UPDATE, no DELETE, ever, for the app.
 GRANT SELECT, INSERT ON
   session_extensions,
@@ -106,12 +122,16 @@ GRANT SELECT, DELETE ON
   spot_checks, spot_check_items, spot_check_events,
   attendance_disputes, attendance_dispute_events,
   investigation_flags, investigation_flag_events,
+  biometric_consent_events, face_enrollments, face_enrollment_sessions,
+  face_check_challenges, attendance_face_check_events, face_check_details,
   export_records, audit_events
 TO {{retention}};
 
 -- Operator CLI: provisioning only. Lecturer accounts, terms, courses and assignments are created
 -- here because the application role deliberately cannot write them.
 GRANT SELECT, INSERT ON terms, courses TO {{operator}};
+-- The operator turns the face-verification pilot on or off for a course; nothing else may.
+GRANT UPDATE (face_verification_enabled) ON courses TO {{operator}};
 GRANT SELECT, INSERT ON lecturer_courses TO {{operator}};
 GRANT UPDATE (ended_at) ON lecturer_courses TO {{operator}};
 GRANT SELECT, INSERT ON users TO {{operator}};

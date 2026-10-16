@@ -97,7 +97,7 @@ const row = async (id: string) =>
   (await db.pool.query('SELECT * FROM class_sessions WHERE id = $1', [id])).rows[0];
 
 describe('minting a code for the lecturer display', () => {
-  it('returns a signed three-minute code bound to the session, issued at database time', async () => {
+  it('returns a signed short-lived code bound to the session, issued at database time', async () => {
     const id = await sessionIn('OPEN');
     const before = (
       await db.pool.query<{ ms: string }>(
@@ -120,10 +120,10 @@ describe('minting a code for the lecturer display', () => {
     expect(verified.payload.kid).toBe('k1');
     expect(verified.payload.issuedAtMs).toBeGreaterThanOrEqual(Number(before));
     expect(verified.payload.issuedAtMs).toBeLessThanOrEqual(Number(after));
-    expect(verified.payload.expiresAtMs - verified.payload.issuedAtMs).toBe(180_000);
+    expect(verified.payload.expiresAtMs - verified.payload.issuedAtMs).toBe(15_000);
     expect(body.issuedAt).toBe(new Date(verified.payload.issuedAtMs).toISOString());
     expect(body.expiresAt).toBe(new Date(verified.payload.expiresAtMs).toISOString());
-    expect(body.refreshAfterSeconds).toBe(30);
+    expect(body.refreshAfterSeconds).toBe(15);
     expect(body.qrUrl).toBe(`${APP_ORIGIN}/c#t=${body.token}`);
     expect(body.checkInDeadline).toMatch(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
     expect(res.headers['cache-control']).toBe('no-store');

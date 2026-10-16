@@ -26,7 +26,12 @@ export interface SpotCheckSettings {
   defaultSize: number;
   maxSize: number;
   historySessions: number;
+  /** How many face-verified students to include per round, so a face exception is not obvious. */
+  faceVerifiedMin: number;
 }
+
+/** A face check that leaves a student to be verified in person (every outcome but VERIFIED/UNAVAILABLE). */
+const FACE_EXCEPTION_OUTCOMES = ['FAILED', 'LIVENESS_REJECTED', 'EXEMPT', 'EXPIRED'];
 
 export const RISK_FACTORS = ['DEVICE_SHARED_FLAG', 'PRIOR_NOT_PRESENT_RESULT'] as const;
 export type RiskFactor = (typeof RISK_FACTORS)[number];
@@ -58,6 +63,8 @@ export interface Candidate {
   factors: RiskFactor[];
   recentlySampled: boolean;
   weight: number;
+  /** The student's latest face-check outcome in this session, if the course runs face checks. */
+  faceOutcome?: string | null;
 }
 
 export function weightFor(factors: RiskFactor[], recentlySampled: boolean): number {
@@ -174,7 +181,10 @@ export async function listSpotChecks(
     attendanceId: i.attendance_id,
     studentId: i.student_id_display,
     fullName: i.full_name,
-    selectionReason: i.selection_reason,
+    // A face exception is shown to the lecturer only as "an in-person check is required": the face
+    // sub-reason (failed, not live, exempt, expired) is never disclosed to them.
+    selectionReason:
+      i.selection_reason === 'FACE_EXCEPTION' ? 'IN_PERSON_REQUIRED' : i.selection_reason,
     riskFactors: i.risk_factors,
     state: i.state,
     disputeId: i.dispute_id,
@@ -260,8 +270,11 @@ export async function generateSpotCheck(
       device_shared: boolean;
       prior_not_present: boolean;
       recently_sampled: boolean;
+      face_outcome: string | null;
     }>(
       `SELECT a.id AS attendance_id, a.student_id,
+              (SELECT e.outcome::text FROM attendance_face_check_events e
+                WHERE e.attendance_id = a.id ORDER BY e.attempt_number DESC LIMIT 1) AS face_outcome,
               EXISTS (SELECT 1 FROM investigation_flags f
                        WHERE f.attendance_id = a.id AND f.origin = 'SYSTEM' AND f.kind = 'PROXY_SUSPECTED'
                          AND f.state IN ('OPEN', 'UNDER_REVIEW')) AS device_shared,
@@ -270,8 +283,14 @@ export async function generateSpotCheck(
                          AND p.session_id <> a.session_id AND p.state = 'NOT_PRESENT'
                          AND NOT EXISTS (SELECT 1 FROM attendance_disputes d
                                           WHERE d.source_item_id = p.id AND d.state = 'RESOLVED_UPHELD')) AS prior_not_present,
-              EXISTS (SELECT 1 FROM spot_check_items h
-                       WHERE h.student_id = a.student_id AND h.session_id = ANY($3::uuid[])) AS recently_sampled
+              (EXISTS (SELECT 1 FROM spot_check_items h
+                        WHERE h.student_id = a.student_id AND h.session_id = ANY($3::uuid[]))
+               -- …but a student whose most recent check in this course was adverse or unresolved is
+               -- NOT made less likely: an unfound or not-verified result should keep them in the pool.
+               AND (SELECT latest.state FROM spot_check_items latest
+                     WHERE latest.student_id = a.student_id AND latest.course_id = a.course_id
+                     ORDER BY latest.created_at DESC, latest.id DESC LIMIT 1)
+                   NOT IN ('NOT_PRESENT', 'COULD_NOT_VERIFY')) AS recently_sampled
          FROM attendance_records a
         WHERE a.session_id = $1 AND a.course_id = $2
           AND a.status = 'PRESENT' AND a.source = 'QR_SCAN'
@@ -298,9 +317,45 @@ export async function generateSpotCheck(
         factors,
         recentlySampled: r.recently_sampled,
         weight: weightFor(factors, r.recently_sampled),
+        faceOutcome: r.face_outcome,
       };
     });
-    const chosen = drawSample(candidates, size, rng);
+
+    // A face exception (every outcome but VERIFIED or an UNAVAILABLE outage) always puts the student
+    // on the in-person list, on top of the requested random sample.
+    const isException = (x: Candidate) =>
+      x.faceOutcome != null && FACE_EXCEPTION_OUTCOMES.includes(x.faceOutcome);
+    const isVerified = (x: Candidate) => x.faceOutcome === 'VERIFIED';
+
+    const forced = candidates.filter(isException);
+    const rest = candidates.filter((x) => !isException(x));
+    const randomSample = drawSample(rest, size, rng);
+    const picked = new Set(randomSample.map((x) => x.attendanceId));
+
+    // Include at least `faceVerifiedMin` face-verified students, so who gets checked does not reveal
+    // who failed. Top up only if the random sample did not already reach it.
+    const verifiedInSample = randomSample.filter(isVerified).length;
+    const verifiedPool = rest.filter((x) => isVerified(x) && !picked.has(x.attendanceId));
+    const topUp = Math.max(0, settings.faceVerifiedMin - verifiedInSample);
+    const extraVerified = drawSample(verifiedPool, topUp, rng);
+
+    const picks: Array<{ candidate: Candidate; reason: string; factors: RiskFactor[] }> = [
+      ...forced.map((candidate) => ({
+        candidate,
+        reason: 'FACE_EXCEPTION',
+        factors: [] as RiskFactor[],
+      })),
+      ...randomSample.map((candidate) => ({
+        candidate,
+        reason: candidate.factors.length > 0 ? 'RISK_WEIGHTED' : 'RANDOM',
+        factors: candidate.factors,
+      })),
+      ...extraVerified.map((candidate) => ({
+        candidate,
+        reason: 'RANDOM',
+        factors: [] as RiskFactor[],
+      })),
+    ];
 
     const round = await c.query<{ id: string }>(
       `INSERT INTO spot_checks
@@ -313,26 +368,24 @@ export async function generateSpotCheck(
         input.requestId ?? null,
         size,
         candidates.length,
-        chosen.length,
+        picks.length,
         JSON.stringify({
           historySessions: settings.historySessions,
           riskMultiplier: RISK_MULTIPLIER,
           maxMultiplier: MAX_MULTIPLIER,
           recentlySampledFactor: RECENTLY_SAMPLED_FACTOR,
+          faceVerifiedMin: settings.faceVerifiedMin,
           factors: RISK_FACTORS,
         }),
       ],
     );
     const roundId = round.rows[0]?.id as string;
 
-    const rationale: Array<{
-      itemId: string;
-      reason: string;
-      factors: RiskFactor[];
-      weight: number;
-    }> = [];
-    for (const pick of chosen) {
-      const reason = pick.factors.length > 0 ? 'RISK_WEIGHTED' : 'RANDOM';
+    const rationale: Array<{ itemId: string; reason: string; factors: RiskFactor[] }> = [];
+    for (const pick of picks) {
+      // A forced item never records the face sub-reason, and carries no risk factors: the lecturer
+      // sees only that an in-person check is required.
+      const weight = pick.reason === 'FACE_EXCEPTION' ? 1 : pick.candidate.weight;
       const item = await c.query<{ id: string }>(
         `INSERT INTO spot_check_items
            (spot_check_id, session_id, course_id, attendance_id, student_id, selection_reason, weight, risk_factors)
@@ -341,18 +394,17 @@ export async function generateSpotCheck(
           roundId,
           input.sessionId,
           input.courseId,
-          pick.attendanceId,
-          pick.studentId,
-          reason,
-          pick.weight,
+          pick.candidate.attendanceId,
+          pick.candidate.studentId,
+          pick.reason,
+          weight,
           JSON.stringify(pick.factors),
         ],
       );
       rationale.push({
         itemId: item.rows[0]?.id as string,
-        reason,
+        reason: pick.reason,
         factors: pick.factors,
-        weight: pick.weight,
       });
     }
 
@@ -367,7 +419,7 @@ export async function generateSpotCheck(
       entityId: roundId,
       retainUntil: await courseRetainUntil(c, input.courseId),
       // Item ids and reasons only: the audit trail explains the draw without naming students.
-      summary: { requested: size, eligible: candidates.length, selected: chosen.length, rationale },
+      summary: { requested: size, eligible: candidates.length, selected: picks.length, rationale },
     });
   });
 

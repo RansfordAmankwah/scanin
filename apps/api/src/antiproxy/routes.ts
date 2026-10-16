@@ -82,6 +82,7 @@ export function registerAntiProxyRoutes(
     defaultSize: config.SPOT_CHECK_DEFAULT_SIZE,
     maxSize: config.SPOT_CHECK_MAX_SIZE,
     historySessions: config.SPOT_CHECK_HISTORY_SESSIONS,
+    faceVerifiedMin: config.SPOT_CHECK_FACE_VERIFIED_MIN,
   };
 
   /** Replies 429 and returns true when `key` has had more than `max` writes in the window. */

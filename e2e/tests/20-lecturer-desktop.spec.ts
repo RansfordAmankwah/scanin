@@ -115,7 +115,7 @@ test.describe('a lecturer at a desktop', () => {
     await expectGoodScreen(page, 'projector');
   });
 
-  test('refreshes the code about every 30 seconds without reloading, and can cancel the codes on screen', async ({
+  test('refreshes the code roughly every 15 seconds without reloading, and can cancel the codes on screen', async ({
     page,
   }) => {
     await lecturerSignIn(page);

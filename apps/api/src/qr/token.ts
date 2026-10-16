@@ -12,8 +12,15 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
  *
  * All times are database-clock milliseconds supplied by the caller; this module never reads a clock.
  */
-export const TOKEN_LIFETIME_MS = 180_000;
-export const REFRESH_INTERVAL_SECONDS = 30;
+/**
+ * How long a freshly minted code is "current". Configurable (QR_TOKEN_TTL_SECONDS); short by design
+ * so a code relayed to someone outside the room is useful for seconds, not minutes. The projector
+ * mints a new code every TTL, and check-in also accepts the immediately previous window (see
+ * `checkTokenTimes`), so a slow upload that straddles a rotation still succeeds.
+ */
+export const DEFAULT_TOKEN_TTL_MS = 15_000;
+/** A sanity bound on a signed token's lifetime, to catch our own mistakes (not a security control). */
+export const MAX_TOKEN_TTL_MS = 600_000;
 /** Tolerated "issued in the future" gap, guarding against clock oddities. */
 export const MAX_FUTURE_SKEW_MS = 5_000;
 
@@ -88,7 +95,12 @@ export interface MintedToken extends TokenPayload {
   token: string;
 }
 
-export function mintToken(ring: Keyring, sessionId: string, nowMs: number): MintedToken {
+export function mintToken(
+  ring: Keyring,
+  sessionId: string,
+  nowMs: number,
+  ttlMs: number = DEFAULT_TOKEN_TTL_MS,
+): MintedToken {
   const key = ring.keys.get(ring.activeKid);
   if (!key) throw new Error('active QR key missing');
   const jti = randomBytes(16);
@@ -97,7 +109,7 @@ export function mintToken(ring: Keyring, sessionId: string, nowMs: number): Mint
   sessionIdToBytes(sessionId).copy(payload, 1);
   jti.copy(payload, 17);
   payload.writeBigUInt64BE(BigInt(nowMs), 33);
-  payload.writeBigUInt64BE(BigInt(nowMs + TOKEN_LIFETIME_MS), 41);
+  payload.writeBigUInt64BE(BigInt(nowMs + ttlMs), 41);
   const mac = macFor(key, ring.activeKid, payload);
   return {
     token: `${PREFIX}.${ring.activeKid}.${payload.toString('base64url')}.${mac.toString('base64url')}`,
@@ -105,7 +117,7 @@ export function mintToken(ring: Keyring, sessionId: string, nowMs: number): Mint
     sessionId,
     jti: jti.toString('hex'),
     issuedAtMs: nowMs,
-    expiresAtMs: nowMs + TOKEN_LIFETIME_MS,
+    expiresAtMs: nowMs + ttlMs,
   };
 }
 
@@ -148,7 +160,10 @@ export function verifyToken(ring: Keyring, token: string): VerifyResult {
   if (payload.readUInt8(0) !== FORMAT_VERSION) return fail('UNSUPPORTED_VERSION');
   const issuedAtMs = Number(payload.readBigUInt64BE(33));
   const expiresAtMs = Number(payload.readBigUInt64BE(41));
-  if (expiresAtMs - issuedAtMs !== TOKEN_LIFETIME_MS) return fail('MALFORMED');
+  // The lifetime is configurable, so we no longer fix it; we only reject a non-positive or
+  // implausibly long one, which could only come from our own bug (the MAC already verified).
+  const lifetimeMs = expiresAtMs - issuedAtMs;
+  if (lifetimeMs <= 0 || lifetimeMs > MAX_TOKEN_TTL_MS) return fail('MALFORMED');
 
   return {
     ok: true,
@@ -165,16 +180,24 @@ export function verifyToken(ring: Keyring, token: string): VerifyResult {
 export type TimeCheck = 'OK' | 'NOT_YET_VALID' | 'EXPIRED' | 'REVOKED';
 
 /**
- * Valid while issued-at <= now < expires-at, and not issued before the session's `qr_not_before`
- * mark (set when a lecturer invalidates issued codes). `nowMs` must be the database clock.
+ * Valid while issued-at <= now < expires-at + grace, and not issued before the session's
+ * `qr_not_before` mark (set when a lecturer invalidates issued codes). `nowMs` must be the
+ * database clock.
+ *
+ * `graceMs` extends acceptance past expiry so that the code one window older than the one on screen
+ * is still accepted: a student who scanned just as the projector rotated, or whose upload was slow,
+ * still gets in. Callers pass one token lifetime, so the effective acceptance is two windows
+ * (the current code plus the immediately previous one) and no more. Revocation still wins: a code
+ * issued before the mark is `REVOKED` even inside the grace window.
  */
 export function checkTokenTimes(
   payload: Pick<TokenPayload, 'issuedAtMs' | 'expiresAtMs'>,
   nowMs: number,
   qrNotBeforeMs: number | null,
+  graceMs = 0,
 ): TimeCheck {
   if (payload.issuedAtMs > nowMs + MAX_FUTURE_SKEW_MS) return 'NOT_YET_VALID';
-  if (nowMs >= payload.expiresAtMs) return 'EXPIRED';
+  if (nowMs >= payload.expiresAtMs + graceMs) return 'EXPIRED';
   if (qrNotBeforeMs !== null && payload.issuedAtMs < qrNotBeforeMs) return 'REVOKED';
   return 'OK';
 }

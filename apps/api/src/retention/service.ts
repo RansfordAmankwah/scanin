@@ -22,6 +22,7 @@ export const INACTIVE_ACCOUNT_MONTHS = 12;
 
 export interface RetentionReport {
   scanAttempts: number;
+  faceDetail: number;
   securityAudit: number;
   authSessions: number;
   accountTokens: number;
@@ -54,6 +55,16 @@ export async function purgeCourse(pool: pg.Pool, courseId: string): Promise<void
     const p = [courseId];
     await c.query('DELETE FROM export_records WHERE course_id = $1', p);
     await c.query('DELETE FROM audit_events WHERE course_id = $1', p);
+    // Face enrollment sessions are course-scoped. Enrollments and consent are student-global (one
+    // template per person) and are removed on withdrawal, not with a single course.
+    await c.query('DELETE FROM face_enrollment_sessions WHERE course_id = $1', p);
+    // Face checks: detail, then events, then challenges (children before parents, before attendance).
+    await c.query(
+      'DELETE FROM face_check_details WHERE event_id IN (SELECT id FROM attendance_face_check_events WHERE course_id = $1)',
+      p,
+    );
+    await c.query('DELETE FROM attendance_face_check_events WHERE course_id = $1', p);
+    await c.query('DELETE FROM face_check_challenges WHERE course_id = $1', p);
     // Anti-proxy records, children first (events, then their parents), before attendance and sessions.
     await c.query(
       'DELETE FROM attendance_dispute_events WHERE dispute_id IN (SELECT id FROM attendance_disputes WHERE course_id = $1)',
@@ -145,7 +156,24 @@ async function purgeInactiveAccounts(pool: pg.Pool): Promise<number> {
   return removed;
 }
 
-export async function runRetention(pool: pg.Pool): Promise<RetentionReport> {
+export async function runRetention(
+  pool: pg.Pool,
+  opts: { faceDetailDays?: number } = {},
+): Promise<RetentionReport> {
+  const faceDetailDays = opts.faceDetailDays ?? 90;
+  // Liveness and match-score detail is deleted after the retention window; the outcome stays.
+  const faceDetail = await deleteInBatches(
+    pool,
+    `DELETE FROM face_check_details WHERE ctid IN (
+       SELECT ctid FROM face_check_details WHERE at < clock_timestamp() - make_interval(days => $1) LIMIT $2)`,
+    [faceDetailDays],
+  );
+  // Expired, unused challenges are ephemeral; clear them on the same pass.
+  await deleteInBatches(
+    pool,
+    `DELETE FROM face_check_challenges WHERE ctid IN (
+       SELECT ctid FROM face_check_challenges WHERE expires_at < clock_timestamp() - interval '1 day' AND used_at IS NULL LIMIT $1)`,
+  );
   const scanAttempts = await deleteInBatches(
     pool,
     `DELETE FROM scan_attempts WHERE ctid IN (
@@ -198,6 +226,7 @@ export async function runRetention(pool: pg.Pool): Promise<RetentionReport> {
 
   return {
     scanAttempts: scanAttempts + deviceRows,
+    faceDetail,
     securityAudit,
     authSessions,
     accountTokens,

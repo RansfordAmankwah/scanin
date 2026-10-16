@@ -231,6 +231,12 @@ test('the lecturer sees the counts, the scan history, can invalidate a record an
   await page.goto(`/courses/${courseId}/sessions/${sessionId}`);
   await expect(page.getByText('Check-in open')).toBeVisible();
   await expect(page.getByRole('cell', { name: /Test (cam|link|flaky)/ }).first()).toBeVisible();
+  // Blind headcount: the recorded totals are hidden until the lecturer enters their own count.
+  await expect(page.getByText(/hidden until you enter a headcount/i)).toBeVisible();
+  await expect(page.getByText('Present (all)')).toHaveCount(0);
+  await page.getByLabel('People in the room').fill('3');
+  await page.getByRole('button', { name: 'Save headcount' }).click();
+  await expect(page.getByText('Headcount saved.')).toBeVisible();
   await expect(page.getByText('Present (all)')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Scan history' })).toBeVisible();
   for (const width of [360, 768, 1280]) {

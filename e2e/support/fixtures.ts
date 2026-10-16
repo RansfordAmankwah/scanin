@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 export interface E2EState {
   origin: string;
   courseId: string;
+  /** A second course with the face-verification pilot turned on. */
+  faceCourseId: string;
   logPath: string;
   lecturer: { email: string; password: string };
 }
