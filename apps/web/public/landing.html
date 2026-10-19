@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ScanIn — QR attendance for university classes</title>
+    <title>ScanIn: QR attendance for university classes</title>
     <meta
       name="description"
       content="ScanIn is a campus attendance tracker. Lecturers show a QR code that refreshes every 30 seconds; students scan it on their phones. Fast check-in with anti-proxy controls."
@@ -12,7 +12,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/site.css" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="ScanIn — QR attendance for university classes" />
+    <meta property="og:title" content="ScanIn: QR attendance for university classes" />
     <meta
       property="og:description"
       content="Lecturers show a rotating QR code; students scan it on their phones. Fast, with anti-proxy controls."
@@ -24,7 +24,7 @@
     <header class="site-header">
       <div class="wrap site-header__inner">
         <a class="brand" href="/">
-          <img src="/favicon.svg" alt="" width="28" height="28" />
+          <img src="/favicon.svg" alt="" width="26" height="26" />
           ScanIn
         </a>
         <nav class="nav" aria-label="Primary">
@@ -32,7 +32,7 @@
             <a href="/how-it-works">How it works</a>
             <a href="/privacy">Privacy</a>
           </span>
-          <a class="btn btn--ghost" href="/sign-in">Sign in</a>
+          <a class="btn btn--quiet" href="/sign-in">Sign in</a>
         </nav>
       </div>
     </header>
@@ -40,70 +40,69 @@
     <main id="main">
       <!-- Hero -->
       <section class="hero">
-        <div class="wrap hero__grid">
-          <div>
-            <span class="eyebrow"><span class="dot"></span> Attendance without the proxy problem</span>
-            <h1>Mark a full class in seconds, not minutes.</h1>
-            <p class="hero__lead">
-              A lecturer starts a session and shows a QR code that refreshes every 30 seconds.
-              Students scan it on their phones. The record is sealed the moment check-in closes.
-            </p>
-            <div class="hero__actions">
-              <a class="btn btn--primary btn--lg" href="/sign-in">Get started</a>
-              <a class="btn btn--ghost btn--lg" href="/how-it-works">See how it works</a>
-            </div>
-            <div class="hero__meta">
-              <span>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
-                No precise location
-              </span>
-              <span>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
-                One device per student
-              </span>
-              <span>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
-                Exports to CSV, Excel, PDF
-              </span>
-            </div>
+        <div class="wrap">
+          <h1>Attendance, reimagined.</h1>
+          <p class="hero__lead">
+            Show a QR code that refreshes every 30 seconds. Students scan it on their phones. The
+            register seals itself the moment check-in closes.
+          </p>
+          <div class="hero__actions">
+            <a class="btn btn--primary btn--lg" href="/sign-in">Get started</a>
+            <a class="textlink" href="/how-it-works">
+              See how it works
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+            </a>
           </div>
+        </div>
+      </section>
 
-          <!-- Stylised phone showing a QR check-in -->
-          <div class="mock" role="img" aria-label="A phone showing a class check-in QR code">
-            <div class="mock__bar"></div>
-            <div class="mock__title">CS 204 — Lecture 7 <span>Check-in open · 29s</span></div>
-            <div class="mock__qr">
-              <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
-                <path d="M8 8h26v26H8V8zm6 6v14h14V14H14z" />
-                <path d="M66 8h26v26H66V8zm6 6v14h14V14H72z" />
-                <path d="M8 66h26v26H8V66zm6 6v14h14V72H14z" />
-                <rect x="18" y="18" width="6" height="6" />
-                <rect x="76" y="18" width="6" height="6" />
-                <rect x="18" y="76" width="6" height="6" />
-                <rect x="42" y="8" width="6" height="6" />
-                <rect x="54" y="8" width="6" height="6" />
-                <rect x="42" y="20" width="6" height="6" />
-                <rect x="8" y="42" width="6" height="6" />
-                <rect x="20" y="42" width="6" height="6" />
-                <rect x="8" y="54" width="6" height="6" />
-                <rect x="42" y="42" width="8" height="8" />
-                <rect x="56" y="42" width="6" height="6" />
-                <rect x="68" y="42" width="6" height="6" />
-                <rect x="80" y="42" width="6" height="6" />
-                <rect x="42" y="56" width="6" height="6" />
-                <rect x="54" y="56" width="6" height="6" />
-                <rect x="66" y="56" width="6" height="6" />
-                <rect x="42" y="68" width="6" height="6" />
-                <rect x="60" y="68" width="6" height="6" />
-                <rect x="78" y="60" width="6" height="6" />
-                <rect x="54" y="78" width="6" height="6" />
-                <rect x="66" y="80" width="6" height="6" />
-                <rect x="78" y="78" width="8" height="8" />
-              </svg>
+      <!-- Product shot -->
+      <section class="shot">
+        <div class="wrap">
+          <div class="shot__frame">
+            <div class="shot__copy">
+              <h2>One tap, and they're in.</h2>
+              <p>
+                No roll call, no passing a sheet around. A student signs in, scans, and the record is
+                tied to them and their device, exactly one check-in per person, per session.
+              </p>
             </div>
-            <div class="mock__status">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
-              Checked in
+            <div class="phone" role="img" aria-label="A phone showing a class check-in QR code">
+              <div class="phone__notch"></div>
+              <div class="phone__title">CS 204 · Lecture 7 <span>Check-in open · 29s left</span></div>
+              <div class="phone__qr">
+                <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+                  <path d="M8 8h26v26H8V8zm6 6v14h14V14H14z" />
+                  <path d="M66 8h26v26H66V8zm6 6v14h14V14H72z" />
+                  <path d="M8 66h26v26H8V66zm6 6v14h14V72H14z" />
+                  <rect x="18" y="18" width="6" height="6" />
+                  <rect x="76" y="18" width="6" height="6" />
+                  <rect x="18" y="76" width="6" height="6" />
+                  <rect x="42" y="8" width="6" height="6" />
+                  <rect x="54" y="8" width="6" height="6" />
+                  <rect x="42" y="20" width="6" height="6" />
+                  <rect x="8" y="42" width="6" height="6" />
+                  <rect x="20" y="42" width="6" height="6" />
+                  <rect x="8" y="54" width="6" height="6" />
+                  <rect x="42" y="42" width="8" height="8" />
+                  <rect x="56" y="42" width="6" height="6" />
+                  <rect x="68" y="42" width="6" height="6" />
+                  <rect x="80" y="42" width="6" height="6" />
+                  <rect x="42" y="56" width="6" height="6" />
+                  <rect x="54" y="56" width="6" height="6" />
+                  <rect x="66" y="56" width="6" height="6" />
+                  <rect x="42" y="68" width="6" height="6" />
+                  <rect x="60" y="68" width="6" height="6" />
+                  <rect x="78" y="60" width="6" height="6" />
+                  <rect x="54" y="78" width="6" height="6" />
+                  <rect x="66" y="80" width="6" height="6" />
+                  <rect x="78" y="78" width="8" height="8" />
+                </svg>
+              </div>
+              <div class="phone__status">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+                Checked in
+              </div>
             </div>
           </div>
         </div>
@@ -113,106 +112,122 @@
       <section class="section">
         <div class="wrap">
           <div class="section__head">
-            <h2>Built for real lecture halls</h2>
-            <p>Fast for an honest student, awkward for a proxy, and trustworthy for the record.</p>
+            <h2>Everything a real class needs.</h2>
+            <p>Fast for an honest student, awkward for a proxy, trustworthy for the record.</p>
           </div>
           <div class="features">
-            <div class="card">
-              <div class="card__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v7M17 20h4" /></svg>
+            <div class="feature">
+              <div class="feature__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v7M17 20h4" /></svg>
               </div>
-              <h3>Rotating QR check-in</h3>
-              <p>
-                Short-lived signed codes refresh every 30 seconds, so a screenshot passed to a friend
-                is already stale. The lecturer can cancel codes on screen at any time.
-              </p>
+              <h3>Rotating QR</h3>
+              <p>Signed codes refresh every 30 seconds, so a screenshot is stale before it's shared.</p>
             </div>
-            <div class="card">
-              <div class="card__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></svg>
+            <div class="feature">
+              <div class="feature__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></svg>
               </div>
               <h3>Anti-proxy controls</h3>
-              <p>
-                A room headcount, randomised in-person spot checks and a review trail catch stand-ins
-                — as review signals for the lecturer, never automatic penalties.
-              </p>
+              <p>Headcounts, randomised spot checks and a review trail: signals for the lecturer, not penalties.</p>
             </div>
-            <div class="card">
-              <div class="card__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2" /><path d="M11 18h2" /></svg>
+            <div class="feature">
+              <div class="feature__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2" /><path d="M11 18h2" /></svg>
               </div>
-              <h3>One device, one student</h3>
-              <p>
-                A phone that has already checked one student in cannot quietly check in another for
-                the same class.
-              </p>
+              <h3>One device per student</h3>
+              <p>A phone that's checked one student in can't quietly check in another for the same class.</p>
             </div>
-            <div class="card">
-              <div class="card__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18" /><rect x="7" y="12" width="3" height="6" /><rect x="12" y="8" width="3" height="10" /><rect x="17" y="5" width="3" height="13" /></svg>
+            <div class="feature">
+              <div class="feature__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18" /><rect x="7" y="12" width="3" height="6" /><rect x="12" y="8" width="3" height="10" /><rect x="17" y="5" width="3" height="13" /></svg>
               </div>
-              <h3>Course attendance history</h3>
-              <p>
-                Every session rolls up per course for lecturers and students, with exports to CSV,
-                Excel, PDF and Word.
-              </p>
+              <h3>Course history</h3>
+              <p>Every session rolls up per course, with exports to CSV, Excel, PDF and Word.</p>
             </div>
-            <div class="card">
-              <div class="card__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M8 10s1-1.5 4-1.5S16 10 16 10" /><path d="M9 15c1 1 2 1.5 3 1.5s2-.5 3-1.5" /></svg>
+            <div class="feature">
+              <div class="feature__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M8 10s1-1.5 4-1.5S16 10 16 10" /><path d="M9 15c1 1 2 1.5 3 1.5s2-.5 3-1.5" /></svg>
               </div>
-              <h3>Optional face verification</h3>
-              <p>
-                An opt-in pilot, off by default and enabled per course. A review signal only, needing
-                the student's consent — and it never stores a raw image.
-              </p>
+              <h3>Optional face check</h3>
+              <p>Opt-in and per course. A review signal only, with consent, and never a stored image.</p>
             </div>
-            <div class="card">
-              <div class="card__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+            <div class="feature">
+              <div class="feature__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
               </div>
-              <h3>Built to be trusted</h3>
-              <p>
-                The database — not the app — enforces the rules. No precise location is collected, and
-                nothing is written to official university systems.
-              </p>
+              <h3>Trustworthy by design</h3>
+              <p>The database enforces the rules. No precise location, nothing written to university systems.</p>
             </div>
           </div>
         </div>
       </section>
 
       <!-- Steps -->
-      <section class="section section--alt">
+      <section class="section">
         <div class="wrap">
           <div class="section__head">
-            <h2>Three steps to a sealed register</h2>
-            <p>From opening a session to a record you can stand behind.</p>
+            <h2>Three steps to a sealed register.</h2>
           </div>
           <div class="steps">
             <div class="step">
+              <div class="step__n">1</div>
               <h3>Start the session</h3>
-              <p>A lecturer opens a class session and projects a QR code that rotates every 30 seconds.</p>
+              <p>Open a class session and project a QR code that rotates every 30 seconds.</p>
             </div>
             <div class="step">
+              <div class="step__n">2</div>
               <h3>Students scan</h3>
-              <p>Each student signs in and scans on their own phone — one record per student, per session.</p>
+              <p>Each student signs in and scans on their own phone, one record each.</p>
             </div>
             <div class="step">
-              <h3>Close and review</h3>
-              <p>Check-in closes, the register is sealed, and any anti-proxy signals surface for review.</p>
+              <div class="step__n">3</div>
+              <h3>Close &amp; review</h3>
+              <p>Check-in closes, the register seals, and any signals surface for review.</p>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- CTA -->
+      <!-- FAQ -->
       <section class="section">
         <div class="wrap">
-          <div class="cta">
-            <h2>Ready to take attendance the easy way?</h2>
-            <p>Create a lecturer account and run your first session in minutes.</p>
-            <a class="btn btn--primary btn--lg" href="/sign-in">Get started</a>
+          <div class="section__head">
+            <h2>Questions, answered.</h2>
           </div>
+          <div class="faq">
+            <details>
+              <summary>Can a student check a friend in?</summary>
+              <p>
+                It's hard. Codes expire every 30 seconds, each check-in is tied to the student's
+                device, and one phone can't check two people into the same class. Anything unusual is
+                flagged for the lecturer, not punished automatically.
+              </p>
+            </details>
+            <details>
+              <summary>Do students need to install an app?</summary>
+              <p>No. ScanIn runs in the browser. Students sign in and scan. Nothing to download.</p>
+            </details>
+            <details>
+              <summary>Is face verification required?</summary>
+              <p>
+                No. It's off by default and enabled per course, only with the student's consent. It's
+                a review signal and never stores a raw image.
+              </p>
+            </details>
+            <details>
+              <summary>Who can use it?</summary>
+              <p>Lecturers create their own courses and sessions; students join by signing in and checking in.</p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="cta">
+        <div class="wrap">
+          <h2>Take attendance the easy way.</h2>
+          <p>Create a lecturer account and run your first session in minutes.</p>
+          <a class="btn btn--primary btn--lg" href="/sign-in">Get started</a>
         </div>
       </section>
     </main>
