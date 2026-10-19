@@ -2,6 +2,8 @@
 
 A campus attendance tracker with QR check-in. A lecturer starts a class session and shows a QR code that refreshes every 30 seconds. Students sign in on their phones and scan it. The database and backend are the source of truth.
 
+Live at **[scanin.dev](https://scanin.dev)**. The public landing site is at `/`; the app is entered at `/sign-in`.
+
 - Two roles only: **lecturer** and **student**. There is no admin dashboard. Lecturers sign up themselves and create their own terms and courses; an operator CLI covers exceptions such as adding a second lecturer to a course.
 - One effective attendance record per student per session, enforced by the database, and one device per student per class (`docs/DEVICE_BINDING.md`).
 - Anti-proxy controls: a room headcount compared with attendance, randomised in-person spot checks, and a review process for the student, all as review signals rather than penalties (`docs/ANTI_PROXY.md`).
@@ -21,6 +23,17 @@ A campus attendance tracker with QR check-in. A lecturer starts a class session 
 | `packages/shared` | Types and constants shared by both                            |
 | `db`              | Plain SQL migrations and the least-privilege `grants.sql`     |
 | `e2e`             | Playwright real-browser tests against the production build    |
+
+## Public site and the app
+
+The API serves both a small public, indexable marketing site and the authenticated single-page app from the same origin (so cookies, CSRF and CORS stay trivial). The split lives in `apps/api/src/security/web.ts`:
+
+| Path                        | What it serves                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------ |
+| `/`                         | Static landing page. A visitor with a session cookie is 302'd to `/sign-in`; sent `Cache-Control: private, no-store` so a CDN never shares one visitor's redirect with another. Cookie presence is routing, not authorisation. |
+| `/how-it-works`, `/privacy` | Static public pages at clean URLs, cached and indexable. `/privacy` is a short general site notice — **not** the face-verification pilot notice, which stays separate. |
+| `/robots.txt`, `/sitemap.xml` | Real files with correct content types, served ahead of the SPA fallback. robots.txt does **not** disallow app routes, so a crawler can fetch them and see their `noindex` header. |
+| everything else             | The SPA shell (sign-in when signed out, the dashboard when signed in), sent with `X-Robots-Tag: noindex`. Entered at `/sign-in`; QR and `/present` links are unchanged. |
 
 ## Requirements
 

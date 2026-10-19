@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How ScanIn works</title>
+    <meta
+      name="description"
+      content="How ScanIn works: a lecturer starts a session and shows a rotating QR code, students scan it on their phones, and anti-proxy controls flag anything that needs a second look."
+    />
+    <link rel="canonical" href="https://scanin.dev/how-it-works" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/site.css" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="How ScanIn works" />
+    <meta property="og:url" content="https://scanin.dev/how-it-works" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="wrap site-header__inner">
+        <a class="brand" href="/">
+          <img src="/favicon.svg" alt="" width="28" height="28" />
+          ScanIn
+        </a>
+        <nav class="nav" aria-label="Primary">
+          <a href="/how-it-works">How it works</a>
+          <a href="/privacy">Privacy</a>
+          <a class="btn btn--ghost" href="/sign-in">Sign in</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <article class="wrap prose">
+        <h1>How ScanIn works</h1>
+        <p class="lead">
+          Attendance that is quick for an honest student and awkward for a proxy. Here is the whole
+          flow.
+        </p>
+
+        <h2>1. The lecturer starts a session</h2>
+        <p>
+          A lecturer opens a class session for one of their courses and projects a QR code. The code
+          is a short-lived signed token that refreshes every 30 seconds, so a photo of it is useless
+          within moments. The lecturer can close check-in or cancel the code on screen whenever they
+          like.
+        </p>
+
+        <h2>2. Students scan on their phones</h2>
+        <p>
+          Each student signs in to their own account and scans the code. A check-in is tied to the
+          student and their device, and the database allows exactly one effective attendance record
+          per student per session. One phone cannot check two students into the same class.
+        </p>
+
+        <h2>3. The record is sealed</h2>
+        <p>
+          When check-in closes, the session's attendance is fixed. Later corrections are possible but
+          are always recorded as revisions with a reason — history is never silently rewritten.
+        </p>
+
+        <h2>4. Anti-proxy controls, as signals</h2>
+        <p>
+          ScanIn compares a quick room headcount with the number checked in, can draw a randomised
+          sample of students for an in-person spot check, and keeps a review trail. These are
+          <strong>signals for the lecturer to act on</strong>, not automatic penalties.
+        </p>
+
+        <h2>5. Optional face verification</h2>
+        <p>
+          For courses that turn it on, a student who has consented and enrolled can complete a quick
+          liveness-checked face match after checking in. It is a review signal only — it never
+          changes an attendance record, and no raw image is ever stored, only an encrypted template
+          reference. A failed or unavailable check simply routes the student to an in-person check.
+        </p>
+
+        <h2>6. History and exports</h2>
+        <p>
+          Every session rolls up per course, for both lecturers and students, and can be exported to
+          CSV, Excel, PDF or Word.
+        </p>
+
+        <p class="muted">
+          No precise location is collected, and nothing is written to official university systems.
+          Read our <a href="/privacy">privacy notice</a>.
+        </p>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap site-footer__inner">
+        <span>&copy; 2026 ScanIn</span>
+        <nav aria-label="Footer">
+          <a href="/how-it-works">How it works</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/sign-in">Sign in</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

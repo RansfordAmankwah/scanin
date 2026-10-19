@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ScanIn — QR attendance for university classes</title>
+    <meta
+      name="description"
+      content="ScanIn is a campus attendance tracker. Lecturers show a QR code that refreshes every 30 seconds; students scan it on their phones. Fast check-in with anti-proxy controls."
+    />
+    <link rel="canonical" href="https://scanin.dev/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/site.css" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="ScanIn — QR attendance for university classes" />
+    <meta
+      property="og:description"
+      content="Lecturers show a rotating QR code; students scan it on their phones. Fast, with anti-proxy controls."
+    />
+    <meta property="og:url" content="https://scanin.dev/" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="wrap site-header__inner">
+        <a class="brand" href="/">
+          <img src="/favicon.svg" alt="" width="28" height="28" />
+          ScanIn
+        </a>
+        <nav class="nav" aria-label="Primary">
+          <a href="/how-it-works">How it works</a>
+          <a href="/privacy">Privacy</a>
+          <a class="btn btn--ghost" href="/sign-in">Sign in</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="wrap hero">
+        <span class="pill">Attendance, without the proxy problem</span>
+        <h1>Mark a full class in seconds, not minutes.</h1>
+        <p>
+          A lecturer starts a session and shows a QR code that refreshes every 30 seconds. Students
+          sign in on their phones and scan it. The record is sealed the moment check-in closes.
+        </p>
+        <div class="hero__actions">
+          <a class="btn btn--primary" href="/sign-in">Get started</a>
+          <a class="btn btn--ghost" href="/how-it-works">See how it works</a>
+        </div>
+      </section>
+
+      <section class="wrap features" aria-label="Features">
+        <div class="card">
+          <h3>Rotating QR check-in</h3>
+          <p>
+            Short-lived, signed codes refresh every 30 seconds, so a screenshot passed to a friend is
+            already stale. The lecturer can cancel codes on screen at any time.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Anti-proxy controls</h3>
+          <p>
+            A room headcount, randomised in-person spot checks and a review trail catch stand-ins —
+            all as review signals for the lecturer, never automatic penalties.
+          </p>
+        </div>
+        <div class="card">
+          <h3>One device, one student</h3>
+          <p>
+            A phone that has already checked one student in cannot quietly check in another for the
+            same class.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Course attendance history</h3>
+          <p>
+            Every session rolls up per course for both lecturers and students, with exports to CSV,
+            Excel, PDF and Word.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Optional face verification</h3>
+          <p>
+            An opt-in pilot, off by default and enabled per course. It is a review signal only, needs
+            the student's consent, and never stores a raw image.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Built to be trusted</h3>
+          <p>
+            The database — not the app — enforces the rules. No precise location is collected, and
+            nothing is written to official university systems.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap site-footer__inner">
+        <span>&copy; 2026 ScanIn</span>
+        <nav aria-label="Footer">
+          <a href="/how-it-works">How it works</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/sign-in">Sign in</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
