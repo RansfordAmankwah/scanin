@@ -6,7 +6,9 @@ A campus attendance tracker with QR check-in. A lecturer starts a class session 
 - One effective attendance record per student per session, enforced by the database, and one device per student per class (`docs/DEVICE_BINDING.md`).
 - Anti-proxy controls: a room headcount compared with attendance, randomised in-person spot checks, and a review process for the student, all as review signals rather than penalties (`docs/ANTI_PROXY.md`).
 - Identity uncertainty is explicit: matches to the class list are _provisional_, _needs review_, _confirmed_ or _rejected_, and a lecturer decides.
-- No biometrics, no precise location, and nothing is written to official university systems.
+- An **optional face-verification pilot**, off by default and enabled per course. It is a review signal only — it never changes an attendance record, stores no raw images (only an encrypted template reference), and needs the student's explicit consent (`docs/FACE_VERIFICATION.md`).
+- No precise location, and nothing is written to official university systems.
+- Course-based attendance history for lecturers and students (`docs/COURSE_ATTENDANCE.md`).
 - Exports to CSV, Excel, PDF and Word.
 - Retention purge and an optional tamper-evident audit checkpoint.
 
@@ -101,6 +103,16 @@ All settings are environment variables, documented in `.env.example`. The import
 
 ## Status
 
-Milestones M0 to M12 are built and verified. Remaining before a pilot: container image, deployment guide, operator runbook and a restore drill (M13).
+Milestones M0 to M13 are built and verified, and the app is **deployed live at [scanin.dev](https://scanin.dev)** (Render, with Neon PostgreSQL and Resend for e-mail). The face-verification pilot ships off by default.
 
-Not built yet, by design or pending decision: password reset, an operator command to release a student ID, and hosting is chosen but not yet deployed.
+## Roadmap
+
+Planned, not yet built (see the team's working notes for detail):
+
+- **Self-service account management**: forgot-password reset (emailed link), change e-mail, and account deletion — all e-mailed via Resend (the `scanin.dev` sending domain is verified). A show/hide toggle on password fields.
+- **Lecturer billing**: GH₵25 / month per lecturer via Paystack (Mobile Money + card). A 14-day free trial that starts at e-mail verification; students never pay, and a verified e-mail is required to use a trial or subscribe.
+- **Softer, organic roster review**: an unmatched student is shown quietly as "Not on class list" with one-tap *add to class* / *remove*, and a course roster can build up from whoever the lecturer confirms rather than requiring an upfront import.
+- **Course attendance matrix**: one grid per course — `NAME | ID | <session title> | …` — with every student who attended any session listed alphabetically and each cell Present/Absent.
+- **In-app light/dark/system theme toggle** (the palette already supports both schemes).
+
+Also pending by design: an operator command to release a student ID.

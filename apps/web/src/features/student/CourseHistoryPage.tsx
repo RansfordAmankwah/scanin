@@ -13,6 +13,7 @@ import { useLoad } from '../../components/useLoad';
 import { LINK_STATE_LABEL, LINK_STATE_TONE } from '../lecturer/labels';
 import { AttendanceSummaryPanel } from '../shared/AttendanceSummaryPanel';
 import { SessionHistoryList } from '../shared/SessionHistoryList';
+import { HOME_PATH } from '../../router';
 
 /**
  * One course's attendance for the signed-in student. The server derives the student from the sign-in
@@ -61,7 +62,7 @@ export function CourseHistoryPage({ courseId }: { courseId: string }) {
       <PageHeader
         title={`${course.code} ${course.title}`}
         breadcrumbs={[
-          { label: 'Home', to: '/' },
+          { label: 'Home', to: HOME_PATH },
           { label: 'My courses', to: '/my/courses' },
           { label: course.code },
         ]}

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useAuth } from '../features/auth/AuthGate';
-import { Link, useRouter } from '../router';
+import { HOME_PATH, Link, useRouter } from '../router';
 import { Badge, Button } from './ui';
 
 interface NavItem {
@@ -11,12 +11,16 @@ interface NavItem {
 }
 
 const STUDENT_NAV: NavItem[] = [
-  { to: '/', label: 'Home', current: (p) => p === '/' },
+  { to: HOME_PATH, label: 'Home', current: (p) => p === HOME_PATH || p === '/' },
   { to: '/my/courses', label: 'My courses', current: (p) => p.startsWith('/my/courses') },
 ];
 
 const LECTURER_NAV: NavItem[] = [
-  { to: '/', label: 'Courses', current: (p) => p === '/' || p.startsWith('/courses') },
+  {
+    to: HOME_PATH,
+    label: 'Courses',
+    current: (p) => p === HOME_PATH || p === '/' || p.startsWith('/courses'),
+  },
 ];
 
 /**
@@ -37,7 +41,7 @@ export function AppShell({
     <>
       <header className="app-header">
         <div className="app-header__inner">
-          <Link to="/" className="brand">
+          <Link to={HOME_PATH} className="brand">
             <img src="/favicon.svg" alt="" className="brand__mark" width="28" height="28" />
             ScanIn
           </Link>

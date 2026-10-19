@@ -11,6 +11,7 @@ import {
 } from '../../components/ui';
 import { useLoad } from '../../components/useLoad';
 import { CourseCard } from './CourseCard';
+import { HOME_PATH } from '../../router';
 
 type Filter = 'ALL' | 'REVIEW' | 'UNCONFIRMED';
 
@@ -36,7 +37,7 @@ export function MyCoursesPage() {
     <AppShell>
       <PageHeader
         title="My courses"
-        breadcrumbs={[{ label: 'Home', to: '/' }, { label: 'My courses' }]}
+        breadcrumbs={[{ label: 'Home', to: HOME_PATH }, { label: 'My courses' }]}
         meta="Your attendance is kept separately for each course."
       />
 

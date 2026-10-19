@@ -17,6 +17,7 @@ import { useLoad } from '../../components/useLoad';
 import { AttendanceSummaryPanel } from '../shared/AttendanceSummaryPanel';
 import { SessionHistoryList } from '../shared/SessionHistoryList';
 import { LINK_STATE_LABEL, LINK_STATE_TONE } from './labels';
+import { HOME_PATH } from '../../router';
 
 /** Face-verification pilot: a lecturer opens a supervised enrollment after checking the student's ID. */
 function FaceEnrollment({
@@ -88,7 +89,7 @@ export function StudentHistoryPage({ courseId, linkId }: { courseId: string; lin
   const code = course.state.status === 'ready' ? course.state.data.course.code : 'Course';
 
   const crumbs = [
-    { label: 'Courses', to: '/' },
+    { label: 'Courses', to: HOME_PATH },
     { label: code, to: `/courses/${courseId}` },
     { label: 'Attendance', to: `/courses/${courseId}/attendance` },
   ];

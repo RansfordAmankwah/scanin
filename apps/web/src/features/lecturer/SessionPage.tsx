@@ -4,7 +4,7 @@ import { AppShell } from '../../components/AppShell';
 import { formatDate, plural } from '../../components/format';
 import { Loading, Notice, PageHeader } from '../../components/ui';
 import { useLoad } from '../../components/useLoad';
-import { Link } from '../../router';
+import { Link, HOME_PATH } from '../../router';
 import { AttendanceTable, CountsPanel } from './AttendanceTable';
 import { DisputesPanel } from './DisputesPanel';
 import { ExportPanel } from './ExportPanel';
@@ -48,7 +48,7 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
   }, [load]);
 
   const crumbs = [
-    { label: 'Courses', to: '/' },
+    { label: 'Courses', to: HOME_PATH },
     { label: code, to: `/courses/${courseId}` },
   ];
 

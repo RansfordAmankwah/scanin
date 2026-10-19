@@ -98,7 +98,7 @@ function VerifyEmail() {
             Sign in and ask for a new verification link.
           </Notice>
         )}
-        <a className="btn btn--secondary" href="/">
+        <a className="btn btn--secondary" href="/sign-in">
           Go to ScanIn
         </a>
       </div>

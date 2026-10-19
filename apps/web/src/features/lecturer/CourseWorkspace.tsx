@@ -18,6 +18,7 @@ import { ClassListTab } from './ClassListTab';
 import { FacePilotMetrics } from './FacePilotMetrics';
 import { ReviewQueue } from './ReviewQueue';
 import { SessionsTab } from './SessionsTab';
+import { HOME_PATH } from '../../router';
 
 export type CourseTab = 'sessions' | 'attendance' | 'class-list' | 'review';
 
@@ -35,7 +36,7 @@ export function CourseWorkspace({ courseId, tab }: { courseId: string; tab: Cour
   if (c.status === 'not-found') {
     return (
       <AppShell>
-        <PageHeader title="Course not found" breadcrumbs={[{ label: 'Courses', to: '/' }]} />
+        <PageHeader title="Course not found" breadcrumbs={[{ label: 'Courses', to: HOME_PATH }]} />
         <Notice tone="danger" title="Course not found" urgent>
           It may not exist, or you may not be assigned to it.
         </Notice>
@@ -45,7 +46,7 @@ export function CourseWorkspace({ courseId, tab }: { courseId: string; tab: Cour
   if (c.status !== 'ready') {
     return (
       <AppShell>
-        <PageHeader title="Course" breadcrumbs={[{ label: 'Courses', to: '/' }]} />
+        <PageHeader title="Course" breadcrumbs={[{ label: 'Courses', to: HOME_PATH }]} />
         {c.status === 'loading' ? (
           <Loading label="Loading the course…" />
         ) : (
@@ -81,7 +82,7 @@ export function CourseWorkspace({ courseId, tab }: { courseId: string; tab: Cour
     <AppShell>
       <PageHeader
         title={`${info.code} ${info.title}`}
-        breadcrumbs={[{ label: 'Courses', to: '/' }, { label: info.code }]}
+        breadcrumbs={[{ label: 'Courses', to: HOME_PATH }, { label: info.code }]}
         meta={
           <>
             <span>{info.term.name}</span>

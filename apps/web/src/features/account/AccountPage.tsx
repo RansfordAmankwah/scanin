@@ -11,6 +11,7 @@ import {
   TextField,
 } from '../../components/ui';
 import { useAuth } from '../auth/AuthGate';
+import { HOME_PATH } from '../../router';
 
 const PROBLEMS: Record<string, string> = {
   INVALID_CREDENTIALS: 'Your current password is incorrect.',
@@ -86,7 +87,7 @@ export function AccountPage() {
     <AppShell width="medium">
       <PageHeader
         title="Account"
-        breadcrumbs={[{ label: 'Home', to: '/' }, { label: 'Account' }]}
+        breadcrumbs={[{ label: 'Home', to: HOME_PATH }, { label: 'Account' }]}
       />
 
       <Card title="Your details">

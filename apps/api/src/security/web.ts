@@ -3,9 +3,18 @@ import { extname, join, relative, sep } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 
 /**
- * Serves the built web app from the same origin as the API, so cookies, CSRF checks and CORS stay
- * trivial. API calls from the app use the /api prefix (stripped before routing); a browser
- * navigation to any other path gets index.html and the app's own router takes over.
+ * Serves the built web app, plus a small public, indexable marketing site, from the same origin as
+ * the API (so cookies, CSRF and CORS stay trivial). The split:
+ *
+ *   /               static landing page; a signed-in visitor is 302'd to /sign-in, and it is never
+ *                   cached across users (Cache-Control: private, no-store)
+ *   /how-it-works   static public pages, indexable
+ *   /privacy        a short general site privacy page (NOT the face-verification pilot notice)
+ *   /robots.txt     real files (with correct content types), served before the SPA fallback
+ *   /sitemap.xml
+ *   everything else the single-page app shell, served with X-Robots-Tag: noindex so the signed-in
+ *                   views are not indexed. robots.txt deliberately does not disallow these, so a
+ *                   crawler can fetch them and see the noindex header.
  *
  * Files are read into memory once at start-up, so a request can never name a path on disk.
  */
@@ -21,7 +30,22 @@ const TYPES: Record<string, string> = {
   '.webmanifest': 'application/manifest+json',
   '.map': 'application/json; charset=utf-8',
   '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
 };
+
+/** Clean URLs for the static public (indexable) pages → their built file. */
+const PUBLIC_HTML: Record<string, string> = {
+  '/how-it-works': '/how-it-works.html',
+  '/privacy': '/privacy.html',
+};
+
+/**
+ * Presence of a session cookie (`__Host-sid` in production, `sid` in dev). Used only to route a
+ * signed-in visitor from the public landing to the app — it is routing, not authorisation, so a
+ * stale or invalid cookie simply lands them on the app's own sign-in flow.
+ */
+const SESSION_COOKIE = /(?:^|;\s*)(?:__Host-sid|sid)=/;
 
 interface Asset {
   body: Buffer;
@@ -65,6 +89,35 @@ export function registerWeb(app: FastifyInstance, distDir: string): void {
     if (original.startsWith('/api/') || original === '/healthz') return; // API traffic
 
     const path = original.split('?')[0] ?? '/';
+
+    // The landing page. A signed-in visitor goes straight to the app; the page is never cached
+    // across users, so Cloudflare cannot serve one person's redirect (or lack of one) to another.
+    if (path === '/') {
+      void reply.header('Cache-Control', 'private, no-store');
+      if (SESSION_COOKIE.test(req.headers.cookie ?? '')) {
+        return reply.redirect('/sign-in', 302);
+      }
+      const landing = assets.get('/landing.html');
+      if (landing) {
+        await reply.header('Content-Type', landing.type).send(landing.body);
+        return;
+      }
+      return; // landing not built yet
+    }
+    // Never expose the landing under its own filename; keep one canonical URL.
+    if (path === '/landing.html') return reply.redirect('/', 301);
+
+    // Static public pages at clean URLs — indexable, no noindex header.
+    const pageAsset = PUBLIC_HTML[path] ? assets.get(PUBLIC_HTML[path]!) : undefined;
+    if (pageAsset) {
+      await reply
+        .header('Content-Type', pageAsset.type)
+        .header('Cache-Control', 'public, max-age=3600')
+        .send(pageAsset.body);
+      return;
+    }
+
+    // Any other real file: hashed bundles, the favicon, robots.txt, sitemap.xml, the OG image.
     const asset = assets.get(path);
     if (asset && path !== '/index.html') {
       await reply
@@ -76,11 +129,14 @@ export function registerWeb(app: FastifyInstance, distDir: string): void {
         .send(asset.body);
       return;
     }
-    // A page navigation (not a fetch): hand the app its shell; its router decides what to show.
-    if (wantsHtml(req.headers.accept) || path === '/' || path === '/index.html') {
+
+    // The single-page app shell for every signed-in route. Marked noindex: these views require a
+    // session and must never be indexed, whatever path a crawler guesses.
+    if (wantsHtml(req.headers.accept) || path === '/index.html') {
       await reply
         .header('Content-Type', TYPES['.html'])
         .header('Cache-Control', 'no-cache')
+        .header('X-Robots-Tag', 'noindex')
         .send(assets.get('/index.html')?.body);
     }
   });

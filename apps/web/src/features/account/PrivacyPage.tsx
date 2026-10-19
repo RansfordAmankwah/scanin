@@ -15,6 +15,7 @@ import {
 } from '../../components/ui';
 import { useLoad } from '../../components/useLoad';
 import { browserCapture, CaptureError, type CaptureFrames } from './faceCapture';
+import { HOME_PATH } from '../../router';
 
 const ID_METHOD_LABEL: Record<string, string> = {
   STUDENT_ID_CARD: 'student ID card',
@@ -106,7 +107,7 @@ export function PrivacyPage({ capture = browserCapture }: { capture?: CaptureFra
       <PageHeader
         title="Face verification & privacy"
         breadcrumbs={[
-          { label: 'Home', to: '/' },
+          { label: 'Home', to: HOME_PATH },
           { label: 'Account', to: '/account' },
           { label: 'Privacy' },
         ]}

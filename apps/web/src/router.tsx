@@ -1,5 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
+/**
+ * The signed-in app's home. The public landing lives at `/` (served statically by the API); the app
+ * — sign-in when signed out, the dashboard when signed in — is entered at `/sign-in`.
+ */
+export const HOME_PATH = '/sign-in';
+
 /** A deliberately tiny router: paths only, History API, no dependencies. */
 interface RouterValue {
   path: string;
