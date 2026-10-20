@@ -385,6 +385,70 @@ export async function courseAttendanceSummary(db: Db, courseId: string) {
   };
 }
 
+/**
+ * A single grid for a whole course: one row per student who attended any session, one column per
+ * session (headed by the session's own title), and a Present/Absent cell for each. A cell is Present
+ * only when a PRESENT record exists for that student and session; invalidated records count as
+ * Absent. Students are listed alphabetically; sessions run in chronological order. Columns whose
+ * titles collide are disambiguated with the session date.
+ */
+export async function courseAttendanceMatrix(db: Db, courseId: string) {
+  if (!UUID.test(courseId)) throw notFound();
+  const head = (
+    await db.query<{ code: string; title: string }>(
+      `SELECT code, title FROM courses WHERE id = $1`,
+      [courseId],
+    )
+  ).rows[0];
+  if (!head) throw notFound();
+
+  const sessions = (
+    await db.query<{ id: string; title: string; date: string }>(
+      `SELECT id, title, to_char(session_date, 'YYYY-MM-DD') AS date
+         FROM class_sessions
+        WHERE course_id = $1 AND state <> 'NOT_STARTED'
+        ORDER BY session_date, created_at, id`,
+      [courseId],
+    )
+  ).rows;
+
+  const students = (
+    await db.query<{ id: string; student_id_display: string; full_name: string }>(
+      `SELECT DISTINCT u.id, u.student_id_display, u.full_name
+         FROM attendance_records a JOIN users u ON u.id = a.student_id
+        WHERE a.course_id = $1
+        ORDER BY u.full_name, u.student_id_display`,
+      [courseId],
+    )
+  ).rows;
+
+  const present = (
+    await db.query<{ student_id: string; session_id: string }>(
+      `SELECT student_id, session_id FROM attendance_records
+        WHERE course_id = $1 AND status = 'PRESENT'`,
+      [courseId],
+    )
+  ).rows;
+  const presentSet = new Set(present.map((r) => `${r.student_id}:${r.session_id}`));
+
+  const titleCounts = new Map<string, number>();
+  for (const s of sessions) titleCounts.set(s.title, (titleCounts.get(s.title) ?? 0) + 1);
+
+  return {
+    course: { id: courseId, code: head.code, title: head.title },
+    sessions: sessions.map((s) => ({
+      id: s.id,
+      title: (titleCounts.get(s.title) ?? 0) > 1 ? `${s.title} (${s.date})` : s.title,
+      date: s.date,
+    })),
+    rows: students.map((st) => ({
+      studentId: st.student_id_display,
+      fullName: st.full_name,
+      present: sessions.map((s) => presentSet.has(`${st.id}:${s.id}`)),
+    })),
+  };
+}
+
 /** One student's history across a course's sessions, as a lecturer sees it (flags included). */
 export async function courseStudentHistory(db: Db, courseId: string, linkId: string) {
   if (!UUID.test(linkId)) throw notFound();

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { LECTURER_ONLY, STUDENT_ONLY } from '../authz/index.js';
 import { ReviewError } from '../reviews/errors.js';
 import {
+  courseAttendanceMatrix,
   courseAttendanceSummary,
   courseStudentHistory,
   lecturerOverview,
@@ -136,6 +137,12 @@ export function registerAttendanceRoutes(app: FastifyInstance, deps: { pool: pg.
   app.get('/courses/:courseId/attendance-summary', COURSE_ROUTE, async (req) => {
     const { courseId } = req.params as { courseId: string };
     return courseAttendanceSummary(pool, courseId);
+  });
+
+  /** One grid for the whole course: students x sessions, Present/Absent in each cell. */
+  app.get('/courses/:courseId/attendance-matrix', COURSE_ROUTE, async (req, reply) => {
+    const { courseId } = req.params as { courseId: string };
+    return guard(reply, () => courseAttendanceMatrix(pool, courseId));
   });
 
   /** One student's attendance across a course's sessions, as the lecturer sees it. */

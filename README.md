@@ -120,12 +120,16 @@ Milestones M0 to M13 are built and verified, and the app is **deployed live at [
 
 ## Roadmap
 
+Recently built:
+
+- **Self-service account management**: forgot-password reset, change e-mail, account deletion (hard-erased by the retention role after a grace period), and a resend-verification link, all e-mailed via Resend. A show/hide toggle on password fields.
+- **Softer, organic roster review**: an unmatched student is shown quietly as "not on the class list" with one-tap add / remove, and a course roster can build up from whoever the lecturer confirms rather than requiring an upfront import.
+- **Course attendance matrix**: one grid per course (`NAME | ID | <session title> | …`), every student who attended any session listed alphabetically, each cell Present/Absent, with a CSV download.
+
 Planned, not yet built (see the team's working notes for detail):
 
-- **Self-service account management**: forgot-password reset (emailed link), change e-mail, and account deletion — all e-mailed via Resend (the `scanin.dev` sending domain is verified). A show/hide toggle on password fields.
 - **Lecturer billing**: GH₵25 / month per lecturer via Paystack (Mobile Money + card). A 14-day free trial that starts at e-mail verification; students never pay, and a verified e-mail is required to use a trial or subscribe.
-- **Softer, organic roster review**: an unmatched student is shown quietly as "Not on class list" with one-tap _add to class_ / _remove_, and a course roster can build up from whoever the lecturer confirms rather than requiring an upfront import.
-- **Course attendance matrix**: one grid per course — `NAME | ID | <session title> | …` — with every student who attended any session listed alphabetically and each cell Present/Absent.
 - **In-app light/dark/system theme toggle** (the palette already supports both schemes).
+- **Matrix export to XLSX/PDF** (the grid exports to CSV today; richer formats need the export pipeline generalized to course-wide reports).
 
 Also pending by design: an operator command to release a student ID.

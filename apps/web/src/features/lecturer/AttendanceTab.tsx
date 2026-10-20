@@ -12,9 +12,10 @@ import {
   SelectField,
 } from '../../components/ui';
 import { Link } from '../../router';
+import { AttendanceMatrix } from './AttendanceMatrix';
 import { LINK_STATE_LABEL, LINK_STATE_TONE, SESSION_STATE_LABEL } from './labels';
 
-type View = 'sessions' | 'students';
+type View = 'sessions' | 'students' | 'grid';
 type Filter = 'ALL' | 'ATTENTION' | 'UNCONFIRMED';
 
 const needsAttention = (s: CourseStudentRow) =>
@@ -274,12 +275,13 @@ export function AttendanceTab({
         >
           By student
         </button>
+        <button type="button" aria-pressed={view === 'grid'} onClick={() => setView('grid')}>
+          Grid
+        </button>
       </div>
-      {view === 'sessions' ? (
-        <BySession courseId={courseId} data={summary.data} />
-      ) : (
-        <ByStudent courseId={courseId} data={summary.data} />
-      )}
+      {view === 'sessions' && <BySession courseId={courseId} data={summary.data} />}
+      {view === 'students' && <ByStudent courseId={courseId} data={summary.data} />}
+      {view === 'grid' && <AttendanceMatrix courseId={courseId} />}
     </div>
   );
 }

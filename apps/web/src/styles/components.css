@@ -857,3 +857,58 @@ table.responsive td a {
   align-items: center;
   min-height: 1.5rem;
 }
+
+/* Course attendance grid: students down the side, sessions across the top. */
+.matrix-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.matrix {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--text-sm);
+}
+
+.matrix th,
+.matrix td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.matrix thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface-subtle);
+  font-weight: 600;
+}
+
+.matrix__name {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--color-surface);
+  font-weight: 600;
+}
+
+.matrix__id {
+  text-align: left;
+  color: var(--color-text-muted);
+}
+
+.matrix thead .matrix__name {
+  z-index: 1;
+  background: var(--color-surface-subtle);
+}
+
+.matrix__present {
+  color: var(--color-success-text);
+  font-weight: 700;
+}
+
+.matrix__absent {
+  color: var(--color-text-subtle);
+}

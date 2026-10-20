@@ -1418,3 +1418,64 @@ describe('organic roster: "not on class list", one-tap add / remove', () => {
     expect(again.json().error.code).toBe('ALREADY_ON_LIST');
   });
 });
+
+describe('course attendance matrix', () => {
+  const openTitled = async (course: string, title: string) => {
+    const id = (await L1(`/courses/${course}/sessions`, { title })).json().session.id as string;
+    await L1(`/courses/${course}/sessions/${id}/start`);
+    return id;
+  };
+  const attendanceIdFor = async (session: string, studentId: string) =>
+    (
+      await db.pool.query<{ id: string }>(
+        'SELECT id FROM attendance_records WHERE session_id = $1 AND student_id = $2',
+        [session, studentId],
+      )
+    ).rows[0]!.id;
+
+  it('pivots students x sessions into Present/Absent, invalidated counting as absent', async () => {
+    const course = await newCourse();
+    const [a, b] = await students(2);
+    const s1 = await openTitled(course, 'Week 1');
+    const s2 = await openTitled(course, 'Week 2');
+    await scan(a!, s1);
+    await scan(a!, s2);
+    await scan(b!, s1); // b only attends the first session
+
+    const m = (await G1(`/courses/${course}/attendance-matrix`)).json();
+    expect(m.sessions.map((x: { title: string }) => x.title)).toEqual(['Week 1', 'Week 2']);
+    expect(m.rows).toHaveLength(2);
+    // Rows are alphabetical by name.
+    const names = m.rows.map((r: { fullName: string }) => r.fullName);
+    expect([...names]).toEqual([...names].sort((x, y) => x.localeCompare(y)));
+
+    const rowOf = (studentId: string) =>
+      m.rows.find((r: { studentId: string }) => r.studentId === studentId);
+    expect(rowOf(a!.studentId).present).toEqual([true, true]);
+    expect(rowOf(b!.studentId).present).toEqual([true, false]);
+
+    // Invalidating a's Week 2 record makes that cell absent.
+    const attId = await attendanceIdFor(s2, a!.id);
+    await L1(att(course, s2, attId, '/invalidate'), {
+      category: 'INCORRECT_ENTRY',
+      explanation: 'Recorded against the wrong session',
+    });
+    const m2 = (await G1(`/courses/${course}/attendance-matrix`)).json();
+    const rowOf2 = (studentId: string) =>
+      m2.rows.find((r: { studentId: string }) => r.studentId === studentId);
+    expect(rowOf2(a!.studentId).present).toEqual([true, false]);
+  });
+
+  it('lists only students who attended, with one column per started session', async () => {
+    const course = await newCourse();
+    const [a] = await students(1);
+    const s1 = await openTitled(course, 'Lecture 1');
+    await L1(`/courses/${course}/sessions`, { title: 'Not started' }); // never started -> no column
+    await scan(a!, s1);
+
+    const m = (await G1(`/courses/${course}/attendance-matrix`)).json();
+    expect(m.sessions).toHaveLength(1);
+    expect(m.rows).toHaveLength(1);
+    expect(m.rows[0].present).toEqual([true]);
+  });
+});

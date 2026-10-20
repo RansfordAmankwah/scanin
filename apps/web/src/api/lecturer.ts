@@ -461,11 +461,18 @@ export interface ClassList {
   unmatchedLinks: Array<{ linkId: string; studentId: string; fullName: string; state: LinkState }>;
 }
 
+export interface AttendanceMatrix {
+  course: { id: string; code: string; title: string };
+  sessions: Array<{ id: string; title: string; date: string }>;
+  rows: Array<{ studentId: string; fullName: string; present: boolean[] }>;
+}
+
 export const courseApi = {
   classList: (courseId: string) => call<ClassList>(`/courses/${courseId}/roster`),
   overview: () => call<{ courses: LecturerCourseOverview[] }>('/courses/overview'),
   summary: (courseId: string) =>
     call<CourseAttendanceSummary>(`/courses/${courseId}/attendance-summary`),
+  matrix: (courseId: string) => call<AttendanceMatrix>(`/courses/${courseId}/attendance-matrix`),
   student: (courseId: string, linkId: string) =>
     call<LecturerStudentHistory>(`/courses/${courseId}/students/${linkId}/attendance`),
 };
