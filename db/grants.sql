@@ -33,10 +33,17 @@ GRANT EXECUTE ON FUNCTION create_course_for_lecturer(uuid, uuid, text, text) TO 
 -- lecturers to them.
 GRANT SELECT ON users TO {{app}};
 GRANT INSERT (role, email, full_name, student_id_norm, student_id_display, password_hash) ON users TO {{app}};
-GRANT UPDATE (email, email_verified_at, password_hash, status, deletion_requested_at) ON users TO {{app}};
+GRANT UPDATE (email, email_verified_at, password_hash, status, deletion_requested_at, trial_started_at) ON users TO {{app}};
 
 GRANT SELECT, INSERT ON account_tokens TO {{app}};
 GRANT UPDATE (used_at) ON account_tokens TO {{app}};
+
+-- Billing (migration 0014). The app reads a lecturer's billing state, creates/updates their
+-- subscription period from a settled payment, and appends the payment. It can never set
+-- billing_exempt (that is operator-only, above) and never rewrites a recorded payment.
+GRANT SELECT, INSERT ON subscriptions TO {{app}};
+GRANT UPDATE (current_period_end, paystack_customer_code, updated_at) ON subscriptions TO {{app}};
+GRANT SELECT, INSERT ON subscription_payments TO {{app}};
 
 GRANT SELECT, INSERT ON auth_sessions TO {{app}};
 GRANT UPDATE (last_seen_at, idle_expires_at, revoked_at, revoke_reason) ON auth_sessions TO {{app}};
@@ -127,6 +134,7 @@ GRANT SELECT, DELETE ON
   investigation_flags, investigation_flag_events,
   biometric_consent_events, face_enrollments, face_enrollment_sessions,
   face_check_challenges, attendance_face_check_events, face_check_details,
+  subscriptions, subscription_payments,
   export_records, audit_events
 TO {{retention}};
 
@@ -138,7 +146,7 @@ GRANT UPDATE (face_verification_enabled) ON courses TO {{operator}};
 GRANT SELECT, INSERT ON lecturer_courses TO {{operator}};
 GRANT UPDATE (ended_at) ON lecturer_courses TO {{operator}};
 GRANT SELECT, INSERT ON users TO {{operator}};
-GRANT UPDATE (password_hash, status, email_verified_at) ON users TO {{operator}};
+GRANT UPDATE (password_hash, status, email_verified_at, billing_exempt) ON users TO {{operator}};
 GRANT SELECT ON auth_sessions TO {{operator}};
 GRANT UPDATE (revoked_at, revoke_reason) ON auth_sessions TO {{operator}};
 GRANT SELECT, INSERT ON audit_events TO {{operator}};

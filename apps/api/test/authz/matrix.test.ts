@@ -161,6 +161,7 @@ describe('every route must declare its authorization', () => {
       'POST /auth/register/lecturer',
       'POST /auth/register/preview',
       'POST /auth/verify-email',
+      'POST /billing/webhook',
     ]);
   });
 

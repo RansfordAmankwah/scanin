@@ -4,6 +4,7 @@ import { buildApp } from '../../src/app.js';
 import { MemoryMailer } from '../../src/auth/mailer.js';
 import { MemoryStorage } from '../../src/exports/storage.js';
 import { FakeFaceVerifier, type FaceVerifier } from '../../src/face/verifier.js';
+import type { PaymentProvider } from '../../src/billing/paystack.js';
 import type { Config } from '../../src/config.js';
 import type { MigratedTestDatabase } from './testDb.js';
 
@@ -41,6 +42,13 @@ export const TEST_CONFIG: Config = {
   SPOT_CHECK_MAX_SIZE: 20,
   SPOT_CHECK_HISTORY_SESSIONS: 2,
   SPOT_CHECK_FACE_VERIFIED_MIN: 1,
+  // Billing is off by default in tests (no PAYSTACK_SECRET_KEY): nobody is gated. Billing tests
+  // enable it with an override and inject a fake provider.
+  SUBSCRIPTION_PRICE_MINOR: 2500,
+  SUBSCRIPTION_CURRENCY: 'GHS',
+  SUBSCRIPTION_PERIOD_DAYS: 30,
+  BILLING_TRIAL_DAYS: 14,
+  BILLING_GRACE_DAYS: 3,
 };
 
 export interface TestApp {
@@ -59,7 +67,7 @@ export interface TestApp {
 export async function createTestApp(
   db: MigratedTestDatabase,
   overrides: Partial<Config> = {},
-  opts: { faceVerifier?: FaceVerifier } = {},
+  opts: { faceVerifier?: FaceVerifier; paymentProvider?: PaymentProvider | null } = {},
 ): Promise<TestApp> {
   const mailer = new MemoryMailer();
   const storage = new MemoryStorage();
@@ -77,6 +85,7 @@ export async function createTestApp(
     mailer,
     exportStorage: storage,
     faceVerifier,
+    ...(opts.paymentProvider !== undefined ? { paymentProvider: opts.paymentProvider } : {}),
     logger: { level: 'trace', stream },
   });
   await app.ready();

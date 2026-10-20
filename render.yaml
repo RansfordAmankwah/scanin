@@ -38,6 +38,8 @@ services:
         sync: false # Resend API key (sending access only)
       - key: MAIL_FROM
         sync: false # e.g. ScanIn <no-reply@your-domain>, a domain verified in Resend
+      - key: PAYSTACK_SECRET_KEY
+        sync: false # enables lecturer billing; unset = billing off. Webhook: <APP_ORIGIN>/api/billing/webhook
       - key: IP_HASH_SECRET
         generateValue: true
       - key: QR_KEYS

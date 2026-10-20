@@ -303,6 +303,16 @@ export function AccountPage() {
 
       <ChangeEmail />
 
+      {user.role === 'LECTURER' && (
+        <Card title="Subscription" description="Your plan, free trial, and payments.">
+          <div className="actions">
+            <LinkButton to="/account/billing" variant="secondary">
+              Manage subscription
+            </LinkButton>
+          </div>
+        </Card>
+      )}
+
       {user.role === 'STUDENT' && (
         <Card
           title="Face verification & privacy"

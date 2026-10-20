@@ -45,6 +45,22 @@ const ConfigSchema = z
     RESEND_API_KEY: z.string().min(1).optional(),
     /** Sender for system e-mail, on a domain verified in Resend, e.g. "ScanIn <no-reply@example.edu>". */
     MAIL_FROM: z.string().min(3).optional(),
+    /**
+     * Lecturer billing (pilot). With no secret key, billing is OFF: no one is gated, and checkout is
+     * unavailable. With a key, lecturers need the trial, an active subscription, or an exemption to
+     * run a session. Paystack signs webhooks with this same key (HMAC-SHA512), so no separate secret.
+     */
+    PAYSTACK_SECRET_KEY: z.string().min(1).optional(),
+    /** Price of one subscription period, in the currency's minor unit (GHS pesewas): 2500 = GH₵25.00. */
+    SUBSCRIPTION_PRICE_MINOR: z.coerce.number().int().min(1).default(2500),
+    /** ISO currency the subscription is charged in. Paystack Ghana settles GHS natively. */
+    SUBSCRIPTION_CURRENCY: z.string().length(3).default('GHS'),
+    /** How many days one payment buys. */
+    SUBSCRIPTION_PERIOD_DAYS: z.coerce.number().int().min(1).max(366).default(30),
+    /** Free trial length, counted from the lecturer's e-mail verification. */
+    BILLING_TRIAL_DAYS: z.coerce.number().int().min(0).max(365).default(14),
+    /** Days of access after a period ends before a session can no longer be run. */
+    BILLING_GRACE_DAYS: z.coerce.number().int().min(0).max(60).default(3),
     /** Development convenience only: allows the session cookie over plain HTTP. */
     ALLOW_INSECURE_COOKIES: booleanString,
     /**

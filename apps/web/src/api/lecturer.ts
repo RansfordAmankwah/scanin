@@ -467,6 +467,33 @@ export interface AttendanceMatrix {
   rows: Array<{ studentId: string; fullName: string; present: boolean[] }>;
 }
 
+export type BillingReason =
+  | 'BILLING_DISABLED'
+  | 'EXEMPT'
+  | 'TRIAL'
+  | 'TRIAL_NOT_STARTED'
+  | 'SUBSCRIBED'
+  | 'EMAIL_UNVERIFIED'
+  | 'EXPIRED';
+
+export interface BillingState {
+  access: boolean;
+  reason: BillingReason;
+  exempt: boolean;
+  emailVerified: boolean;
+  trialEndsAt: string | null;
+  currentPeriodEnd: string | null;
+  accessUntil: string | null;
+  priceMinor: number;
+  currency: string;
+}
+
+export const billingApi = {
+  status: () => call<BillingState>('/billing/status'),
+  checkout: () =>
+    call<{ authorizationUrl: string }>('/billing/checkout', { method: 'POST', body: {} }),
+};
+
 export const courseApi = {
   classList: (courseId: string) => call<ClassList>(`/courses/${courseId}/roster`),
   overview: () => call<{ courses: LecturerCourseOverview[] }>('/courses/overview'),

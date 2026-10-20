@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type pg from 'pg';
 import { z } from 'zod';
+import { billingStatus, startTrialIfNeeded } from '../billing/service.js';
+import type { Config } from '../config.js';
 import { LECTURER_ONLY } from '../authz/index.js';
 import {
   createSession,
@@ -43,8 +45,16 @@ const invalid = (reply: FastifyReply) =>
     .code(400)
     .send({ error: { code: 'INVALID_REQUEST', message: 'Check the request and try again.' } });
 
-export function registerSessionRoutes(app: FastifyInstance, deps: { pool: pg.Pool }): void {
-  const { pool } = deps;
+export function registerSessionRoutes(
+  app: FastifyInstance,
+  deps: { pool: pg.Pool; config: Config },
+): void {
+  const { pool, config } = deps;
+
+  const BILLING_MESSAGE: Record<string, string> = {
+    EMAIL_UNVERIFIED: 'Verify your e-mail to start your free trial, then you can run sessions.',
+    EXPIRED: 'Your free trial or subscription has ended. Subscribe to run sessions.',
+  };
 
   /** A session id that is malformed or belongs to another course is simply "not found". */
   const ids = (req: { params: unknown }) => req.params as { courseId: string; sessionId: string };
@@ -84,12 +94,22 @@ export function registerSessionRoutes(app: FastifyInstance, deps: { pool: pg.Poo
   app.post('/courses/:courseId/sessions/:sessionId/start', COURSE_ROUTE, async (req, reply) => {
     const { courseId, sessionId } = ids(req);
     if (!UUID.test(sessionId)) return notFound(reply);
-    try {
-      const session = await startSession(pool, {
-        courseId,
-        sessionId,
-        actorId: req.auth?.userId as string,
+    const actorId = req.auth?.userId as string;
+    // Running a session is the paid action. Reading, creating and rostering stay free.
+    const billing = await billingStatus(pool, config, actorId);
+    if (!billing.access) {
+      return reply.code(402).send({
+        error: {
+          code: 'SUBSCRIPTION_REQUIRED',
+          message: BILLING_MESSAGE[billing.reason] ?? 'A subscription is required to run sessions.',
+          reason: billing.reason,
+        },
       });
+    }
+    // The first session a lecturer runs begins their free-trial clock.
+    if (billing.reason === 'TRIAL_NOT_STARTED') await startTrialIfNeeded(pool, actorId);
+    try {
+      const session = await startSession(pool, { courseId, sessionId, actorId });
       return { session };
     } catch (err) {
       return handle(reply, err);

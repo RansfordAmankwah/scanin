@@ -10,6 +10,7 @@ import {
   createTerm,
   endAssignment,
   OperatorError,
+  setBillingExempt,
 } from './commands.js';
 
 const USAGE = `ScanIn operator CLI (provisioning only; connects as the operator database role)
@@ -22,6 +23,8 @@ Commands:
   create-lecturer   --email <email> --name <full name>      (prints a temporary password once)
   assign-lecturer   --term <term name> --course <code> --email <lecturer email>
   end-assignment    --term <term name> --course <code> --email <lecturer email>
+  grant-comp        --email <lecturer email>   free access, no trial clock and no payment
+  revoke-comp       --email <lecturer email>   remove a billing exemption
 
   retention-run     (uses RETENTION_DATABASE_URL) purge everything past its retention period
   audit-checkpoint  --dir <path>   write audit fingerprints to an independently owned location
@@ -127,6 +130,18 @@ async function main(): Promise<void> {
           lecturerEmail: need(values, 'email'),
         });
         console.log('Assignment ended.');
+        break;
+      }
+      case 'grant-comp':
+      case 'revoke-comp': {
+        await setBillingExempt(pool, {
+          operator,
+          lecturerEmail: need(values, 'email'),
+          exempt: command === 'grant-comp',
+        });
+        console.log(
+          command === 'grant-comp' ? 'Billing exemption granted.' : 'Billing exemption removed.',
+        );
         break;
       }
       case 'audit-checkpoint': {

@@ -224,3 +224,29 @@ export async function endAssignment(
     });
   });
 }
+
+/**
+ * Grants or revokes a billing exemption (a comp): full access with no trial clock and no payment.
+ * Operator-only, so a lecturer can never exempt themselves. Used for the team's own test accounts
+ * and any deliberate free access.
+ */
+export async function setBillingExempt(
+  pool: pg.Pool,
+  input: Actor & { lecturerEmail: string; exempt: boolean },
+): Promise<void> {
+  await withTransaction(pool, async (c) => {
+    const lid = await lecturerId(c, input.lecturerEmail);
+    await c.query('UPDATE users SET billing_exempt = $2 WHERE id = $1', [lid, input.exempt]);
+    // An account/billing admin action: keep its audit event on a financial-record horizon.
+    const retainUntil = new Date(Date.now() + 7 * 365 * 86_400_000).toISOString().slice(0, 10);
+    await writeAudit(c, {
+      class: 'DOMAIN',
+      actorType: 'OPERATOR',
+      action: input.exempt ? 'BILLING_EXEMPT_GRANTED' : 'BILLING_EXEMPT_REVOKED',
+      entityType: 'user',
+      entityId: lid,
+      retainUntil,
+      summary: { operator: input.operator },
+    });
+  });
+}

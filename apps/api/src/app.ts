@@ -9,6 +9,8 @@ import { csrfGuard } from './auth/csrf.js';
 import { registerCheckInRoutes } from './checkin/routes.js';
 import type { Mailer } from './auth/mailer.js';
 import { registerAuthRoutes } from './auth/routes.js';
+import { registerBillingRoutes } from './billing/routes.js';
+import { PaystackProvider, type PaymentProvider } from './billing/paystack.js';
 import { registerAuthorization } from './authz/index.js';
 import type { Config } from './config.js';
 import { registerExportRoutes } from './exports/routes.js';
@@ -32,6 +34,8 @@ export interface AppOptions {
   exportStorage?: ExportStorage;
   /** The face verifier. Defaults to the one named by FACE_VERIFIER; tests inject a fake to inspect it. */
   faceVerifier?: FaceVerifier;
+  /** The payment provider. Defaults to Paystack when configured; tests inject a fake. */
+  paymentProvider?: PaymentProvider | null;
   /** `true` for default logging, an options object (e.g. a custom stream), or `false`. */
   logger?: boolean | { level?: string; stream?: NodeJS.WritableStream };
 }
@@ -92,14 +96,34 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   });
 
   await app.register(cookie);
+  // Keep the raw JSON body on the request so the Paystack webhook can verify its signature. Parsing
+  // is otherwise unchanged (same JSON.parse, same errors).
+  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (_req, body, done) => {
+    const buf = body as Buffer;
+    (_req as { rawBody?: Buffer }).rawBody = buf;
+    if (buf.length === 0) return done(null, undefined);
+    try {
+      done(null, JSON.parse(buf.toString('utf8')));
+    } catch (err) {
+      (err as { statusCode?: number }).statusCode = 400;
+      done(err as Error, undefined);
+    }
+  });
   registerSecurityHeaders(app, config);
   if (config.WEB_DIST_DIR) registerWeb(app, config.WEB_DIST_DIR);
   app.addHook('onRequest', csrfGuard(config));
   registerAuthorization(app, { pool });
   registerAuthRoutes(app, { config, pool, mailer });
+  const paymentProvider =
+    options.paymentProvider !== undefined
+      ? options.paymentProvider
+      : config.PAYSTACK_SECRET_KEY
+        ? new PaystackProvider(config.PAYSTACK_SECRET_KEY)
+        : null;
+  registerBillingRoutes(app, { pool, config, provider: paymentProvider });
   registerCourseRoutes(app, { pool });
   registerRosterRoutes(app, { pool });
-  registerSessionRoutes(app, { pool });
+  registerSessionRoutes(app, { pool, config });
   // Fails at start-up (not at first use) if the signing keys are missing or too short.
   const keyring = parseKeyring(config.QR_KEYS, config.QR_ACTIVE_KID);
   registerQrRoutes(app, { pool, config, keyring });
