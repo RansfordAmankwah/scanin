@@ -38,7 +38,7 @@ export async function createExport(
   storage: ExportStorage,
   input: {
     courseId: string;
-    sessionId: string;
+    sessionId?: string;
     kind: ReportKind;
     format: ExportFormat;
     actorId: string;
@@ -72,7 +72,7 @@ export async function createExport(
         [
           id,
           input.courseId,
-          input.sessionId,
+          input.sessionId ?? null,
           input.actorId,
           input.kind,
           input.format,
@@ -89,7 +89,7 @@ export async function createExport(
         actorUserId: input.actorId,
         action: 'EXPORT_REQUESTED',
         courseId: input.courseId,
-        sessionId: input.sessionId,
+        sessionId: input.sessionId ?? null,
         entityType: 'export',
         entityId: id,
         retainUntil: await courseRetainUntil(c, input.courseId),

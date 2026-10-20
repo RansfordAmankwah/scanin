@@ -1,4 +1,5 @@
 import type pg from 'pg';
+import { courseAttendanceMatrix } from '../attendance/history.js';
 import { sessionRoster, type SessionCounts } from '../attendance/service.js';
 
 /**
@@ -6,7 +7,7 @@ import { sessionRoster, type SessionCounts } from '../attendance/service.js';
  * who is listed or what the totals are. It is built from a single read-only snapshot of the
  * database, using the same counting definition as the on-screen views.
  */
-export type ReportKind = 'ATTENDANCE' | 'SCAN_HISTORY';
+export type ReportKind = 'ATTENDANCE' | 'SCAN_HISTORY' | 'ATTENDANCE_MATRIX';
 
 export const DEFINITIONS_VERSION = '1';
 
@@ -79,11 +80,22 @@ export class ReportNotFound extends Error {}
  */
 export async function buildReport(
   pool: pg.Pool,
-  input: { courseId: string; sessionId: string; kind: ReportKind; actorId: string },
+  input: { courseId: string; sessionId?: string; kind: ReportKind; actorId: string },
 ): Promise<ReportModel> {
   const c = await pool.connect();
   try {
     await c.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+
+    // The matrix is course-wide (no single session), so it has its own, simpler path.
+    if (input.kind === 'ATTENDANCE_MATRIX') {
+      const model = await buildMatrixModel(c, input.courseId, input.actorId);
+      await c.query('COMMIT');
+      return model;
+    }
+
+    // The per-session reports need a session (the route guarantees it; this narrows the type).
+    const sessionId = input.sessionId;
+    if (!sessionId) throw new ReportNotFound();
 
     const head = await c.query<{
       code: string;
@@ -102,7 +114,7 @@ export async function buildReport(
          JOIN courses co ON co.id = s.course_id
          JOIN terms t ON t.id = co.term_id
         WHERE s.id = $1 AND s.course_id = $2`,
-      [input.sessionId, input.courseId, input.actorId],
+      [sessionId, input.courseId, input.actorId],
     );
     const h = head.rows[0];
     if (!h) throw new ReportNotFound();
@@ -130,13 +142,13 @@ export async function buildReport(
 
     let model: ReportModel;
     if (input.kind === 'ATTENDANCE') {
-      const roster = await sessionRoster(c, input.courseId, input.sessionId);
+      const roster = await sessionRoster(c, input.courseId, sessionId);
       const categories = await c.query<{ attendance_id: string; category: string }>(
         `SELECT DISTINCT ON (r.attendance_id) r.attendance_id, r.reason_category::text AS category
            FROM attendance_revisions r JOIN attendance_records a ON a.id = r.attendance_id
           WHERE a.session_id = $1 AND r.change_kind = 'INVALIDATED'
           ORDER BY r.attendance_id, r.rev_no DESC`,
-        [input.sessionId],
+        [sessionId],
       );
       const categoryOf = new Map(categories.rows.map((r) => [r.attendance_id, r.category]));
       const rows: string[][] = roster.records.map((r) => [
@@ -183,7 +195,7 @@ export async function buildReport(
            FROM scan_attempts s JOIN users u ON u.id = s.student_id
           WHERE s.session_id = $1
           ORDER BY s.received_at, s.id`,
-        [input.sessionId],
+        [sessionId],
       );
       model = {
         meta,
@@ -211,6 +223,61 @@ export async function buildReport(
   }
 }
 
+/** The course-wide attendance grid as a report model: students down the side, sessions across. */
+async function buildMatrixModel(
+  c: pg.PoolClient,
+  courseId: string,
+  actorId: string,
+): Promise<ReportModel> {
+  const head = await c.query<{
+    code: string;
+    course_title: string;
+    term: string;
+    generated_at: string;
+    generated_by: string;
+  }>(
+    `SELECT co.code, co.title AS course_title, t.name AS term,
+            to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS generated_at,
+            (SELECT full_name FROM users WHERE id = $2) AS generated_by
+       FROM courses co JOIN terms t ON t.id = co.term_id WHERE co.id = $1`,
+    [courseId, actorId],
+  );
+  const h = head.rows[0];
+  if (!h) throw new ReportNotFound();
+  const lecturers = await c.query<{ full_name: string }>(
+    `SELECT u.full_name FROM lecturer_courses lc JOIN users u ON u.id = lc.lecturer_id
+      WHERE lc.course_id = $1 AND lc.ended_at IS NULL ORDER BY u.full_name`,
+    [courseId],
+  );
+  const matrix = await courseAttendanceMatrix(c, courseId);
+  const meta: ReportMeta = {
+    reportKind: 'ATTENDANCE_MATRIX',
+    title: 'Course attendance grid',
+    courseCode: h.code,
+    courseTitle: h.course_title,
+    term: h.term,
+    sessionTitle: '',
+    sessionDate: '',
+    lecturers: lecturers.rows.map((l) => l.full_name),
+    generatedAt: h.generated_at,
+    generatedBy: h.generated_by,
+    definitionsVersion: DEFINITIONS_VERSION,
+    caveat: CAVEAT,
+  };
+  return {
+    meta,
+    totals: null,
+    table: {
+      columns: ['Name', 'ID', ...matrix.sessions.map((s) => s.title)],
+      rows: matrix.rows.map((r) => [
+        r.fullName,
+        r.studentId,
+        ...r.present.map((p) => (p ? 'Present' : 'Absent')),
+      ]),
+    },
+  };
+}
+
 /** Counts as label/value pairs, in a fixed order, for every renderer. */
 export function totalsRows(t: SessionCounts): Array<[string, number]> {
   return [
@@ -225,22 +292,35 @@ export function totalsRows(t: SessionCounts): Array<[string, number]> {
 
 /** Header facts as label/value pairs, in a fixed order, for every renderer. */
 export function metaRows(m: ReportMeta): Array<[string, string]> {
-  return [
+  const rows: Array<[string, string]> = [
     ['Report', m.title],
     ['Course', `${m.courseCode} ${m.courseTitle}`],
     ['Term', m.term],
-    ['Session', m.sessionTitle],
-    ['Session date', m.sessionDate],
+  ];
+  // A course-wide report (the matrix) has no single session.
+  if (m.sessionTitle) rows.push(['Session', m.sessionTitle]);
+  if (m.sessionDate) rows.push(['Session date', m.sessionDate]);
+  rows.push(
     ['Lecturer(s)', m.lecturers.join(', ')],
     ['Generated (UTC)', m.generatedAt],
     ['Generated by', m.generatedBy],
     ['Definitions version', m.definitionsVersion],
     ['Note', m.caveat],
-  ];
+  );
+  return rows;
 }
 
-export const SAFE_FILENAME = (m: ReportMeta, ext: string, idPart: string): string =>
-  `${m.reportKind === 'ATTENDANCE' ? 'attendance' : 'scan-history'}-${m.courseCode}-${m.sessionDate}-${idPart}.${ext}`.replace(
+const FILENAME_PREFIX: Record<ReportKind, string> = {
+  ATTENDANCE: 'attendance',
+  SCAN_HISTORY: 'scan-history',
+  ATTENDANCE_MATRIX: 'attendance-grid',
+};
+
+export const SAFE_FILENAME = (m: ReportMeta, ext: string, idPart: string): string => {
+  // Session reports are dated by their session; a course-wide report by when it was generated.
+  const datePart = m.sessionDate || m.generatedAt.slice(0, 10);
+  return `${FILENAME_PREFIX[m.reportKind]}-${m.courseCode}-${datePart}-${idPart}.${ext}`.replace(
     /[^A-Za-z0-9._-]/g,
     '_',
   );
+};

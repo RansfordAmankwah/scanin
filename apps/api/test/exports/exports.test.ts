@@ -744,3 +744,51 @@ describe('LOAD-03 a 1,000-row export in every format', () => {
     }
   }, 120_000);
 });
+
+describe('course attendance matrix export', () => {
+  const createMatrix = async (course: string, format: string) => {
+    await db.pool.query('DELETE FROM rate_limits');
+    return post(
+      t.app,
+      `/courses/${course}/exports`,
+      { kind: 'ATTENDANCE_MATRIX', format },
+      { cookie: lecturer1.cookie },
+    );
+  };
+  const dl = (path: string) =>
+    t.app.inject({
+      method: 'GET',
+      url: path,
+      headers: { cookie: lecturer1.cookie },
+      remoteAddress: freshIp(),
+    });
+
+  it('exports the whole-course grid in CSV, XLSX and PDF (no session needed)', async () => {
+    const course = await newCourse();
+    const [a, b] = await students(2);
+    const s1 = await openSession(course);
+    const s2 = await openSession(course);
+    await scan(a!, s1);
+    await scan(a!, s2);
+    await scan(b!, s1); // b attends only the first session
+
+    const csv = await createMatrix(course, 'CSV');
+    expect(csv.statusCode, csv.body).toBe(201);
+    expect(csv.json().export.kind).toBe('ATTENDANCE_MATRIX');
+    const csvRes = await dl(csv.json().export.downloadPath);
+    expect(csvRes.statusCode).toBe(200);
+    const text = csvRes.rawPayload.toString('utf8');
+    expect(text).toContain('Name');
+    expect(text).toContain('ID');
+    expect(text).toContain('Present');
+    expect(text).toContain('Absent');
+
+    for (const fmt of ['XLSX', 'PDF']) {
+      const made = await createMatrix(course, fmt);
+      expect(made.statusCode, made.body).toBe(201);
+      const file = await dl(made.json().export.downloadPath);
+      expect(file.statusCode).toBe(200);
+      expect(file.rawPayload.length).toBeGreaterThan(0);
+    }
+  });
+});

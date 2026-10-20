@@ -9,11 +9,17 @@ import type { ExportStorage } from './storage.js';
 const COURSE_ROUTE = { config: { authz: { roles: LECTURER_ONLY, course: 'courseId' } } };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const Body = z.object({
-  sessionId: z.string().uuid(),
-  kind: z.enum(['ATTENDANCE', 'SCAN_HISTORY']),
-  format: z.enum(['CSV', 'XLSX', 'PDF', 'DOCX']),
-});
+const Format = z.enum(['CSV', 'XLSX', 'PDF', 'DOCX']);
+const Body = z.union([
+  // A per-session report needs a session.
+  z.object({
+    kind: z.enum(['ATTENDANCE', 'SCAN_HISTORY']),
+    sessionId: z.string().uuid(),
+    format: Format,
+  }),
+  // The course-wide attendance grid has no single session.
+  z.object({ kind: z.literal('ATTENDANCE_MATRIX'), format: Format }),
+]);
 
 const EXPORTS_PER_MINUTE = 5;
 

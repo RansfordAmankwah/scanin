@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { courseApi, type AttendanceMatrix as Matrix } from '../../api/lecturer';
-import { Button, EmptyState, ErrorState, Loading } from '../../components/ui';
+import { courseApi, exportApi, type AttendanceMatrix as Matrix } from '../../api/lecturer';
+import { Button, EmptyState, ErrorState, Loading, Notice } from '../../components/ui';
 
 function toCsv(m: Matrix): string {
   const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
@@ -34,12 +34,36 @@ export function AttendanceMatrix({ courseId }: { courseId: string }) {
   const [data, setData] = useState<Matrix | null>(null);
   const [failed, setFailed] = useState(false);
 
+  const [exporting, setExporting] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+
   const load = () => {
     setFailed(false);
     setData(null);
     void courseApi.matrix(courseId).then((r) => (r.ok ? setData(r.data) : setFailed(true)));
   };
   useEffect(load, [courseId]);
+
+  const exportAs = async (format: 'XLSX' | 'PDF') => {
+    setExporting(format);
+    setExportError(null);
+    const r = await exportApi.createMatrix(courseId, format);
+    setExporting(null);
+    if (r.ok) {
+      const a = document.createElement('a');
+      a.href = `/api${r.data.export.downloadPath}`;
+      a.download = r.data.export.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } else {
+      setExportError(
+        r.code === 'RATE_LIMITED'
+          ? 'Too many exports in a short time. Wait a moment.'
+          : 'Could not create the export. Try again.',
+      );
+    }
+  };
 
   if (failed) {
     return (
@@ -65,7 +89,22 @@ export function AttendanceMatrix({ courseId }: { courseId: string }) {
         <Button variant="secondary" onClick={() => downloadCsv(filename, toCsv(data))}>
           Download CSV
         </Button>
+        <Button
+          variant="secondary"
+          disabled={exporting !== null}
+          onClick={() => void exportAs('XLSX')}
+        >
+          {exporting === 'XLSX' ? 'Preparing…' : 'Download Excel'}
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={exporting !== null}
+          onClick={() => void exportAs('PDF')}
+        >
+          {exporting === 'PDF' ? 'Preparing…' : 'Download PDF'}
+        </Button>
       </div>
+      {exportError && <Notice tone="danger" title={exportError} urgent />}
       <p className="muted">
         Present only when a check-in was recorded for that session; invalidated records count as
         absent. Students are those who attended at least one session.

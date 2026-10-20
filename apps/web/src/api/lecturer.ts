@@ -644,4 +644,10 @@ export const exportApi = {
       method: 'POST',
       body: { sessionId, kind, format },
     }),
+  /** The course-wide attendance grid (no session) in a document format. */
+  createMatrix: (courseId: string, format: string) =>
+    call<{ export: ExportSummary }>(`/courses/${courseId}/exports`, {
+      method: 'POST',
+      body: { kind: 'ATTENDANCE_MATRIX', format },
+    }),
 };
