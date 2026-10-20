@@ -11,7 +11,7 @@ import {
 } from './corrections.js';
 import { notFound, ReviewError, UUID } from './errors.js';
 import { flagHistory, raiseFlag, transitionFlag } from './flags.js';
-import { decideLink, linkHistory, reviewQueue } from './links.js';
+import { addToClass, decideLink, linkHistory, removeFromClass, reviewQueue } from './links.js';
 
 const COURSE_ROUTE = { config: { authz: { roles: LECTURER_ONLY, course: 'courseId' } } };
 
@@ -76,6 +76,29 @@ export function registerReviewRoutes(app: FastifyInstance, deps: { pool: pg.Pool
       return handle(reply, err);
     }
   });
+
+  // One-tap "Not on class list" decisions: add the student to the roster, or remove them.
+  app.post('/courses/:courseId/links/:linkId/add-to-class', COURSE_ROUTE, async (req, reply) => {
+    const { courseId, linkId } = req.params as { courseId: string; linkId: string };
+    try {
+      return await addToClass(pool, { courseId, linkId, actorId: actor(req) });
+    } catch (err) {
+      return handle(reply, err);
+    }
+  });
+
+  app.post(
+    '/courses/:courseId/links/:linkId/remove-from-class',
+    COURSE_ROUTE,
+    async (req, reply) => {
+      const { courseId, linkId } = req.params as { courseId: string; linkId: string };
+      try {
+        return await removeFromClass(pool, { courseId, linkId, actorId: actor(req) });
+      } catch (err) {
+        return handle(reply, err);
+      }
+    },
+  );
 
   app.get('/courses/:courseId/links/:linkId/history', COURSE_ROUTE, async (req, reply) => {
     const { courseId, linkId } = req.params as { courseId: string; linkId: string };

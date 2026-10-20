@@ -1362,3 +1362,59 @@ describe('history is append-only for the application', () => {
     expect(id).toMatch(/^[0-9a-f-]{36}$/);
   });
 });
+
+describe('organic roster: "not on class list", one-tap add / remove', () => {
+  const linkIdOf = async (course: string, studentId: string) =>
+    (
+      await db.pool.query<{ id: string }>(
+        'SELECT id FROM roster_links WHERE course_id = $1 AND student_id = $2',
+        [course, studentId],
+      )
+    ).rows[0]!.id;
+
+  it('adds an unmatched student, building the roster from nothing (import-less entry)', async () => {
+    const course = await newCourse(); // no roster at all
+    const { s } = await attended(course); // checks in -> PROVISIONAL (not on the list)
+    const linkId = await linkIdOf(course, s.id);
+    expect((await linkRow(linkId)).state).toBe('PROVISIONAL');
+
+    const res = await L1(`/courses/${course}/links/${linkId}/add-to-class`);
+    expect(res.statusCode).toBe(200);
+
+    const row = await linkRow(linkId);
+    expect(row.state).toBe('CONFIRMED');
+    expect(row.confirmed_basis).toBe('LECTURER_ENROLLMENT_CONFIRMED');
+    expect(row.roster_entry_id).not.toBeNull();
+
+    const entry = (
+      await db.pool.query<{ import_id: string | null }>(
+        'SELECT import_id FROM roster_entries WHERE id = $1',
+        [row.roster_entry_id],
+      )
+    ).rows[0]!;
+    expect(entry.import_id).toBeNull(); // added by a lecturer, not imported
+  });
+
+  it('removes an unmatched student and invalidates their attendance', async () => {
+    const course = await newCourse();
+    const { s, attendanceId } = await attended(course);
+    const linkId = await linkIdOf(course, s.id);
+
+    const res = await L1(`/courses/${course}/links/${linkId}/remove-from-class`);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().attendanceInvalidated).toBe(1);
+
+    expect((await linkRow(linkId)).state).toBe('REJECTED');
+    expect((await statusOf(attendanceId)).status).toBe('INVALIDATED');
+  });
+
+  it('refuses to add a student who is already on the list', async () => {
+    const course = await newCourse();
+    const { s } = await attended(course);
+    const linkId = await linkIdOf(course, s.id);
+    await L1(`/courses/${course}/links/${linkId}/add-to-class`);
+    const again = await L1(`/courses/${course}/links/${linkId}/add-to-class`);
+    expect(again.statusCode).toBe(409);
+    expect(again.json().error.code).toBe('ALREADY_ON_LIST');
+  });
+});

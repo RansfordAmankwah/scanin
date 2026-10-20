@@ -9,9 +9,11 @@ import { courseRetainUntil, writeAudit } from '../audit.js';
  *  - exact student-ID match, entry unheld         -> CONFIRMED / ROSTER_ID_MATCH
  *  - else verified e-mail equals roster e-mail    -> CONFIRMED / ROSTER_EMAIL_MATCH
  *  - entry already held by another account        -> REVIEW_REQUIRED + CONFLICTING_STUDENT_ID flag
- *  - roster exists but no safe match              -> REVIEW_REQUIRED (+ AMBIGUOUS_ROSTER_MATCH flag
- *                                                    when similar names exist)
- * Similar names are only ever suggested to a lecturer; they never link or merge anything.
+ *  - roster exists but no safe match              -> REVIEW_REQUIRED (shown quietly as "not on the
+ *                                                    class list"; no flag is raised)
+ * A student who is simply not on the list is not a problem to be flagged: the lecturer resolves it
+ * in one tap (add to the class, or remove). Similar names are only ever suggested, never linked or
+ * merged. A genuine ID conflict (two accounts claiming one entry) is still flagged.
  */
 type Client = pg.PoolClient;
 
@@ -336,8 +338,8 @@ export async function ensureLink(
       await downgradeSystemHolder(c, contest.holder, flagId);
     }
   } else if (outcome.kind === 'NO_MATCH') {
+    // Not on the class list is not a problem to flag; it is surfaced quietly for a one-tap decision.
     link = await insertLink(c, courseId, studentId, { state: 'REVIEW_REQUIRED' });
-    if (link) await flagIfAmbiguous(c, courseId, link, student.full_name);
   }
 
   if (!link) {
@@ -358,23 +360,6 @@ export async function ensureLink(
     summary: { state: link.state, basis: link.confirmed_basis },
   });
   return { link, created: true };
-}
-
-async function flagIfAmbiguous(
-  c: Client,
-  courseId: string,
-  link: LinkRow,
-  fullName: string,
-): Promise<void> {
-  const candidates = await suggestCandidates(c, courseId, fullName);
-  if (candidates.length > 0) {
-    await raiseFlag(c, {
-      courseId,
-      kind: 'AMBIGUOUS_ROSTER_MATCH',
-      linkId: link.id,
-      detail: { candidateEntryIds: candidates.map((x) => x.id) },
-    });
-  }
 }
 
 /**
@@ -422,7 +407,6 @@ export async function rematchProvisionalLinks(
       reviewRequired += 1;
     } else if (outcome.kind === 'NO_MATCH') {
       await transitionLink(c, link, { state: 'REVIEW_REQUIRED', decision: 'SYSTEM_DOWNGRADE' });
-      await flagIfAmbiguous(c, courseId, link, student.full_name);
       reviewRequired += 1;
     }
   }

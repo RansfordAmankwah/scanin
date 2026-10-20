@@ -226,7 +226,7 @@ describe('ID-02 verified e-mail is a fallback only', () => {
 });
 
 describe('ID-03 similar names are suggestions, never links', () => {
-  it('sends a near-miss to review, flags it as ambiguous, and links nothing', async () => {
+  it('sends a near-miss to review quietly (no flag) and links nothing', async () => {
     const courseId = await newCourse();
     const userId = await registerStudent(
       db,
@@ -244,14 +244,8 @@ describe('ID-03 similar names are suggestions, never links', () => {
     });
 
     const target = await entryId(courseId, 'FZ900');
-    const flags = await flagsFor(row.id);
-    expect(flags).toHaveLength(1);
-    expect(flags[0]).toMatchObject({
-      kind: 'AMBIGUOUS_ROSTER_MATCH',
-      state: 'OPEN',
-      origin: 'SYSTEM',
-    });
-    expect(flags[0].detail.candidateEntryIds).toEqual([target]);
+    // Not on the class list is surfaced quietly, not flagged: no system flag is raised.
+    expect(await flagsFor(row.id)).toHaveLength(0);
 
     // The candidate entry has no holder: nothing was linked or merged.
     const holders = await db.pool.query('SELECT 1 FROM roster_links WHERE roster_entry_id = $1', [

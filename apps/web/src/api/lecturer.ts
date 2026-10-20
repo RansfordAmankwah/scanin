@@ -223,6 +223,15 @@ export const reviewApi = {
       method: 'POST',
       body,
     }),
+  addToClass: (courseId: string, linkId: string) =>
+    call<{ state: string }>(`/courses/${courseId}/links/${linkId}/add-to-class`, {
+      method: 'POST',
+    }),
+  removeFromClass: (courseId: string, linkId: string) =>
+    call<{ state: string; attendanceInvalidated: number }>(
+      `/courses/${courseId}/links/${linkId}/remove-from-class`,
+      { method: 'POST' },
+    ),
   linkHistory: (courseId: string, linkId: string) =>
     call<{
       reviews: Array<{

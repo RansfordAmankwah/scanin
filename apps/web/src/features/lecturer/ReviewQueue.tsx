@@ -57,6 +57,27 @@ function LinkCard({
   const [entryId, setEntryId] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [history, setHistory] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const onList = link.rosterEntry !== null;
+
+  const doAdd = async () => {
+    setBusy(true);
+    setError(null);
+    const r = await reviewApi.addToClass(courseId, link.linkId);
+    setBusy(false);
+    if (r.ok) onChanged();
+    else setError('Could not add this student. Refresh and try again.');
+  };
+  const doRemove = async () => {
+    setBusy(true);
+    setError(null);
+    const r = await reviewApi.removeFromClass(courseId, link.linkId);
+    setBusy(false);
+    if (r.ok) onChanged();
+    else setError('Could not remove this student. Refresh and try again.');
+  };
 
   const loadSuggestions = async () => {
     const r = await reviewApi.suggestions(courseId, link.linkId);
@@ -80,7 +101,7 @@ function LinkCard({
         {link.studentId} · {link.fullName}
       </h3>
       <p>
-        <strong>{associationLabel(link.state, null)}</strong>
+        <strong>{onList ? associationLabel(link.state, null) : 'Not on the class list'}</strong>
         {link.rosterEntry && (
           <>
             {' '}
@@ -95,19 +116,43 @@ function LinkCard({
       <p className="muted">Self-reported details. Your decision applies to this course only.</p>
 
       <div className="actions">
+        <Button onClick={() => void doAdd()} disabled={busy}>
+          Part of class
+        </Button>
+        {!confirmRemove ? (
+          <Button variant="danger" onClick={() => setConfirmRemove(true)} disabled={busy}>
+            Not part of class
+          </Button>
+        ) : (
+          <>
+            <Button variant="danger" onClick={() => void doRemove()} disabled={busy}>
+              Confirm remove
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirmRemove(false)} disabled={busy}>
+              Cancel
+            </Button>
+          </>
+        )}
         <Button
-          variant="secondary"
+          variant="ghost"
           onClick={() => {
             setOpen(true);
             void loadSuggestions();
           }}
         >
-          Decide…
+          More options…
         </Button>
-        <Button variant="secondary" onClick={() => void loadHistory()}>
+        <Button variant="ghost" onClick={() => void loadHistory()}>
           History
         </Button>
       </div>
+      {confirmRemove && (
+        <p className="muted">
+          Removing them also marks their attendance in this course invalid. You can restore it
+          later.
+        </p>
+      )}
+      {error && <Notice tone="danger" title={error} urgent />}
 
       {history && (
         <ol aria-label="Match history">
