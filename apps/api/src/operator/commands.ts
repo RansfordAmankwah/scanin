@@ -1,7 +1,7 @@
 import type pg from 'pg';
 import { courseRetainUntil, writeAudit } from '../audit.js';
 import { randomToken } from '../auth/crypto.js';
-import { normalizeEmail, normalizeFullName } from '../auth/identifiers.js';
+import { normalizeEmail, normalizeFullName, normalizeStudentId } from '../auth/identifiers.js';
 import { hashPassword } from '../auth/password.js';
 import { isUniqueViolation, withTransaction } from '../db/pool.js';
 
@@ -248,5 +248,49 @@ export async function setBillingExempt(
       retainUntil,
       summary: { operator: input.operator },
     });
+  });
+}
+
+/**
+ * Releases a student ID that is stuck on the wrong account (a typo, a duplicate, or someone who
+ * used another student's ID), so the rightful student can register with it again. The held account
+ * is retired, not deleted: its ID is tombstoned (the real ID becomes free), its status set DISABLED,
+ * and its sessions revoked. History and attendance are untouched.
+ */
+export async function releaseStudentId(
+  pool: pg.Pool,
+  input: Actor & { studentId: string },
+): Promise<{ accountId: string }> {
+  const norm = normalizeStudentId(input.studentId);
+  if (!norm) throw new OperatorError('Enter a valid student ID.');
+  return withTransaction(pool, async (c) => {
+    const { rows } = await c.query<{ id: string }>(
+      `SELECT id FROM users WHERE student_id_norm = $1 AND role = 'STUDENT' FOR UPDATE`,
+      [norm],
+    );
+    const held = rows[0];
+    if (!held) throw new OperatorError(`No account holds student ID "${input.studentId}".`);
+    const stamp = Date.now();
+    // Tombstone keeps the row (and its history) but frees the real ID for a fresh registration.
+    await c.query(
+      `UPDATE users SET student_id_norm = $2, student_id_display = $3, status = 'DISABLED' WHERE id = $1`,
+      [held.id, `RELEASED:${norm}:${stamp}`, `Released ${input.studentId}`],
+    );
+    await c.query(
+      `UPDATE auth_sessions SET revoked_at = clock_timestamp(), revoke_reason = 'STUDENT_ID_RELEASED'
+        WHERE user_id = $1 AND revoked_at IS NULL`,
+      [held.id],
+    );
+    const retainUntil = new Date(Date.now() + 7 * 365 * 86_400_000).toISOString().slice(0, 10);
+    await writeAudit(c, {
+      class: 'DOMAIN',
+      actorType: 'OPERATOR',
+      action: 'STUDENT_ID_RELEASED',
+      entityType: 'user',
+      entityId: held.id,
+      retainUntil,
+      summary: { operator: input.operator },
+    });
+    return { accountId: held.id };
   });
 }

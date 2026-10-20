@@ -146,7 +146,8 @@ GRANT UPDATE (face_verification_enabled) ON courses TO {{operator}};
 GRANT SELECT, INSERT ON lecturer_courses TO {{operator}};
 GRANT UPDATE (ended_at) ON lecturer_courses TO {{operator}};
 GRANT SELECT, INSERT ON users TO {{operator}};
-GRANT UPDATE (password_hash, status, email_verified_at, billing_exempt) ON users TO {{operator}};
+-- The operator can retire an account and release a stuck student ID (student_id_norm/display).
+GRANT UPDATE (password_hash, status, email_verified_at, billing_exempt, student_id_norm, student_id_display) ON users TO {{operator}};
 GRANT SELECT ON auth_sessions TO {{operator}};
 GRANT UPDATE (revoked_at, revoke_reason) ON auth_sessions TO {{operator}};
 GRANT SELECT, INSERT ON audit_events TO {{operator}};

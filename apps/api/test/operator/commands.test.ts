@@ -6,8 +6,17 @@ import {
   createTerm,
   endAssignment,
   OperatorError,
+  releaseStudentId,
 } from '../../src/operator/commands.js';
-import { createTestApp, get, post, cookieHeader, type TestApp } from '../helpers/app.js';
+import {
+  createTestApp,
+  get,
+  newRegistration,
+  post,
+  registerBody,
+  cookieHeader,
+  type TestApp,
+} from '../helpers/app.js';
 import { createMigratedTestDatabase, type MigratedTestDatabase } from '../helpers/testDb.js';
 
 let db: MigratedTestDatabase;
@@ -259,5 +268,39 @@ describe('operator provisioning (no administrator dashboard)', () => {
       code: '23514',
       constraint: 'users_student_id_iff_student',
     });
+  });
+});
+
+describe('release-student-id frees a stuck student ID', () => {
+  it('retires the held account, tombstones its ID, and lets the ID register again', async () => {
+    const reg = newRegistration({ studentId: 'REL000001' });
+    expect((await post(t.app, '/auth/register/commit', registerBody(reg))).statusCode).toBe(201);
+
+    // The ID is taken: a second registration with it is rejected.
+    const dup = newRegistration({ studentId: 'REL000001' });
+    expect((await post(t.app, '/auth/register/commit', registerBody(dup))).statusCode).toBe(409);
+
+    const { accountId } = await releaseStudentId(db.operatorPool, {
+      operator,
+      studentId: 'REL000001',
+    });
+    const held = (
+      await db.pool.query<{ student_id_norm: string; status: string }>(
+        `SELECT student_id_norm, status FROM users WHERE id = $1`,
+        [accountId],
+      )
+    ).rows[0]!;
+    expect(held.status).toBe('DISABLED');
+    expect(held.student_id_norm.startsWith('RELEASED:')).toBe(true);
+
+    // The real ID is now free: a fresh registration succeeds.
+    const fresh = newRegistration({ studentId: 'REL000001' });
+    expect((await post(t.app, '/auth/register/commit', registerBody(fresh))).statusCode).toBe(201);
+  });
+
+  it('rejects an ID that no account holds', async () => {
+    await expect(
+      releaseStudentId(db.operatorPool, { operator, studentId: 'NOBODY-HAS-THIS' }),
+    ).rejects.toBeInstanceOf(OperatorError);
   });
 });

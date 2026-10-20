@@ -75,7 +75,7 @@ Lecturers create their own terms and courses in the app. The operator CLI is for
 pnpm --filter @scanin/api operator --help
 ```
 
-Commands: `create-term`, `create-course`, `create-lecturer` (prints a temporary password once), `assign-lecturer`, `end-assignment`, `retention-run`, `audit-checkpoint`, `audit-verify`. It needs `OPERATOR_DATABASE_URL`.
+Commands: `create-term`, `create-course`, `create-lecturer` (prints a temporary password once), `assign-lecturer`, `end-assignment`, `grant-comp` / `revoke-comp` (billing exemption), `release-student-id` (free a student ID stuck on the wrong account), `retention-run`, `audit-checkpoint`, `audit-verify`. It needs `OPERATOR_DATABASE_URL`.
 
 ## Scripts
 
@@ -128,5 +128,4 @@ Recently built:
 - **Course attendance matrix**: one grid per course (`NAME | ID | <session title> | …`), every student who attended any session listed alphabetically, each cell Present/Absent, exportable to CSV, Excel and PDF.
 - **Lecturer billing**: GH₵25 / month per lecturer via Paystack (Mobile Money + card), pay-to-extend. A 14-day free trial that starts the first time a lecturer runs a session; students never pay, and a verified e-mail is required. Running a session is gated; reading, creating courses and rostering stay free. Operator comps (`grant-comp`) exempt test/free accounts. Billing is off entirely when no Paystack key is set.
 - **In-app light/dark/system theme toggle** in the app header (choice remembered per browser).
-
-Pending by design: an operator command to release a student ID.
+- **Operator tools**: `release-student-id` frees a student ID stuck on the wrong account (typo, duplicate, or misused), and `grant-comp` / `revoke-comp` manage billing exemptions.

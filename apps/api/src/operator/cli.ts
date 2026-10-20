@@ -10,6 +10,7 @@ import {
   createTerm,
   endAssignment,
   OperatorError,
+  releaseStudentId,
   setBillingExempt,
 } from './commands.js';
 
@@ -25,6 +26,7 @@ Commands:
   end-assignment    --term <term name> --course <code> --email <lecturer email>
   grant-comp        --email <lecturer email>   free access, no trial clock and no payment
   revoke-comp       --email <lecturer email>   remove a billing exemption
+  release-student-id --id <student id>         free a student ID stuck on the wrong account
 
   retention-run     (uses RETENTION_DATABASE_URL) purge everything past its retention period
   audit-checkpoint  --dir <path>   write audit fingerprints to an independently owned location
@@ -53,6 +55,7 @@ async function main(): Promise<void> {
       title: { type: 'string' },
       email: { type: 'string' },
       course: { type: 'string' },
+      id: { type: 'string' },
       dir: { type: 'string' },
       help: { type: 'boolean' },
     },
@@ -142,6 +145,11 @@ async function main(): Promise<void> {
         console.log(
           command === 'grant-comp' ? 'Billing exemption granted.' : 'Billing exemption removed.',
         );
+        break;
+      }
+      case 'release-student-id': {
+        const r = await releaseStudentId(pool, { operator, studentId: need(values, 'id') });
+        console.log(`Released the student ID. The account ${r.accountId} was retired.`);
         break;
       }
       case 'audit-checkpoint': {
