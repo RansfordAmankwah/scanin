@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useAuth } from '../features/auth/AuthGate';
 import { HOME_PATH, Link, useRouter } from '../router';
+import { ThemeToggle } from './ThemeToggle';
 import { Badge, Button } from './ui';
 
 interface NavItem {
@@ -57,6 +58,7 @@ export function AppShell({
             ))}
           </nav>
           <div className="user-menu">
+            <ThemeToggle />
             <Link to="/account" className="user-menu__name">
               {user.fullName}
             </Link>

@@ -5,12 +5,13 @@ A campus attendance tracker with QR check-in. A lecturer starts a class session 
 Live at **[scanin.dev](https://scanin.dev)**. The public landing site is at `/`; the app is entered at `/sign-in`.
 
 - Two roles only: **lecturer** and **student**. There is no admin dashboard. Lecturers sign up themselves and create their own terms and courses; an operator CLI covers exceptions such as adding a second lecturer to a course.
+- **Self-service accounts**: sign-up with e-mail verification, forgot-password reset, change e-mail, resend verification, and account deletion (disabled at once, then hard-erased by the retention role after a grace period). All e-mail goes through Resend.
 - One effective attendance record per student per session, enforced by the database, and one device per student per class (`docs/DEVICE_BINDING.md`).
 - Anti-proxy controls: a room headcount compared with attendance, randomised in-person spot checks, and a review process for the student, all as review signals rather than penalties (`docs/ANTI_PROXY.md`).
-- Identity uncertainty is explicit: matches to the class list are _provisional_, _needs review_, _confirmed_ or _rejected_, and a lecturer decides.
-- An **optional face-verification pilot**, off by default and enabled per course. It is a review signal only — it never changes an attendance record, stores no raw images (only an encrypted template reference), and needs the student's explicit consent (`docs/FACE_VERIFICATION.md`).
+- Identity uncertainty is explicit: matches to the class list are _provisional_, _needs review_, _confirmed_ or _rejected_, and a lecturer decides. A student who is simply not on the list is shown quietly with one-tap **add to class** / **remove**, so a roster can also build up organically from whoever the lecturer confirms.
+- An **optional face-verification pilot**, off by default and enabled per course. It is a review signal only: it never changes an attendance record, stores no raw images (only an encrypted template reference), and needs the student's explicit consent (`docs/FACE_VERIFICATION.md`).
 - No precise location, and nothing is written to official university systems.
-- Course-based attendance history for lecturers and students (`docs/COURSE_ATTENDANCE.md`).
+- Course-based attendance history for lecturers and students (`docs/COURSE_ATTENDANCE.md`), including a course-wide **attendance grid** (students x sessions, Present/Absent) with CSV download.
 - Exports to CSV, Excel, PDF and Word.
 - Retention purge and an optional tamper-evident audit checkpoint.
 

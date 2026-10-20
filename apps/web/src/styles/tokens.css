@@ -94,8 +94,15 @@
   }
 }
 
+/*
+ * Dark theme. The palette below applies in two cases, kept in step:
+ *   - the OS prefers dark AND the user has not forced light (data-theme="light")
+ *   - the user explicitly chose dark (data-theme="dark"), whatever the OS says
+ * Light is the default on :root above, so data-theme="light" needs no block of its own; it simply
+ * excludes itself from the media query. The theme toggle sets data-theme on <html>.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --color-bg: #0b1017;
     --color-surface: #121923;
     --color-surface-subtle: #18212d;
@@ -137,4 +144,47 @@
     --shadow-sm: none;
     --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.6);
   }
+}
+
+:root[data-theme='dark'] {
+  --color-bg: #0b1017;
+  --color-surface: #121923;
+  --color-surface-subtle: #18212d;
+  --color-overlay: rgba(0, 0, 0, 0.65);
+
+  --color-border: #232d3a;
+  --color-border-strong: #6b7686;
+
+  --color-text: #f2f4f7;
+  --color-text-muted: #b4bdc9;
+  --color-text-subtle: #98a2b3;
+
+  --color-primary: #8ea6ff;
+  --color-primary-hover: #a9bbff;
+  --color-on-primary: #0a1330;
+  --color-primary-soft: #1a2547;
+  --color-primary-soft-text: #c7d4ff;
+  --color-focus: #8ea6ff;
+
+  --color-danger: #f97066;
+  --color-danger-hover: #fda29b;
+  --color-on-danger: #1a0705;
+
+  --color-success-bg: #0f2a1c;
+  --color-success-text: #a6f4c5;
+  --color-warning-bg: #33270a;
+  --color-warning-text: #fedf89;
+  --color-attention-bg: #38200f;
+  --color-attention-text: #ffd3ad;
+  --color-danger-bg: #3a1512;
+  --color-danger-text: #fecdca;
+  --color-info-bg: #11264a;
+  --color-info-text: #b2ddff;
+  --color-neutral-bg: #222b38;
+  --color-neutral-text: #d0d5dd;
+
+  --color-row-hover: rgba(142, 166, 255, 0.08);
+
+  --shadow-sm: none;
+  --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.6);
 }
