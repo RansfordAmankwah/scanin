@@ -337,6 +337,17 @@
   text-align: center;
 }
 
+.auth__link {
+  align-self: center;
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.auth__link:hover {
+  text-decoration: underline;
+}
+
 /* ------------------------------------------------------------------------------------------------
  * The room display. Always black on white: a QR code must stay scannable whatever the colour
  * scheme, from the back of a hall.

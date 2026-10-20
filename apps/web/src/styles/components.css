@@ -159,6 +159,41 @@ textarea:focus-visible {
   border-color: var(--color-danger);
 }
 
+/* Password field with a show/hide toggle. The input keeps room on the right for the button. */
+.field__reveal {
+  position: relative;
+  display: flex;
+}
+
+.field__reveal input {
+  padding-right: calc(var(--space-3) + var(--control-height));
+}
+
+.field__reveal-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: var(--control-height);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.field__reveal-btn:hover {
+  color: var(--color-text);
+}
+
+.field__reveal-btn:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
+}
+
 .field .hint {
   color: var(--color-text-muted);
   font-size: var(--text-sm);

@@ -85,8 +85,8 @@ describe('AUD-02 the application role cannot edit or delete history', () => {
 });
 
 describe('the application role has only the column-level updates it needs', () => {
-  it('cannot change a user role, student ID or e-mail', async () => {
-    for (const col of ['role', 'student_id_norm', 'email', 'full_name']) {
+  it('cannot change a user role, student ID or name', async () => {
+    for (const col of ['role', 'student_id_norm', 'full_name']) {
       const value = col === 'role' ? `'LECTURER'` : `'changed'`;
       await expect(
         db.asRole(db.appRole, (c) =>
@@ -99,6 +99,17 @@ describe('the application role has only the column-level updates it needs', () =
   it('can update a password hash', async () => {
     await db.asRole(db.appRole, (c) =>
       c.query(`UPDATE users SET password_hash = 'new' WHERE id = $1`, [f.studentId]),
+    );
+  });
+
+  it('can change e-mail and request deletion (self-service account management)', async () => {
+    await db.asRole(db.appRole, (c) =>
+      c.query(
+        `UPDATE users SET email = 'moved@school.test', email_verified_at = NULL,
+                          deletion_requested_at = clock_timestamp()
+          WHERE id = $1`,
+        [f.studentId],
+      ),
     );
   });
 

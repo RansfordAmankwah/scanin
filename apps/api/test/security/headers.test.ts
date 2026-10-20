@@ -22,12 +22,19 @@ let dist: string;
 
 const INDEX =
   '<!doctype html><html><head><title>ScanIn</title></head><body><div id="root"></div><script type="module" src="/assets/app-abc123.js"></script></body></html>';
+const LANDING =
+  '<!doctype html><html><head><title>ScanIn</title></head><body>Welcome</body></html>';
+const ROBOTS = 'User-agent: *\nAllow: /\n';
+const SITEMAP = '<?xml version="1.0" encoding="UTF-8"?><urlset></urlset>';
 
 beforeAll(async () => {
   db = await createMigratedTestDatabase();
   dist = await mkdtemp(join(tmpdir(), 'scanin-dist-'));
   await mkdir(join(dist, 'assets'));
   await writeFile(join(dist, 'index.html'), INDEX);
+  await writeFile(join(dist, 'landing.html'), LANDING);
+  await writeFile(join(dist, 'robots.txt'), ROBOTS);
+  await writeFile(join(dist, 'sitemap.xml'), SITEMAP);
   await writeFile(join(dist, 'assets', 'app-abc123.js'), 'console.log("app")');
   await writeFile(join(dist, 'assets', 'style-def456.css'), 'body{margin:0}');
   await writeFile(
@@ -169,13 +176,14 @@ describe('SEC-01 browser protections on every response', () => {
 });
 
 describe('serving the web app from the same origin', () => {
-  it('serves the app shell for page navigations with the protective headers', async () => {
+  it('serves the app shell for signed-in page navigations, marked noindex', async () => {
+    // `/` is the public landing page now, not the shell, so it is excluded here.
     for (const url of [
-      '/',
       '/index.html',
       '/courses/11111111-1111-4111-8111-111111111111',
       '/present/a/b',
       '/verify-email',
+      '/sign-in',
     ]) {
       const res = await withWeb.app.inject({
         method: 'GET',
@@ -186,8 +194,51 @@ describe('serving the web app from the same origin', () => {
       expect(res.headers['content-type']).toBe('text/html; charset=utf-8');
       expect(res.body).toBe(INDEX);
       expect(res.headers['cache-control']).toBe('no-cache');
+      expect(res.headers['x-robots-tag'], url).toBe('noindex');
       expect(res.headers['content-security-policy']).toBe(CSP);
     }
+  });
+
+  it('serves the public landing page at / (indexable, never cached across users)', async () => {
+    const res = await withWeb.app.inject({
+      method: 'GET',
+      url: '/',
+      headers: { accept: 'text/html,application/xhtml+xml' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toBe(LANDING);
+    expect(res.headers['content-type']).toBe('text/html; charset=utf-8');
+    expect(res.headers['cache-control']).toBe('private, no-store');
+    // The landing page is public, so it must not carry the app shell's noindex header.
+    expect(res.headers['x-robots-tag']).toBeUndefined();
+  });
+
+  it('redirects a signed-in visitor from / to the app', async () => {
+    const res = await withWeb.app.inject({
+      method: 'GET',
+      url: '/',
+      headers: { accept: 'text/html', cookie: '__Host-sid=whatever' },
+    });
+    expect(res.statusCode).toBe(302);
+    expect(res.headers.location).toBe('/sign-in');
+    expect(res.headers['cache-control']).toBe('private, no-store');
+  });
+
+  it('keeps one canonical URL: /landing.html redirects to /', async () => {
+    const res = await withWeb.app.inject({ method: 'GET', url: '/landing.html' });
+    expect(res.statusCode).toBe(301);
+    expect(res.headers.location).toBe('/');
+  });
+
+  it('serves robots.txt and sitemap.xml with the right content types, not the shell', async () => {
+    const robots = await withWeb.app.inject({ method: 'GET', url: '/robots.txt' });
+    expect(robots.statusCode).toBe(200);
+    expect(robots.headers['content-type']).toBe('text/plain; charset=utf-8');
+    expect(robots.body).toBe(ROBOTS);
+
+    const sitemap = await withWeb.app.inject({ method: 'GET', url: '/sitemap.xml' });
+    expect(sitemap.statusCode).toBe(200);
+    expect(sitemap.headers['content-type']).toBe('application/xml; charset=utf-8');
   });
 
   it('serves hashed assets with long-lived caching and the right types', async () => {

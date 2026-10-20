@@ -21,8 +21,7 @@
   --shadow: 0 30px 80px -30px rgba(16, 24, 40, 0.28);
   --shadow-soft: 0 14px 40px -20px rgba(16, 24, 40, 0.2);
   --ring: rgba(47, 85, 212, 0.18);
-  --font:
-    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --maxw: 70rem;
   --readw: 46rem;
 }

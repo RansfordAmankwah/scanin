@@ -155,6 +155,8 @@ describe('every route must declare its authorization', () => {
     expect(publicRoutes).toEqual([
       'GET /healthz',
       'POST /auth/login',
+      'POST /auth/password/forgot',
+      'POST /auth/password/reset',
       'POST /auth/register/commit',
       'POST /auth/register/lecturer',
       'POST /auth/register/preview',

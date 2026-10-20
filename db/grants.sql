@@ -24,13 +24,16 @@ GRANT SELECT ON terms, courses, lecturer_courses TO {{app}};
 GRANT EXECUTE ON FUNCTION create_term_for_lecturer(uuid, text, date, date) TO {{app}};
 GRANT EXECUTE ON FUNCTION create_course_for_lecturer(uuid, uuid, text, text) TO {{app}};
 
--- Accounts. Role, student ID and e-mail are immutable once created. Sign-up (students and lecturers)
--- may set only the columns below, never `email_verified_at`. A lecturer account on its own grants no
--- data access: every lecturer query is scoped to a course assignment, and only the operator can
--- create courses or assign lecturers to them.
+-- Accounts. Role and student ID are immutable once created. Sign-up (students and lecturers) may set
+-- only the INSERT columns below, never `email_verified_at`. The app may change e-mail (self-service
+-- change-email, which resets email_verified_at so the new address is re-verified), the password
+-- (change and reset), status, and deletion_requested_at (a self-requested deletion that the
+-- retention role later erases). A lecturer account on its own grants no data access: every lecturer
+-- query is scoped to a course assignment, and only the operator can create courses or assign
+-- lecturers to them.
 GRANT SELECT ON users TO {{app}};
 GRANT INSERT (role, email, full_name, student_id_norm, student_id_display, password_hash) ON users TO {{app}};
-GRANT UPDATE (email_verified_at, password_hash, status) ON users TO {{app}};
+GRANT UPDATE (email, email_verified_at, password_hash, status, deletion_requested_at) ON users TO {{app}};
 
 GRANT SELECT, INSERT ON account_tokens TO {{app}};
 GRANT UPDATE (used_at) ON account_tokens TO {{app}};

@@ -432,6 +432,7 @@ describe('RET-04 retention is a function of the data, so it is safe after a rest
       coursesPurged: 0,
       termsPurged: 0,
       accountsPurged: 0,
+      accountsDeleted: 0,
     });
   });
 

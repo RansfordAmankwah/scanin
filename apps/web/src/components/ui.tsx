@@ -5,7 +5,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from 'react';
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from '../router';
 
 /* ------------------------------------------------------------------------------------------------
@@ -103,17 +103,79 @@ export function TextField({
   error?: string | null;
 }) {
   const id = useId();
+  const [revealed, setRevealed] = useState(false);
+  const isPassword = input.type === 'password';
+  // A password field can be revealed; toggling swaps the input type without losing the value.
+  const effectiveType = isPassword && revealed ? 'text' : input.type;
+  const field = (
+    <input
+      id={id}
+      {...input}
+      type={effectiveType}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={describedBy(id, hint, error)}
+    />
+  );
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <input
-        id={id}
-        {...input}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy(id, hint, error)}
-      />
+      {isPassword ? (
+        <div className="field__reveal">
+          {field}
+          <button
+            type="button"
+            className="field__reveal-btn"
+            onClick={() => setRevealed((v) => !v)}
+            aria-pressed={revealed}
+            aria-label={revealed ? 'Hide password' : 'Show password'}
+            title={revealed ? 'Hide password' : 'Show password'}
+          >
+            {revealed ? <EyeOffIcon /> : <EyeIcon />}
+          </button>
+        </div>
+      ) : (
+        field
+      )}
       <FieldText id={id} hint={hint} error={error} />
     </div>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a18 18 0 0 1-2.16 3.19m-2.5 2.3A9.3 9.3 0 0 1 12 19C5.5 19 2 12 2 12a18 18 0 0 1 5.06-5.94" />
+      <path d="M1 1l22 22" />
+    </svg>
   );
 }
 

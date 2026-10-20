@@ -47,6 +47,13 @@ const REGISTER_WINDOW_S = 60 * 60;
 const PASSWORD_CHANGE_MAX_FAILURES = 5;
 
 const VERIFICATION_TTL_HOURS = 24;
+// A password-reset link is short-lived on purpose; a stale one must not sit usable in an inbox.
+const RESET_TTL_HOURS = 2;
+// Forgot-password requests: per IP (reuses the register window) and per account, in fixed windows.
+const FORGOT_WINDOW_S = 60 * 60;
+const FORGOT_MAX_PER_ACCOUNT = 5;
+// E-mail change: same per-account failure budget as a password change.
+const EMAIL_CHANGE_MAX_FAILURES = 5;
 
 const PUBLIC = { config: { authz: { public: true as const } } };
 const SIGNED_IN = { config: { authz: { roles: ANY_ROLE } } };
@@ -79,6 +86,16 @@ const ChangePasswordBody = z.object({
   currentPassword: z.string().max(1024),
   newPassword: z.string().max(1024),
 });
+const ForgotBody = z.object({ email: z.string().max(254) });
+const ResetBody = z.object({
+  token: z.string().min(20).max(200),
+  newPassword: z.string().max(1024),
+});
+const ChangeEmailBody = z.object({
+  newEmail: z.string().max(254).email(),
+  currentPassword: z.string().max(1024),
+});
+const DeleteAccountBody = z.object({ password: z.string().max(1024) });
 
 interface Normalized {
   studentId: string;
@@ -527,5 +544,236 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
     });
     setSessionCookie(reply, session.token, session.maxAgeSeconds);
     return { status: 'password_changed' };
+  });
+
+  // ---------------------------------------------------------------------------------------------
+  // Forgot password: request a reset link, then consume it to set a new password.
+  // ---------------------------------------------------------------------------------------------
+
+  /**
+   * Requests a password-reset link. The response is always the same whether or not the address is
+   * registered, so it cannot be used to discover accounts. A real account with a verified-or-not
+   * e-mail still gets a link; a disabled or deletion-pending account does not.
+   */
+  app.post('/auth/password/forgot', PUBLIC, async (req) => {
+    const hashedIp = ipHash(req);
+    const body = ForgotBody.safeParse(req.body);
+    // Even a malformed body returns the generic acknowledgement, to keep every path indistinguishable.
+    if (!body.success) return { status: 'reset_requested' };
+
+    const email = normalizeEmail(body.data.email);
+    const ipLimit = await hit(pool, `forgot:ip:${hashedIp.toString('hex')}`, FORGOT_WINDOW_S);
+    const acctKey = `forgot:acct:${keyedHash(config.IP_HASH_SECRET, 'acct', email).toString('hex')}`;
+    const acct = await peek(pool, acctKey, FORGOT_WINDOW_S);
+    if (
+      ipLimit.count > config.REGISTER_MAX_PER_IP_PER_HOUR ||
+      acct.count >= FORGOT_MAX_PER_ACCOUNT
+    ) {
+      // Still generic: a throttled caller learns nothing about whether the address exists.
+      return { status: 'reset_requested' };
+    }
+
+    const { rows } = await pool.query<{ id: string; status: string }>(
+      `SELECT id, status FROM users WHERE email = $1`,
+      [email],
+    );
+    const user = rows[0];
+    if (user && user.status === 'ACTIVE') {
+      await hit(pool, acctKey, FORGOT_WINDOW_S);
+      const token = randomToken();
+      await withTransaction(pool, async (c) => {
+        await c.query(
+          `INSERT INTO account_tokens (token_hash, user_id, purpose, expires_at)
+           VALUES ($1, $2, 'PASSWORD_RESET', clock_timestamp() + make_interval(hours => $3))`,
+          [sha256(token), user.id, RESET_TTL_HOURS],
+        );
+        await writeAudit(c, {
+          class: 'SECURITY',
+          actorType: 'ANONYMOUS',
+          actorUserId: user.id,
+          action: 'PASSWORD_RESET_REQUESTED',
+          requestId: req.id,
+          ipHash: hashedIp,
+        });
+      });
+      try {
+        await mailer.sendPasswordReset(email, `${config.APP_ORIGIN}/reset-password#t=${token}`);
+      } catch (err) {
+        req.log.error({ err: (err as Error).name }, 'password-reset e-mail failed');
+      }
+    }
+    return { status: 'reset_requested' };
+  });
+
+  /** Consumes a reset token and sets a new password. Every existing session is revoked. */
+  app.post('/auth/password/reset', PUBLIC, async (req, reply) => {
+    const body = ResetBody.safeParse(req.body);
+    if (!body.success) return fail(reply, 400, 'INVALID_REQUEST', 'Invalid link.');
+    const policy = checkPasswordPolicy(body.data.newPassword);
+    if (policy) return fail(reply, 400, policy, 'Choose a password of 10 to 128 characters.');
+
+    const newHash = await hashPassword(body.data.newPassword);
+    const ok = await withTransaction(pool, async (c) => {
+      const { rows } = await c.query<{ user_id: string }>(
+        `UPDATE account_tokens SET used_at = clock_timestamp()
+          WHERE token_hash = $1 AND purpose = 'PASSWORD_RESET'
+            AND used_at IS NULL AND expires_at > clock_timestamp()
+        RETURNING user_id`,
+        [sha256(body.data.token)],
+      );
+      const userId = rows[0]?.user_id;
+      if (!userId) return false;
+      // A disabled or deletion-pending account cannot be reactivated through a reset.
+      const upd = await c.query(
+        `UPDATE users SET password_hash = $2
+          WHERE id = $1 AND status = 'ACTIVE' AND deletion_requested_at IS NULL`,
+        [userId, newHash],
+      );
+      if ((upd.rowCount ?? 0) === 0) return false;
+      await revokeAllSessions(c, userId, 'PASSWORD_RESET');
+      await writeAudit(c, {
+        class: 'SECURITY',
+        actorType: 'ANONYMOUS',
+        actorUserId: userId,
+        action: 'PASSWORD_RESET',
+        requestId: req.id,
+      });
+      return true;
+    });
+    return ok
+      ? { status: 'password_reset' }
+      : fail(reply, 400, 'INVALID_OR_EXPIRED_LINK', 'This link is invalid or has expired.');
+  });
+
+  // ---------------------------------------------------------------------------------------------
+  // Change e-mail: set a new address (requires the current password), then re-verify it.
+  // ---------------------------------------------------------------------------------------------
+
+  app.post('/auth/email/change', SIGNED_IN, async (req, reply) => {
+    const auth = req.auth;
+    if (!auth) return fail(reply, 401, 'UNAUTHENTICATED', 'Please sign in.');
+    const body = ChangeEmailBody.safeParse(req.body);
+    if (!body.success) return fail(reply, 400, 'INVALID_REQUEST', 'Enter a valid e-mail address.');
+
+    const key = `emailchange:${auth.userId}`;
+    const state = await peek(pool, key, LOGIN_WINDOW_S);
+    if (state.count >= EMAIL_CHANGE_MAX_FAILURES) {
+      return fail(reply, 429, 'RATE_LIMITED', 'Too many attempts. Try again later.', {
+        retryAfterSeconds: state.retryAfterSeconds,
+      });
+    }
+
+    const newEmail = normalizeEmail(body.data.newEmail);
+    const { rows } = await pool.query<{ password_hash: string; email: string }>(
+      `SELECT password_hash, email::text AS email FROM users WHERE id = $1`,
+      [auth.userId],
+    );
+    const current = rows[0];
+    if (!current || !(await verifyPassword(current.password_hash, body.data.currentPassword))) {
+      await hit(pool, key, LOGIN_WINDOW_S);
+      return fail(reply, 401, 'INVALID_CREDENTIALS', 'Your password is incorrect.');
+    }
+    if (current.email === newEmail) {
+      return fail(reply, 400, 'EMAIL_UNCHANGED', 'That is already your e-mail address.');
+    }
+
+    const token = randomToken();
+    try {
+      await withTransaction(pool, async (c) => {
+        // The new address is unverified until the link is used. verify-email (purpose
+        // EMAIL_VERIFICATION) sets email_verified_at when the token is consumed.
+        await c.query(`UPDATE users SET email = $2, email_verified_at = NULL WHERE id = $1`, [
+          auth.userId,
+          newEmail,
+        ]);
+        await c.query(
+          `INSERT INTO account_tokens (token_hash, user_id, purpose, expires_at)
+           VALUES ($1, $2, 'EMAIL_VERIFICATION', clock_timestamp() + make_interval(hours => $3))`,
+          [sha256(token), auth.userId, VERIFICATION_TTL_HOURS],
+        );
+        await writeAudit(c, {
+          class: 'SECURITY',
+          actorType: auth.role,
+          actorUserId: auth.userId,
+          action: 'EMAIL_CHANGED',
+          requestId: req.id,
+        });
+      });
+    } catch (err) {
+      if (isUniqueViolation(err, 'users_email_key')) {
+        return fail(reply, 409, 'EMAIL_TAKEN', 'That e-mail address is already in use.');
+      }
+      throw err;
+    }
+
+    try {
+      await mailer.sendEmailChangeVerification(
+        newEmail,
+        `${config.APP_ORIGIN}/verify-email#t=${token}`,
+      );
+    } catch (err) {
+      req.log.error({ err: (err as Error).name }, 'e-mail change verification failed');
+    }
+    return { status: 'email_change_pending', email: newEmail };
+  });
+
+  // ---------------------------------------------------------------------------------------------
+  // Delete account: a password-gated request. The account is disabled at once and erased later by
+  // the retention role (the application role never DELETEs). Students only, for now: a lecturer owns
+  // course data that other people depend on, so that goes through an operator.
+  // ---------------------------------------------------------------------------------------------
+
+  app.post('/auth/account/delete', SIGNED_IN, async (req, reply) => {
+    const auth = req.auth;
+    if (!auth) return fail(reply, 401, 'UNAUTHENTICATED', 'Please sign in.');
+    const body = DeleteAccountBody.safeParse(req.body);
+    if (!body.success)
+      return fail(reply, 400, 'INVALID_REQUEST', 'Enter your password to confirm.');
+    if (auth.role !== 'STUDENT') {
+      return fail(
+        reply,
+        403,
+        'LECTURER_DELETE_UNSUPPORTED',
+        'Lecturer accounts are tied to course data and must be removed by an administrator.',
+      );
+    }
+
+    const key = `accountdelete:${auth.userId}`;
+    const state = await peek(pool, key, LOGIN_WINDOW_S);
+    if (state.count >= PASSWORD_CHANGE_MAX_FAILURES) {
+      return fail(reply, 429, 'RATE_LIMITED', 'Too many attempts. Try again later.', {
+        retryAfterSeconds: state.retryAfterSeconds,
+      });
+    }
+
+    const { rows } = await pool.query<{ password_hash: string }>(
+      `SELECT password_hash FROM users WHERE id = $1`,
+      [auth.userId],
+    );
+    const current = rows[0]?.password_hash;
+    if (!current || !(await verifyPassword(current, body.data.password))) {
+      await hit(pool, key, LOGIN_WINDOW_S);
+      return fail(reply, 401, 'INVALID_CREDENTIALS', 'Your password is incorrect.');
+    }
+
+    await withTransaction(pool, async (c) => {
+      await c.query(
+        `UPDATE users
+            SET deletion_requested_at = COALESCE(deletion_requested_at, clock_timestamp()),
+                status = 'DISABLED'
+          WHERE id = $1`,
+        [auth.userId],
+      );
+      await revokeAllSessions(c, auth.userId, 'ACCOUNT_DELETION_REQUESTED');
+      await writeAudit(c, {
+        class: 'SECURITY',
+        actorType: auth.role,
+        actorUserId: auth.userId,
+        action: 'ACCOUNT_DELETION_REQUESTED',
+        requestId: req.id,
+      });
+    });
+    clearSessionCookie(reply);
+    return { status: 'deletion_requested' };
   });
 }

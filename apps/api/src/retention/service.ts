@@ -19,6 +19,9 @@ import type pg from 'pg';
 export const SCAN_METADATA_DAYS = 90;
 export const SESSION_CLEANUP_DAYS = 7;
 export const INACTIVE_ACCOUNT_MONTHS = 12;
+// Grace between a self-requested deletion and the irreversible erase. The account is disabled
+// immediately when requested; this window is a safety buffer against mistaken or hostile requests.
+export const ACCOUNT_DELETION_GRACE_DAYS = 7;
 
 export interface RetentionReport {
   scanAttempts: number;
@@ -30,6 +33,7 @@ export interface RetentionReport {
   coursesPurged: number;
   termsPurged: number;
   accountsPurged: number;
+  accountsDeleted: number;
 }
 
 async function deleteInBatches(
@@ -156,6 +160,137 @@ async function purgeInactiveAccounts(pool: pg.Pool): Promise<number> {
   return removed;
 }
 
+/**
+ * Erases student accounts that asked to be deleted and have passed the grace period. Each account
+ * is removed with all of its own data, in dependency order, in one transaction. Only self-service
+ * STUDENT deletions reach this (lecturer accounts own shared course data and are handled elsewhere),
+ * so none of the lecturer-only back-references apply; a 23503 still means something unexpected
+ * references the account, in which case it is left in place rather than half-deleted.
+ */
+async function purgeDeletedAccounts(pool: pg.Pool, graceDays: number): Promise<number> {
+  const { rows } = await pool.query<{ id: string }>(
+    `SELECT id FROM users
+      WHERE deletion_requested_at IS NOT NULL
+        AND deletion_requested_at < clock_timestamp() - make_interval(days => $1)
+      ORDER BY deletion_requested_at
+      LIMIT 500`,
+    [graceDays],
+  );
+  let removed = 0;
+  for (const { id } of rows) {
+    const c = await pool.connect();
+    const p = [id];
+    try {
+      await c.query('BEGIN');
+      // Face checks: detail, then events, then challenges (children before attendance).
+      await c.query(
+        `DELETE FROM face_check_details WHERE event_id IN (
+           SELECT id FROM attendance_face_check_events
+            WHERE student_id = $1 OR attendance_id IN (SELECT id FROM attendance_records WHERE student_id = $1))`,
+        p,
+      );
+      await c.query(
+        `DELETE FROM attendance_face_check_events
+          WHERE student_id = $1 OR attendance_id IN (SELECT id FROM attendance_records WHERE student_id = $1)`,
+        p,
+      );
+      await c.query(
+        `DELETE FROM face_check_challenges
+          WHERE student_id = $1 OR attendance_id IN (SELECT id FROM attendance_records WHERE student_id = $1)`,
+        p,
+      );
+      // Disputes: events before parents.
+      await c.query(
+        `DELETE FROM attendance_dispute_events
+          WHERE actor_user_id = $1 OR dispute_id IN (
+            SELECT id FROM attendance_disputes
+             WHERE student_id = $1 OR resolved_by = $1
+                OR attendance_id IN (SELECT id FROM attendance_records WHERE student_id = $1)
+                OR source_item_id IN (SELECT id FROM spot_check_items WHERE student_id = $1))`,
+        p,
+      );
+      await c.query(
+        `DELETE FROM attendance_disputes
+          WHERE student_id = $1 OR resolved_by = $1
+             OR attendance_id IN (SELECT id FROM attendance_records WHERE student_id = $1)
+             OR source_item_id IN (SELECT id FROM spot_check_items WHERE student_id = $1)`,
+        p,
+      );
+      // Spot checks: events before items.
+      await c.query(
+        `DELETE FROM spot_check_events
+          WHERE actor_user_id = $1 OR item_id IN (
+            SELECT id FROM spot_check_items
+             WHERE student_id = $1 OR attendance_id IN (SELECT id FROM attendance_records WHERE student_id = $1))`,
+        p,
+      );
+      await c.query(
+        `DELETE FROM spot_check_items
+          WHERE student_id = $1 OR attendance_id IN (SELECT id FROM attendance_records WHERE student_id = $1)`,
+        p,
+      );
+      // Flags and reviews: reviews that point at a flag, then flag events, then flags.
+      await c.query(
+        `DELETE FROM identity_reviews
+          WHERE actor_user_id = $1 OR link_id IN (SELECT id FROM roster_links WHERE student_id = $1)`,
+        p,
+      );
+      await c.query(
+        `DELETE FROM investigation_flag_events
+          WHERE actor_user_id = $1 OR flag_id IN (
+            SELECT id FROM investigation_flags
+             WHERE raised_by = $1
+                OR attendance_id IN (SELECT id FROM attendance_records WHERE student_id = $1)
+                OR roster_link_id IN (SELECT id FROM roster_links WHERE student_id = $1)
+                OR related_link_id IN (SELECT id FROM roster_links WHERE student_id = $1))`,
+        p,
+      );
+      await c.query(
+        `DELETE FROM investigation_flags
+          WHERE raised_by = $1
+             OR attendance_id IN (SELECT id FROM attendance_records WHERE student_id = $1)
+             OR roster_link_id IN (SELECT id FROM roster_links WHERE student_id = $1)
+             OR related_link_id IN (SELECT id FROM roster_links WHERE student_id = $1)`,
+        p,
+      );
+      // Attendance history, scans, then the records.
+      await c.query(
+        `DELETE FROM scan_attempts
+          WHERE student_id = $1 OR attendance_id IN (SELECT id FROM attendance_records WHERE student_id = $1)`,
+        p,
+      );
+      await c.query(
+        `DELETE FROM attendance_revisions
+          WHERE actor_user_id = $1 OR attendance_id IN (SELECT id FROM attendance_records WHERE student_id = $1)`,
+        p,
+      );
+      await c.query('DELETE FROM attendance_records WHERE student_id = $1', p);
+      // Roster links, devices, face enrollment and consent.
+      await c.query('DELETE FROM roster_links WHERE student_id = $1', p);
+      await c.query('DELETE FROM device_sessions WHERE student_id = $1', p);
+      await c.query(
+        'DELETE FROM face_enrollment_sessions WHERE student_id = $1 OR created_by = $1',
+        p,
+      );
+      await c.query('DELETE FROM face_enrollments WHERE student_id = $1 OR supervised_by = $1', p);
+      await c.query('DELETE FROM biometric_consent_events WHERE student_id = $1', p);
+      // Auth, tokens, and this account's own security trail (retention cannot null columns).
+      await c.query('DELETE FROM auth_sessions WHERE user_id = $1', p);
+      await c.query('DELETE FROM account_tokens WHERE user_id = $1', p);
+      await c.query('DELETE FROM audit_events WHERE actor_user_id = $1', p);
+      await c.query('DELETE FROM users WHERE id = $1', p);
+      await c.query('COMMIT');
+      removed += 1;
+    } catch (err) {
+      await c.query('ROLLBACK').catch(() => undefined);
+      if ((err as { code?: string }).code !== '23503') throw err; // unexpectedly referenced: keep
+    } finally {
+      c.release();
+    }
+  }
+  return removed;
+}
+
 export async function runRetention(
   pool: pg.Pool,
   opts: { faceDetailDays?: number } = {},
@@ -222,6 +357,7 @@ export async function runRetention(
     `DELETE FROM terms t WHERE t.ends_on + interval '1 year' < current_date
         AND NOT EXISTS (SELECT 1 FROM courses c WHERE c.term_id = t.id)`,
   );
+  const accountsDeleted = await purgeDeletedAccounts(pool, ACCOUNT_DELETION_GRACE_DAYS);
   const accountsPurged = await purgeInactiveAccounts(pool);
 
   return {
@@ -234,6 +370,7 @@ export async function runRetention(
     coursesPurged: due.rows.length,
     termsPurged: terms.rowCount ?? 0,
     accountsPurged,
+    accountsDeleted,
   };
 }
 

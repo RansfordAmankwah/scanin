@@ -19,7 +19,7 @@ interface World {
   session: string;
   att: Record<string, string>;
   dev: Record<string, string>;
-  students: Record<string, BulkStudent>;
+  students: { alice: BulkStudent; bob: BulkStudent; carol: BulkStudent; dave: BulkStudent };
 }
 
 /** A session with four students checked in: alice VERIFIED, bob FAILED, carol EXEMPT, dave UNAVAILABLE. */

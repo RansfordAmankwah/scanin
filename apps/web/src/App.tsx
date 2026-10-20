@@ -4,6 +4,7 @@ import { Notice } from './components/ui';
 import { AccountPage } from './features/account/AccountPage';
 import { PrivacyPage } from './features/account/PrivacyPage';
 import { AuthGate, useAuth } from './features/auth/AuthGate';
+import { ForgotPassword, ResetPassword } from './features/auth/PasswordReset';
 import { CourseWorkspace, type CourseTab } from './features/lecturer/CourseWorkspace';
 import { CoursesPage } from './features/lecturer/CoursesPage';
 import { QrDisplay } from './features/lecturer/QrDisplay';
@@ -118,9 +119,13 @@ function VerifyEmail() {
  *   /present/<course>/<session>           lecturer: projector QR display
  *   /c#t=<code>                           student: check in from the phone's camera app
  *   /verify-email#t=<token>               e-mail verification
+ *   /forgot-password                      request a password-reset link
+ *   /reset-password#t=<token>             choose a new password from a reset link
  */
 export function App({ pathname = window.location.pathname }: { pathname?: string }) {
   if (pathname === '/verify-email') return <VerifyEmail />;
+  if (pathname === '/forgot-password') return <ForgotPassword />;
+  if (pathname === '/reset-password') return <ResetPassword />;
 
   // A code opened via the phone's camera app is captured before sign-in so it survives it.
   if (!PRESENT.test(pathname)) capturePendingToken();

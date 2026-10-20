@@ -73,6 +73,60 @@ export async function logout(): Promise<void> {
   await apiFetch('/auth/logout', { method: 'POST', body: {} }).catch(() => undefined);
 }
 
+/** Always resolves the same way whether or not the address exists (no account enumeration). */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await apiFetch('/auth/password/forgot', { method: 'POST', body: { email } }).catch(
+    () => undefined,
+  );
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<{ ok: true } | { ok: false; code: string }> {
+  try {
+    const res = await apiFetch<{ error?: { code: string } }>('/auth/password/reset', {
+      method: 'POST',
+      body: { token, newPassword },
+    });
+    if (res.ok) return { ok: true };
+    return { ok: false, code: res.data?.error?.code ?? 'ERROR' };
+  } catch {
+    return { ok: false, code: 'NETWORK' };
+  }
+}
+
+export async function changeEmail(
+  newEmail: string,
+  currentPassword: string,
+): Promise<{ ok: true; email: string } | { ok: false; code: string }> {
+  try {
+    const res = await apiFetch<{ email?: string; error?: { code: string } }>('/auth/email/change', {
+      method: 'POST',
+      body: { newEmail, currentPassword },
+    });
+    if (res.ok && res.data?.email) return { ok: true, email: res.data.email };
+    return { ok: false, code: res.data?.error?.code ?? 'ERROR' };
+  } catch {
+    return { ok: false, code: 'NETWORK' };
+  }
+}
+
+export async function deleteAccount(
+  password: string,
+): Promise<{ ok: true } | { ok: false; code: string }> {
+  try {
+    const res = await apiFetch<{ error?: { code: string } }>('/auth/account/delete', {
+      method: 'POST',
+      body: { password },
+    });
+    if (res.ok) return { ok: true };
+    return { ok: false, code: res.data?.error?.code ?? 'ERROR' };
+  } catch {
+    return { ok: false, code: 'NETWORK' };
+  }
+}
+
 export type PreviewOutcome =
   { ok: true; studentId: string; fullName: string; email: string } | { ok: false; code: string };
 

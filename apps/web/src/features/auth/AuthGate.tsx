@@ -67,6 +67,9 @@ function LoginForm({ onSignedIn }: { onSignedIn: (u: CurrentUser) => void }) {
       <button type="submit" className="btn btn--block" disabled={busy}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
+      <a className="auth__link" href="/forgot-password">
+        Forgot your password?
+      </a>
     </form>
   );
 }
