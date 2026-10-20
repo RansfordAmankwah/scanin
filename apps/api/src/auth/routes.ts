@@ -54,6 +54,8 @@ const FORGOT_WINDOW_S = 60 * 60;
 const FORGOT_MAX_PER_ACCOUNT = 5;
 // E-mail change: same per-account failure budget as a password change.
 const EMAIL_CHANGE_MAX_FAILURES = 5;
+// A signed-in user may ask for a fresh verification link a few times per window.
+const VERIFY_RESEND_MAX = 5;
 
 const PUBLIC = { config: { authz: { public: true as const } } };
 const SIGNED_IN = { config: { authz: { roles: ANY_ROLE } } };
@@ -373,6 +375,57 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthDeps): void {
     return ok
       ? { status: 'verified' }
       : fail(reply, 400, 'INVALID_OR_EXPIRED_LINK', 'This link is invalid or has expired.');
+  });
+
+  /**
+   * Re-sends the verification link to the signed-in user's current address. Scoped to the caller's
+   * own account, so there is nothing to enumerate. A no-op (still 200) if already verified.
+   */
+  app.post('/auth/verify-email/resend', SIGNED_IN, async (req, reply) => {
+    const auth = req.auth;
+    if (!auth) return fail(reply, 401, 'UNAUTHENTICATED', 'Please sign in.');
+
+    const key = `verifyresend:${auth.userId}`;
+    const state = await peek(pool, key, LOGIN_WINDOW_S);
+    if (state.count >= VERIFY_RESEND_MAX) {
+      return fail(reply, 429, 'RATE_LIMITED', 'Too many attempts. Try again later.', {
+        retryAfterSeconds: state.retryAfterSeconds,
+      });
+    }
+
+    const { rows } = await pool.query<{ email: string; email_verified_at: Date | null }>(
+      `SELECT email::text AS email, email_verified_at FROM users WHERE id = $1`,
+      [auth.userId],
+    );
+    const user = rows[0];
+    if (!user) return fail(reply, 401, 'UNAUTHENTICATED', 'Please sign in.');
+    if (user.email_verified_at) return { status: 'already_verified' };
+
+    await hit(pool, key, LOGIN_WINDOW_S);
+    const token = randomToken();
+    await withTransaction(pool, async (c) => {
+      await c.query(
+        `INSERT INTO account_tokens (token_hash, user_id, purpose, expires_at)
+         VALUES ($1, $2, 'EMAIL_VERIFICATION', clock_timestamp() + make_interval(hours => $3))`,
+        [sha256(token), auth.userId, VERIFICATION_TTL_HOURS],
+      );
+      await writeAudit(c, {
+        class: 'SECURITY',
+        actorType: auth.role,
+        actorUserId: auth.userId,
+        action: 'EMAIL_VERIFICATION_RESENT',
+        requestId: req.id,
+      });
+    });
+    try {
+      await mailer.sendEmailVerification(
+        user.email,
+        `${config.APP_ORIGIN}/verify-email#t=${token}`,
+      );
+    } catch (err) {
+      req.log.error({ err: (err as Error).name }, 'verification resend e-mail failed');
+    }
+    return { status: 'sent' };
   });
 
   // ---------------------------------------------------------------------------------------------

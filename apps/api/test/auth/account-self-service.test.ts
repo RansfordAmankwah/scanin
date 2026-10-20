@@ -175,6 +175,30 @@ describe('change e-mail', () => {
   });
 });
 
+describe('resend verification', () => {
+  it('sends a fresh link to an unverified user and verifies from it', async () => {
+    const { cookie, reg } = await registerAndLogin(t.app);
+    const res = await post(t.app, '/auth/verify-email/resend', {}, { cookie });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe('sent');
+
+    const token = tokenFromLink(lastLink('verify', reg.email));
+    expect(token).not.toBe('');
+    const verified = await post(t.app, '/auth/verify-email', { token });
+    expect(verified.statusCode).toBe(200);
+    expect((await userRow(reg.email))?.email_verified_at).not.toBeNull();
+
+    // Once verified, a resend is a no-op.
+    const again = await post(t.app, '/auth/verify-email/resend', {}, { cookie });
+    expect(again.json().status).toBe('already_verified');
+  });
+
+  it('needs a session', async () => {
+    const res = await post(t.app, '/auth/verify-email/resend', {});
+    expect(res.statusCode).toBe(401);
+  });
+});
+
 describe('delete account', () => {
   it('requires the correct password', async () => {
     const { cookie } = await registerAndLogin(t.app);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { changeEmail, changePassword, deleteAccount } from '../../api/auth';
+import { changeEmail, changePassword, deleteAccount, resendVerification } from '../../api/auth';
 import { AppShell } from '../../components/AppShell';
 import {
   Badge,
@@ -21,6 +21,49 @@ const PROBLEMS: Record<string, string> = {
   RATE_LIMITED: 'Too many attempts. Try again later.',
   NETWORK: 'Could not reach the server. Check your connection and try again.',
 };
+
+function ResendVerification({ email }: { email: string }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
+
+  const submit = async () => {
+    if (busy) return;
+    setBusy(true);
+    setMessage(null);
+    const r = await resendVerification();
+    setBusy(false);
+    if (r.ok) {
+      setMessage({
+        tone: 'success',
+        text:
+          r.status === 'already_verified'
+            ? 'Your e-mail is already verified — refresh the page.'
+            : `Sent. Open the link we just e-mailed to ${email}.`,
+      });
+    } else {
+      setMessage({
+        tone: 'danger',
+        text: PROBLEMS[r.code] ?? 'Could not send the e-mail. Try again.',
+      });
+    }
+  };
+
+  return (
+    <>
+      <Notice tone="info" title="Your e-mail is not verified yet">
+        Open the link in the message we sent to {email}. You can still check in meanwhile.
+      </Notice>
+      <div className="actions">
+        <Button variant="secondary" onClick={() => void submit()} disabled={busy}>
+          {busy ? 'Sending…' : 'Resend verification e-mail'}
+        </Button>
+      </div>
+      {message && (
+        <Notice tone={message.tone} title={message.text} urgent={message.tone === 'danger'} />
+      )}
+    </>
+  );
+}
 
 function ChangePassword() {
   const [current, setCurrent] = useState('');
@@ -253,11 +296,7 @@ export function AccountPage() {
             If either is wrong, tell your lecturer.
           </p>
         )}
-        {!user.emailVerified && (
-          <Notice tone="info" title="Your e-mail is not verified yet">
-            Open the link in the message we sent to {user.email}. You can still check in meanwhile.
-          </Notice>
-        )}
+        {!user.emailVerified && <ResendVerification email={user.email} />}
       </Card>
 
       <ChangePassword />

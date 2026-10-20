@@ -184,6 +184,21 @@ export async function registerLecturer(
   }
 }
 
+export async function resendVerification(): Promise<
+  { ok: true; status: string } | { ok: false; code: string }
+> {
+  try {
+    const res = await apiFetch<{ status?: string; error?: { code: string } }>(
+      '/auth/verify-email/resend',
+      { method: 'POST', body: {} },
+    );
+    if (res.ok && res.data?.status) return { ok: true, status: res.data.status };
+    return { ok: false, code: res.data?.error?.code ?? 'ERROR' };
+  } catch {
+    return { ok: false, code: 'NETWORK' };
+  }
+}
+
 export async function verifyEmail(token: string): Promise<boolean> {
   try {
     return (await apiFetch('/auth/verify-email', { method: 'POST', body: { token } })).ok;
