@@ -335,7 +335,7 @@ describe('navigation and account', () => {
       within(nav)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Home', 'My courses']);
+    ).toEqual(['Home', 'My courses', 'Account']);
     cleanup();
     mockApi({
       'GET /auth/me': reply(200, { user: lecturer }),
@@ -348,7 +348,7 @@ describe('navigation and account', () => {
       within(lnav)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Courses']);
+    ).toEqual(['Courses', 'Account']);
   });
 
   it('shows the account, offers to verify an unverified e-mail, and changes the password', async () => {
