@@ -2,75 +2,65 @@
  * ScanIn design tokens. Every colour, size, radius, shadow and easing used anywhere in the app
  * comes from here.
  *
- * The system is Apple-grade: SF type on a calm near-white / graphite canvas, one confident Apple
- * blue as the sole accent, hairline separators with a whisper of ambient shadow, soft large radii,
- * and spring-eased motion. Depth is restrained — only two planes genuinely float (the frosted
- * header and dialogs). Restraint is the premium.
+ * Visual system: INSTITUTIONAL PROFESSIONAL — serious, mature university software. Clean white
+ * content surfaces on a cool-gray application background, deep-ink typography, and a restrained,
+ * confident green as the single accent for primary actions, active navigation and positive states.
+ * Separation comes from hairline borders and restrained elevation, not heavy shadows. No gradients,
+ * glassmorphism or neon. Green is an accent, never a flood.
  *
  * Contrast: text and surface pairs below meet WCAG AA (4.5:1 for text, 3:1 for the borders of form
- * controls), verified in both schemes — white on --color-primary is 5.4:1 (light) and the dark text
- * on the bright-blue dark primary is 6.6:1. The real-browser test suite measures this on every
- * screen. Status is never conveyed by colour alone: every status also carries words (and an icon).
+ * controls), verified in both schemes — white on the green primary is 5.4:1. The real-browser test
+ * suite measures this on every screen. Status is never conveyed by colour alone: every status also
+ * carries words (and usually an icon).
  */
 :root {
   color-scheme: light dark;
 
   /* Surfaces */
-  --color-bg: #f5f5f7;
-  --color-surface: #ffffff;
-  --color-surface-subtle: #f0f0f3;
+  --color-bg: #f5f7f6; /* cool-gray application background */
+  --color-surface: #ffffff; /* primary content */
+  --color-surface-subtle: #eef2ef; /* secondary surface */
   --color-surface-raised: #ffffff;
-  --color-overlay: rgba(0, 0, 0, 0.4);
+  --color-overlay: rgba(23, 33, 28, 0.45);
 
   /* Lines */
-  --color-border: #e4e4e9; /* hairline separators: a hint, not a line */
-  --color-border-strong: #86868b; /* form controls: clearly visible (3.64:1) */
+  --color-border: #dfe5e0; /* hairline rules and frames */
+  --color-border-strong: #868e89; /* form controls: clearly visible (3.1:1) */
 
   /* Text */
-  --color-text: #1d1d1f;
-  --color-text-muted: #515154;
-  --color-text-subtle: #6e6e73;
+  --color-text: #17211c; /* deep ink */
+  --color-text-muted: #4d5a54; /* strong secondary (7:1) */
+  --color-text-subtle: #66736b; /* tertiary / helper (4.8:1) */
 
-  /* Brand — deepened Apple blue, chosen so the gloss gradient stays AA across its whole face */
-  --color-primary: #0a66d6;
-  --color-primary-hover: #0a5ac0;
+  /* Brand — restrained institutional green, the single accent */
+  --color-primary: #18794e;
+  --color-primary-hover: #146640;
   --color-on-primary: #ffffff;
-  --color-primary-soft: #e7f0ff;
-  --color-primary-soft-text: #0a4ea8;
-  --color-focus: #0a84ff;
-  --gradient-primary: linear-gradient(180deg, #1e74e0 0%, #0a66d6 100%);
-  --gradient-primary-hover: linear-gradient(180deg, #1667cf 0%, #0a5ac0 100%);
-  --ring: 0 0 0 4px rgba(10, 132, 255, 0.28);
+  --color-primary-soft: #e7f2eb; /* active nav / quiet green fill */
+  --color-primary-soft-text: #115c3a;
+  --color-focus: #18794e;
+  --ring: 0 0 0 3px rgba(24, 121, 78, 0.28);
 
-  /* Destructive — Apple red (flat, never glossy) */
-  --color-danger: #d70015;
-  --color-danger-hover: #ae000f;
+  /* Destructive */
+  --color-danger: #b42318;
+  --color-danger-hover: #912018;
   --color-on-danger: #ffffff;
 
-  /* Status pairs: tinted background + same-hue text */
-  --color-success-bg: #e7f7ed;
-  --color-success-text: #0b6b2f;
-  --color-warning-bg: #fff4e0;
+  /* Status pairs: tinted surface + same-hue text */
+  --color-success-bg: #eaf5ee;
+  --color-success-text: #0f6b3f;
+  --color-warning-bg: #fff5df;
   --color-warning-text: #8a5300;
-  --color-attention-bg: #ffefe2;
+  --color-attention-bg: #fdeee0;
   --color-attention-text: #9a4210;
-  --color-danger-bg: #fdecec;
-  --color-danger-text: #af0011;
-  --color-info-bg: #e8f1fd;
-  --color-info-text: #0a4ea8;
-  --color-neutral-bg: #eeeef1;
-  --color-neutral-text: #3a3a3c;
+  --color-danger-bg: #fcedec;
+  --color-danger-text: #8c1d18;
+  --color-info-bg: #eaf0f9;
+  --color-info-text: #1c4e8a;
+  --color-neutral-bg: #eef2ef;
+  --color-neutral-text: #3a443e;
 
-  --color-row-hover: rgba(10, 102, 214, 0.05);
-
-  /* Frosted material — used only where a plane genuinely floats over scrolling content. */
-  --glass-surface: color-mix(in srgb, var(--color-surface) 72%, transparent);
-  --glass-blur: saturate(180%) blur(20px);
-
-  /* Light-only gloss/recess insets. Nulled in dark, where the glass carries the sheen. */
-  --shadow-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  --shadow-inset-top-soft: inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  --shadow-input-recess: inset 0 1px 1px rgba(0, 0, 0, 0.03);
+  --color-row-hover: rgba(24, 121, 78, 0.05);
 
   /* Spacing (4px grid) */
   --space-1: 0.25rem;
@@ -83,34 +73,33 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
 
-  /* Corner radii — Sonoma-soft. Nest so inner = outer − padding for concentric corners. */
-  --radius-sm: 0.625rem; /* 10px: buttons, inputs, small controls */
-  --radius: 0.75rem; /* 12px: subcards, notices, stat tiles, segmented track */
-  --radius-lg: 1.125rem; /* 18px: cards, dialog, course card, auth card */
-  --radius-pill: 980px;
+  /* Corner radii — consistent and restrained (no oversized rounding). */
+  --radius-sm: 0.375rem; /* 6px: inputs, small controls, badges-interactive */
+  --radius: 0.5rem; /* 8px: buttons, notices, stat tiles, subcards */
+  --radius-lg: 0.75rem; /* 12px: cards, dialog, course card, auth card */
+  --radius-pill: 999px;
 
-  /* Shadows — soft, diffuse, low-opacity; hairlines do most of the separating. */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.05), 0 8px 24px -8px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 12px 40px -8px rgba(0, 0, 0, 0.14);
-  --shadow-popover: 0 2px 8px rgba(0, 0, 0, 0.08), 0 12px 32px -6px rgba(0, 0, 0, 0.16);
+  /* Shadows — restrained elevation; hairline borders do most of the separating. */
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-md: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px -4px rgba(16, 24, 40, 0.08);
+  --shadow-lg: 0 8px 24px -8px rgba(16, 24, 40, 0.12);
+  --shadow-popover: 0 4px 16px -4px rgba(16, 24, 40, 0.14);
 
-  /* Motion — one Apple spring, two speeds. Honoured through the reduced-motion guard in base.css. */
-  --ease: cubic-bezier(0.32, 0.72, 0, 1);
-  --dur-fast: 150ms;
-  --dur: 280ms;
+  /* Motion — subtle and functional. Honoured through the reduced-motion guard in base.css. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
 
   /* Controls are 40px with a mouse and 44px on a touch screen. */
   --control-height: 2.5rem;
 
-  /* Type — the SF system stack, with Inter (loaded) as the face on non-Apple platforms. */
+  /* Type — a professional, highly legible sans-serif. Inter is loaded in index.html. */
   --font:
-    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', system-ui,
-    'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
-  --text-base: 1.0625rem; /* 17px — the Apple body size (also kills iOS focus-zoom on inputs) */
-  --text-lg: 1.1875rem; /* 19px — clears the taller 17px base */
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
   --text-xl: 1.5rem;
   --text-2xl: 1.875rem;
 
@@ -127,8 +116,8 @@
 }
 
 /*
- * Dark theme — layered graphite, never pure black (which smears on OLED scroll). The palette below
- * applies in two cases, kept in step:
+ * Dark theme — a calm, cool near-black with the green brightened and kept as the single accent.
+ * The palette below applies in two cases, kept in step:
  *   - the OS prefers dark AND the user has not forced light (data-theme="light")
  *   - the user explicitly chose dark (data-theme="dark"), whatever the OS says
  * Light is the default on :root above, so data-theme="light" needs no block of its own.
@@ -137,116 +126,97 @@
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --color-bg: #141416;
-    --color-surface: #1e1e21;
-    --color-surface-subtle: #2a2a2f;
-    --color-surface-raised: #242428;
+    --color-bg: #111413;
+    --color-surface: #1a1f1c;
+    --color-surface-subtle: #232925;
+    --color-surface-raised: #1f2421;
     --color-overlay: rgba(0, 0, 0, 0.6);
 
-    --color-border: #38383c;
-    --color-border-strong: #7a7a80;
+    --color-border: #2e352f;
+    --color-border-strong: #6f7a73;
 
-    --color-text: #f5f5f7;
-    --color-text-muted: #a1a1a6;
-    --color-text-subtle: #909095;
+    --color-text: #edf1ee;
+    --color-text-muted: #aab4ae;
+    --color-text-subtle: #8a948e;
 
-    /* Bright system blue with DARK text on it — the fill/accent inversion the app already uses. */
-    --color-primary: #409cff;
-    --color-primary-hover: #5aacff;
-    --color-on-primary: #08121f;
-    --color-primary-soft: #16304e;
-    --color-primary-soft-text: #8fc5ff;
-    --color-focus: #409cff;
-    --gradient-primary: linear-gradient(180deg, #52a6ff 0%, #409cff 55%, #2e8ff5 100%);
-    --gradient-primary-hover: linear-gradient(180deg, #6bb4ff 0%, #5aacff 55%, #48a1ff 100%);
-    --ring: 0 0 0 4px rgba(64, 156, 255, 0.32);
+    /* Brightened green + dark text on it (the fill/accent inversion the app uses). */
+    --color-primary: #3dbb7e;
+    --color-primary-hover: #57c892;
+    --color-on-primary: #052617;
+    --color-primary-soft: #16321f;
+    --color-primary-soft-text: #86e3b2;
+    --color-focus: #3dbb7e;
+    --ring: 0 0 0 3px rgba(61, 187, 126, 0.34);
 
     --color-danger: #ff6b60;
     --color-danger-hover: #ff8178;
     --color-on-danger: #2a0806;
 
-    --color-success-bg: #102a1b;
+    --color-success-bg: #10291b;
     --color-success-text: #8fe6ae;
-    --color-warning-bg: #332507;
+    --color-warning-bg: #332607;
     --color-warning-text: #ffd98a;
     --color-attention-bg: #3a2310;
     --color-attention-text: #ffc79a;
-    --color-danger-bg: #3a1210;
+    --color-danger-bg: #3a1512;
     --color-danger-text: #ffb4ad;
-    --color-info-bg: #16304e;
-    --color-info-text: #8fc5ff;
-    --color-neutral-bg: #2c2c31;
-    --color-neutral-text: #d6d6db;
+    --color-info-bg: #16294a;
+    --color-info-text: #a6cbff;
+    --color-neutral-bg: #272d29;
+    --color-neutral-text: #d2dad4;
 
-    --color-row-hover: rgba(64, 156, 255, 0.1);
-
-    --glass-surface: color-mix(in srgb, var(--color-surface) 70%, transparent);
-    --glass-blur: saturate(180%) blur(22px);
-
-    /* Dark carries elevation through the glass + deeper shadows, so the light insets are nulled. */
-    --shadow-inset-top: none;
-    --shadow-inset-top-soft: none;
-    --shadow-input-recess: none;
+    --color-row-hover: rgba(61, 187, 126, 0.1);
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5), 0 14px 36px -10px rgba(0, 0, 0, 0.6);
-    --shadow-lg: 0 18px 48px -8px rgba(0, 0, 0, 0.7);
-    --shadow-popover: 0 2px 10px rgba(0, 0, 0, 0.55), 0 16px 44px -8px rgba(0, 0, 0, 0.72);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5), 0 10px 28px -10px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 16px 40px -10px rgba(0, 0, 0, 0.7);
+    --shadow-popover: 0 4px 16px -4px rgba(0, 0, 0, 0.6);
   }
 }
 
 :root[data-theme='dark'] {
-  --color-bg: #141416;
-  --color-surface: #1e1e21;
-  --color-surface-subtle: #2a2a2f;
-  --color-surface-raised: #242428;
+  --color-bg: #111413;
+  --color-surface: #1a1f1c;
+  --color-surface-subtle: #232925;
+  --color-surface-raised: #1f2421;
   --color-overlay: rgba(0, 0, 0, 0.6);
 
-  --color-border: #38383c;
-  --color-border-strong: #7a7a80;
+  --color-border: #2e352f;
+  --color-border-strong: #6f7a73;
 
-  --color-text: #f5f5f7;
-  --color-text-muted: #a1a1a6;
-  --color-text-subtle: #909095;
+  --color-text: #edf1ee;
+  --color-text-muted: #aab4ae;
+  --color-text-subtle: #8a948e;
 
-  --color-primary: #409cff;
-  --color-primary-hover: #5aacff;
-  --color-on-primary: #08121f;
-  --color-primary-soft: #16304e;
-  --color-primary-soft-text: #8fc5ff;
-  --color-focus: #409cff;
-  --gradient-primary: linear-gradient(180deg, #52a6ff 0%, #409cff 55%, #2e8ff5 100%);
-  --gradient-primary-hover: linear-gradient(180deg, #6bb4ff 0%, #5aacff 55%, #48a1ff 100%);
-  --ring: 0 0 0 4px rgba(64, 156, 255, 0.32);
+  --color-primary: #3dbb7e;
+  --color-primary-hover: #57c892;
+  --color-on-primary: #052617;
+  --color-primary-soft: #16321f;
+  --color-primary-soft-text: #86e3b2;
+  --color-focus: #3dbb7e;
+  --ring: 0 0 0 3px rgba(61, 187, 126, 0.34);
 
   --color-danger: #ff6b60;
   --color-danger-hover: #ff8178;
   --color-on-danger: #2a0806;
 
-  --color-success-bg: #102a1b;
+  --color-success-bg: #10291b;
   --color-success-text: #8fe6ae;
-  --color-warning-bg: #332507;
+  --color-warning-bg: #332607;
   --color-warning-text: #ffd98a;
   --color-attention-bg: #3a2310;
   --color-attention-text: #ffc79a;
-  --color-danger-bg: #3a1210;
+  --color-danger-bg: #3a1512;
   --color-danger-text: #ffb4ad;
-  --color-info-bg: #16304e;
-  --color-info-text: #8fc5ff;
-  --color-neutral-bg: #2c2c31;
-  --color-neutral-text: #d6d6db;
+  --color-info-bg: #16294a;
+  --color-info-text: #a6cbff;
+  --color-neutral-bg: #272d29;
+  --color-neutral-text: #d2dad4;
 
-  --color-row-hover: rgba(64, 156, 255, 0.1);
-
-  --glass-surface: color-mix(in srgb, var(--color-surface) 70%, transparent);
-  --glass-blur: saturate(180%) blur(22px);
-
-  --shadow-inset-top: none;
-  --shadow-inset-top-soft: none;
-  --shadow-input-recess: none;
+  --color-row-hover: rgba(61, 187, 126, 0.1);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5), 0 14px 36px -10px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 18px 48px -8px rgba(0, 0, 0, 0.7);
-  --shadow-popover: 0 2px 10px rgba(0, 0, 0, 0.55), 0 16px 44px -8px rgba(0, 0, 0, 0.72);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5), 0 10px 28px -10px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 16px 40px -10px rgba(0, 0, 0, 0.7);
+  --shadow-popover: 0 4px 16px -4px rgba(0, 0, 0, 0.6);
 }
