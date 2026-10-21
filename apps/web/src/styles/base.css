@@ -15,12 +15,10 @@ body {
   color: var(--color-text);
   font-family: var(--font);
   font-size: var(--text-base);
-  line-height: 1.5;
+  line-height: 1.47;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  /* Inter's contextual alternates and tabular-friendly defaults read cleaner in a dense UI. */
-  font-feature-settings: 'cv05' 1, 'ss01' 1;
 }
 
 h1,
@@ -36,18 +34,19 @@ figure {
   margin: 0;
 }
 
+/* SF renders heavier than Inter, so titles sit at 600 with Apple's tighter display tracking. */
 h1 {
   font-size: var(--text-xl);
-  line-height: 1.25;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.022em;
 }
 
 h2 {
   font-size: var(--text-lg);
   line-height: 1.3;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.014em;
 }
 
 h3 {

@@ -18,15 +18,14 @@
   border-radius: var(--radius-sm);
   background: var(--gradient-primary);
   color: var(--color-on-primary);
-  box-shadow:
-    var(--shadow-sm),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  box-shadow: var(--shadow-sm), var(--shadow-inset-top);
   cursor: pointer;
   transition:
+    background-image var(--dur-fast) var(--ease),
     background-color var(--dur-fast) var(--ease),
     box-shadow var(--dur-fast) var(--ease),
-    transform var(--dur-fast) var(--ease),
-    border-color var(--dur-fast) var(--ease);
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 
 a.btn,
@@ -37,22 +36,25 @@ a.btn:visited {
 .btn:hover:not(:disabled) {
   background: var(--gradient-primary-hover);
   color: var(--color-on-primary);
-  box-shadow:
-    var(--shadow-md),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-md), var(--shadow-inset-top);
 }
 
+/* The Apple spring press: the control sinks slightly rather than nudging down a pixel. */
 .btn:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: var(--shadow-sm);
+  transform: scale(0.97);
+  box-shadow: var(--shadow-sm), var(--shadow-inset-top);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring), var(--shadow-sm);
 }
 
 .btn--secondary,
 a.btn--secondary,
 a.btn--secondary:visited {
   background: var(--color-surface);
-  border-color: var(--color-border);
+  border-color: var(--color-border-strong);
   color: var(--color-text);
   box-shadow: var(--shadow-sm);
 }
@@ -62,7 +64,6 @@ a.btn--secondary:visited {
   border-color: var(--color-border-strong);
   color: var(--color-text);
   box-shadow: var(--shadow-sm);
-  transform: translateY(-1px);
 }
 
 .btn--ghost,
@@ -79,28 +80,27 @@ a.btn--ghost:visited {
   border-color: transparent;
   color: var(--color-primary-soft-text);
   box-shadow: none;
-  transform: none;
 }
 
+.btn--ghost:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Destructive is flat, never glossy — a glossy delete button reads as inviting. */
 .btn--danger,
 a.btn--danger,
 a.btn--danger:visited {
   background: var(--color-danger);
   border-color: transparent;
   color: var(--color-on-danger);
-  box-shadow:
-    var(--shadow-sm),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  box-shadow: var(--shadow-sm), var(--shadow-inset-top-soft);
 }
 
 .btn--danger:hover:not(:disabled) {
   background: var(--color-danger-hover);
   border-color: transparent;
   color: var(--color-on-danger);
-  box-shadow:
-    var(--shadow-md),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-md), var(--shadow-inset-top-soft);
 }
 
 .btn--sm {
@@ -156,6 +156,7 @@ textarea,
   background: var(--color-surface);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-input-recess);
   transition:
     border-color var(--dur-fast) var(--ease),
     box-shadow var(--dur-fast) var(--ease);
@@ -518,7 +519,7 @@ table.responsive td {
 table.responsive th {
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -672,7 +673,7 @@ table.responsive tbody tr:last-child td {
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
-  border-bottom: 3px solid transparent;
+  border-bottom: 2px solid transparent;
   margin-bottom: -1px;
 }
 
@@ -682,6 +683,7 @@ table.responsive tbody tr:last-child td {
 
 .tabs a[aria-current='page'] {
   color: var(--color-primary);
+  border-bottom-width: 2px;
   border-bottom-color: var(--color-primary);
 }
 
@@ -716,7 +718,7 @@ table.responsive tbody tr:last-child td {
   color: var(--color-text-muted);
   background: transparent;
   border: 0;
-  border-radius: calc(var(--radius-sm) - 1px);
+  border-radius: calc(var(--radius) - var(--space-1));
   cursor: pointer;
   transition:
     color var(--dur-fast) var(--ease),
@@ -728,12 +730,13 @@ table.responsive tbody tr:last-child td {
   color: var(--color-text);
 }
 
+/* The selected view lifts onto a white chip and settles on the spring ease. */
 .segmented button[aria-pressed='true'] {
   background: var(--color-surface);
   color: var(--color-text);
   box-shadow:
     var(--shadow-sm),
-    inset 0 0 0 1px var(--color-border);
+    inset 0 0 0 0.5px var(--color-border);
 }
 
 /* ------------------------------------------------------------------------------------------------
@@ -751,11 +754,9 @@ table.responsive tbody tr:last-child td {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-subtle);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
 }
 
 .stat__label,
@@ -768,8 +769,8 @@ table.responsive tbody tr:last-child td {
 .counts dd {
   margin: 0;
   font-size: var(--text-xl);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: -0.018em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -858,8 +859,8 @@ table.responsive tbody tr:last-child td {
   justify-content: center;
   padding: var(--space-4);
   background: var(--color-overlay);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
   animation: dialog-fade var(--dur) var(--ease);
 }
 
@@ -881,6 +882,14 @@ table.responsive tbody tr:last-child td {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
+  animation: dialog-rise var(--dur) var(--ease);
+}
+
+@keyframes dialog-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
 }
 
 /* ------------------------------------------------------------------------------------------------
