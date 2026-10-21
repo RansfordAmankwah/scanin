@@ -1,49 +1,50 @@
 /* Styles for ScanIn's public marketing pages (landing, how-it-works, privacy).
  * CSP-safe: no inline styles/scripts anywhere; loaded as /site.css.
- * Aesthetic: clean and minimal, with generous whitespace, large restrained type, hairline rules,
- * one accent colour used sparingly. Follows the OS colour scheme, mirroring the app's tokens. */
+ * Aesthetic: Anthropic-inspired — warm ivory, terracotta accent, serif display headings,
+ * generous whitespace, hairline rules. Follows the OS colour scheme. */
 
-/* Institutional Professional: cool-gray canvas, deep ink, one restrained green accent, hairline
- * rules, and restrained elevation (no heavy shadows). Mirrors the app's tokens. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&display=swap');
+
 :root {
-  --bg: #ffffff;
-  --bg-soft: #f5f7f6;
+  --bg: #faf9f5;
+  --bg-soft: #f5f4ed;
   --surface: #ffffff;
-  --hair: #dfe5e0; /* hairline rules and frames */
-  --hair-strong: #c3ccc6;
-  --text: #17211c; /* deep ink */
-  --muted: #4d5a54;
-  --subtle: #66736b;
-  --accent: #18794e;
-  --accent-hover: #146640;
+  --hair: #e8e6dc;
+  --hair-strong: #d1cfc5;
+  --text: #141413;
+  --muted: #4d4c48;
+  --subtle: #5e5d59;
+  --accent: #c6613f;
+  --accent-hover: #b5522f;
   --on-accent: #ffffff;
   --radius: 0.75rem;
   --radius-lg: 1rem;
   --radius-pill: 999px;
-  --shadow: 0 8px 24px -12px rgba(16, 24, 40, 0.14);
-  --shadow-soft: 0 4px 14px -8px rgba(16, 24, 40, 0.1);
-  --ring: rgba(24, 121, 78, 0.22);
+  --shadow: 0 8px 24px -12px rgba(20, 20, 19, 0.10);
+  --shadow-soft: 0 4px 14px -8px rgba(20, 20, 19, 0.07);
+  --ring: rgba(21, 76, 146, 0.22);
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
   --maxw: 70rem;
   --readw: 46rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #111413;
-    --bg-soft: #161a18;
-    --surface: #1a1f1c;
-    --hair: #2e352f;
-    --hair-strong: #3b443d;
-    --text: #edf1ee;
-    --muted: #aab4ae;
-    --subtle: #8a948e;
-    --accent: #3dbb7e;
-    --accent-hover: #57c892;
-    --on-accent: #052617;
+    --bg: #1a1918;
+    --bg-soft: #1f1e1d;
+    --surface: #262624;
+    --hair: #30302e;
+    --hair-strong: #4d4c48;
+    --text: #faf9f5;
+    --muted: #b0aea5;
+    --subtle: #9c9a92;
+    --accent: #d97757;
+    --accent-hover: #e8896b;
+    --on-accent: #1a0e08;
     --shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.6);
     --shadow-soft: 0 8px 24px -14px rgba(0, 0, 0, 0.5);
-    --ring: rgba(61, 187, 126, 0.3);
+    --ring: rgba(144, 195, 246, 0.3);
   }
 }
 
@@ -73,7 +74,8 @@ a {
 h1,
 h2,
 h3 {
-  letter-spacing: -0.03em;
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
   font-weight: 600;
 }
 
@@ -193,7 +195,6 @@ h3 {
   font-size: 1.05rem;
 }
 
-/* A plain text link with a chevron: the Apple-style secondary action */
 .textlink {
   display: inline-flex;
   align-items: center;
@@ -419,6 +420,7 @@ h3 {
 }
 
 .step__n {
+  font-family: var(--font-display);
   font-size: 2.5rem;
   font-weight: 600;
   color: var(--hair-strong);

@@ -2,44 +2,43 @@
  * ScanIn design tokens. Every colour, size, radius, shadow and easing used anywhere in the app
  * comes from here.
  *
- * Visual system: INSTITUTIONAL PROFESSIONAL — serious, mature university software. Clean white
- * content surfaces on a cool-gray application background, deep-ink typography, and a restrained,
- * confident green as the single accent for primary actions, active navigation and positive states.
- * Separation comes from hairline borders and restrained elevation, not heavy shadows. No gradients,
- * glassmorphism or neon. Green is an accent, never a flood.
+ * Visual system: ANTHROPIC-INSPIRED — calm, warm, editorial, unhurried. Warm ivory page
+ * backgrounds, white content surfaces, warm near-black text, and a restrained terracotta accent
+ * for primary actions and links. Serif display face (Newsreader) for headings, Inter for UI.
+ * Hairline borders, very light shadows, soft radii. No gradients, glassmorphism, or neon.
  *
- * Contrast: text and surface pairs below meet WCAG AA (4.5:1 for text, 3:1 for the borders of form
- * controls), verified in both schemes — white on the green primary is 5.4:1. The real-browser test
- * suite measures this on every screen. Status is never conveyed by colour alone: every status also
- * carries words (and usually an icon).
+ * Contrast: text and surface pairs meet WCAG AA (4.5:1 for text, 3:1 for the borders of form
+ * controls), verified in both schemes. Status is never conveyed by colour alone.
+ *
+ * Palette derived from anthropic.com's published CSS (gray-000 through gray-950, clay accent).
  */
 :root {
   color-scheme: light dark;
 
-  /* Surfaces */
-  --color-bg: #f5f7f6; /* cool-gray application background */
+  /* Surfaces — warm ivory canvas, white cards */
+  --color-bg: #faf9f5; /* warm ivory page background */
   --color-surface: #ffffff; /* primary content */
-  --color-surface-subtle: #eef2ef; /* secondary surface */
+  --color-surface-subtle: #f5f4ed; /* secondary surface */
   --color-surface-raised: #ffffff;
-  --color-overlay: rgba(23, 33, 28, 0.45);
+  --color-overlay: rgba(20, 20, 19, 0.45);
 
-  /* Lines */
-  --color-border: #dfe5e0; /* hairline rules and frames */
-  --color-border-strong: #868e89; /* form controls: clearly visible (3.1:1) */
+  /* Lines — warm gray hairlines */
+  --color-border: #e8e6dc; /* hairline rules and frames */
+  --color-border-strong: #9c9a92; /* form controls: clearly visible (3.4:1) */
 
-  /* Text */
-  --color-text: #17211c; /* deep ink */
-  --color-text-muted: #4d5a54; /* strong secondary (7:1) */
-  --color-text-subtle: #66736b; /* tertiary / helper (4.8:1) */
+  /* Text — warm near-black */
+  --color-text: #141413; /* primary text */
+  --color-text-muted: #4d4c48; /* secondary (7.5:1) */
+  --color-text-subtle: #5e5d59; /* tertiary (5.7:1) */
 
-  /* Brand — restrained institutional green, the single accent */
-  --color-primary: #18794e;
-  --color-primary-hover: #146640;
+  /* Brand — warm terracotta accent, the single accent */
+  --color-primary: #c6613f;
+  --color-primary-hover: #b5522f;
   --color-on-primary: #ffffff;
-  --color-primary-soft: #e7f2eb; /* active nav / quiet green fill */
-  --color-primary-soft-text: #115c3a;
-  --color-focus: #18794e;
-  --ring: 0 0 0 3px rgba(24, 121, 78, 0.28);
+  --color-primary-soft: #fdf0eb; /* active nav / quiet accent fill */
+  --color-primary-soft-text: #8c3a1e;
+  --color-focus: #154c92;
+  --ring: 0 0 0 3px rgba(21, 76, 146, 0.28);
 
   /* Destructive */
   --color-danger: #b42318;
@@ -47,20 +46,20 @@
   --color-on-danger: #ffffff;
 
   /* Status pairs: tinted surface + same-hue text */
-  --color-success-bg: #eaf5ee;
+  --color-success-bg: #eef6ee;
   --color-success-text: #0f6b3f;
-  --color-warning-bg: #fff5df;
+  --color-warning-bg: #fef6e7;
   --color-warning-text: #8a5300;
-  --color-attention-bg: #fdeee0;
+  --color-attention-bg: #fef0e4;
   --color-attention-text: #9a4210;
-  --color-danger-bg: #fcedec;
+  --color-danger-bg: #fdeeed;
   --color-danger-text: #8c1d18;
-  --color-info-bg: #eaf0f9;
+  --color-info-bg: #eef3fa;
   --color-info-text: #1c4e8a;
-  --color-neutral-bg: #eef2ef;
-  --color-neutral-text: #3a443e;
+  --color-neutral-bg: #f0eee6;
+  --color-neutral-text: #3d3d3a;
 
-  --color-row-hover: rgba(24, 121, 78, 0.05);
+  --color-row-hover: rgba(198, 97, 63, 0.05);
 
   /* Spacing (4px grid) */
   --space-1: 0.25rem;
@@ -73,29 +72,29 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
 
-  /* Corner radii — consistent and restrained (no oversized rounding). */
-  --radius-sm: 0.375rem; /* 6px: inputs, small controls, badges-interactive */
-  --radius: 0.5rem; /* 8px: buttons, notices, stat tiles, subcards */
-  --radius-lg: 0.75rem; /* 12px: cards, dialog, course card, auth card */
+  /* Corner radii — soft but modest, Anthropic-inspired */
+  --radius-sm: 0.375rem; /* 6px: inputs, small controls */
+  --radius: 0.5rem; /* 8px: buttons, notices, stat tiles */
+  --radius-lg: 0.75rem; /* 12px: cards, dialog, auth card */
   --radius-pill: 999px;
 
-  /* Shadows — restrained elevation; hairline borders do most of the separating. */
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-md: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px -4px rgba(16, 24, 40, 0.08);
-  --shadow-lg: 0 8px 24px -8px rgba(16, 24, 40, 0.12);
-  --shadow-popover: 0 4px 16px -4px rgba(16, 24, 40, 0.14);
+  /* Shadows — very restrained; hairline borders do most separating */
+  --shadow-sm: 0 1px 2px rgba(20, 20, 19, 0.04);
+  --shadow-md: 0 1px 2px rgba(20, 20, 19, 0.04), 0 4px 12px -4px rgba(20, 20, 19, 0.07);
+  --shadow-lg: 0 8px 24px -8px rgba(20, 20, 19, 0.10);
+  --shadow-popover: 0 4px 16px -4px rgba(20, 20, 19, 0.12);
 
-  /* Motion — subtle and functional. Honoured through the reduced-motion guard in base.css. */
+  /* Motion — subtle and functional */
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --dur-fast: 120ms;
   --dur: 200ms;
 
-  /* Controls are 40px with a mouse and 44px on a touch screen. */
+  /* Controls */
   --control-height: 2.5rem;
 
-  /* Type — a professional, highly legible sans-serif. Inter is loaded in index.html. */
-  --font:
-    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Type — Newsreader (serif, display) for headings, Inter (sans) for everything else */
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
@@ -116,37 +115,31 @@
 }
 
 /*
- * Dark theme — a calm, cool near-black with the green brightened and kept as the single accent.
- * The palette below applies in two cases, kept in step:
- *   - the OS prefers dark AND the user has not forced light (data-theme="light")
- *   - the user explicitly chose dark (data-theme="dark"), whatever the OS says
- * Light is the default on :root above, so data-theme="light" needs no block of its own.
- *
- * The two selectors below carry identical declarations; edit them together.
+ * Dark theme — calm, warm near-black with the terracotta brightened. Mirrors Anthropic's slate.
+ * Applies when the OS prefers dark AND the user has not forced light, or when the user chose dark.
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --color-bg: #111413;
-    --color-surface: #1a1f1c;
-    --color-surface-subtle: #232925;
-    --color-surface-raised: #1f2421;
+    --color-bg: #1a1918;
+    --color-surface: #1f1e1d;
+    --color-surface-subtle: #262624;
+    --color-surface-raised: #1f1e1d;
     --color-overlay: rgba(0, 0, 0, 0.6);
 
-    --color-border: #2e352f;
-    --color-border-strong: #6f7a73;
+    --color-border: #30302e;
+    --color-border-strong: #73726c;
 
-    --color-text: #edf1ee;
-    --color-text-muted: #aab4ae;
-    --color-text-subtle: #8a948e;
+    --color-text: #faf9f5;
+    --color-text-muted: #b0aea5;
+    --color-text-subtle: #9c9a92;
 
-    /* Brightened green + dark text on it (the fill/accent inversion the app uses). */
-    --color-primary: #3dbb7e;
-    --color-primary-hover: #57c892;
-    --color-on-primary: #052617;
-    --color-primary-soft: #16321f;
-    --color-primary-soft-text: #86e3b2;
-    --color-focus: #3dbb7e;
-    --ring: 0 0 0 3px rgba(61, 187, 126, 0.34);
+    --color-primary: #d97757;
+    --color-primary-hover: #e8896b;
+    --color-on-primary: #1a0e08;
+    --color-primary-soft: #3a2318;
+    --color-primary-soft-text: #f0a98a;
+    --color-focus: #90c3f6;
+    --ring: 0 0 0 3px rgba(144, 195, 246, 0.34);
 
     --color-danger: #ff6b60;
     --color-danger-hover: #ff8178;
@@ -162,10 +155,10 @@
     --color-danger-text: #ffb4ad;
     --color-info-bg: #16294a;
     --color-info-text: #a6cbff;
-    --color-neutral-bg: #272d29;
-    --color-neutral-text: #d2dad4;
+    --color-neutral-bg: #30302e;
+    --color-neutral-text: #dedcd1;
 
-    --color-row-hover: rgba(61, 187, 126, 0.1);
+    --color-row-hover: rgba(217, 119, 87, 0.1);
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
     --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5), 0 10px 28px -10px rgba(0, 0, 0, 0.6);
@@ -175,26 +168,26 @@
 }
 
 :root[data-theme='dark'] {
-  --color-bg: #111413;
-  --color-surface: #1a1f1c;
-  --color-surface-subtle: #232925;
-  --color-surface-raised: #1f2421;
+  --color-bg: #1a1918;
+  --color-surface: #1f1e1d;
+  --color-surface-subtle: #262624;
+  --color-surface-raised: #1f1e1d;
   --color-overlay: rgba(0, 0, 0, 0.6);
 
-  --color-border: #2e352f;
-  --color-border-strong: #6f7a73;
+  --color-border: #30302e;
+  --color-border-strong: #73726c;
 
-  --color-text: #edf1ee;
-  --color-text-muted: #aab4ae;
-  --color-text-subtle: #8a948e;
+  --color-text: #faf9f5;
+  --color-text-muted: #b0aea5;
+  --color-text-subtle: #9c9a92;
 
-  --color-primary: #3dbb7e;
-  --color-primary-hover: #57c892;
-  --color-on-primary: #052617;
-  --color-primary-soft: #16321f;
-  --color-primary-soft-text: #86e3b2;
-  --color-focus: #3dbb7e;
-  --ring: 0 0 0 3px rgba(61, 187, 126, 0.34);
+  --color-primary: #d97757;
+  --color-primary-hover: #e8896b;
+  --color-on-primary: #1a0e08;
+  --color-primary-soft: #3a2318;
+  --color-primary-soft-text: #f0a98a;
+  --color-focus: #90c3f6;
+  --ring: 0 0 0 3px rgba(144, 195, 246, 0.34);
 
   --color-danger: #ff6b60;
   --color-danger-hover: #ff8178;
@@ -210,10 +203,10 @@
   --color-danger-text: #ffb4ad;
   --color-info-bg: #16294a;
   --color-info-text: #a6cbff;
-  --color-neutral-bg: #272d29;
-  --color-neutral-text: #d2dad4;
+  --color-neutral-bg: #30302e;
+  --color-neutral-text: #dedcd1;
 
-  --color-row-hover: rgba(61, 187, 126, 0.1);
+  --color-row-hover: rgba(217, 119, 87, 0.1);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5), 0 10px 28px -10px rgba(0, 0, 0, 0.6);
