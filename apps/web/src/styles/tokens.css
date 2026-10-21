@@ -1,5 +1,10 @@
 /*
- * ScanIn design tokens. Every colour, size and radius used anywhere in the app comes from here.
+ * ScanIn design tokens. Every colour, size, radius, shadow and easing used anywhere in the app
+ * comes from here.
+ *
+ * The look is clean and modern — a confident indigo accent on cool neutral greys, real (layered)
+ * depth rather than flat fills, and restrained motion. Think Linear/Stripe, not a generic admin
+ * panel.
  *
  * Contrast: text and surface pairs below meet WCAG AA (4.5:1 for text, 3:1 for the borders of form
  * controls). The real-browser test suite measures this on every screen in both colour schemes.
@@ -9,31 +14,37 @@
   color-scheme: light dark;
 
   /* Surfaces */
-  --color-bg: #f6f7f9;
+  --color-bg: #f7f8fa;
   --color-surface: #ffffff;
-  --color-surface-subtle: #f2f4f7;
-  --color-overlay: rgba(16, 24, 40, 0.55);
+  --color-surface-subtle: #f1f3f7;
+  --color-surface-raised: #ffffff;
+  --color-overlay: rgba(14, 20, 34, 0.5);
 
   /* Lines */
-  --color-border: #e4e7ec; /* containers and table rules: a hint, not a line */
-  --color-border-strong: #838c9b; /* form controls: clearly visible (3:1) */
+  --color-border: #e7e9f0; /* containers and table rules: a hint, not a line */
+  --color-border-strong: #9aa3b2; /* form controls: clearly visible (3:1) */
 
   /* Text */
-  --color-text: #101828;
-  --color-text-muted: #475467;
-  --color-text-subtle: #596275;
+  --color-text: #0f1729;
+  --color-text-muted: #4a5468;
+  --color-text-subtle: #697387;
 
-  /* Brand */
-  --color-primary: #2f55d4;
-  --color-primary-hover: #2442b0;
+  /* Brand — an accessible indigo (white text on it clears 4.5:1) */
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
   --color-on-primary: #ffffff;
   --color-primary-soft: #eef2ff;
-  --color-primary-soft-text: #1e3a9a;
-  --color-focus: #2f55d4;
+  --color-primary-soft-text: #3730a3;
+  --color-focus: #4f46e5;
+  /* A subtle top-lit gradient so the primary button reads as a raised surface, not a flat chip. */
+  --gradient-primary: linear-gradient(180deg, #5b52ea 0%, #4f46e5 100%);
+  --gradient-primary-hover: linear-gradient(180deg, #4a40dc 0%, #4338ca 100%);
+  /* A soft focus halo drawn with box-shadow, layered under the crisp outline. */
+  --ring: 0 0 0 3px rgba(79, 70, 229, 0.28);
 
   /* Destructive */
-  --color-danger: #b42318;
-  --color-danger-hover: #912018;
+  --color-danger: #d92d20;
+  --color-danger-hover: #b42318;
   --color-on-danger: #ffffff;
 
   /* Status pairs: tinted background + same-hue text */
@@ -47,10 +58,10 @@
   --color-danger-text: #912018;
   --color-info-bg: #eff8ff;
   --color-info-text: #175cd3;
-  --color-neutral-bg: #f2f4f7;
+  --color-neutral-bg: #f1f3f7;
   --color-neutral-text: #344054;
 
-  --color-row-hover: rgba(47, 85, 212, 0.06);
+  --color-row-hover: rgba(79, 70, 229, 0.05);
 
   /* Spacing (4px grid) */
   --space-1: 0.25rem;
@@ -63,18 +74,32 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
 
-  /* One corner radius for every control and container; pills are fully round. */
-  --radius: 0.5rem;
+  /* Corner radii: controls are tighter, containers softer; pills are fully round. */
+  --radius-sm: 0.5rem;
+  --radius: 0.625rem;
+  --radius-lg: 0.875rem;
   --radius-pill: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow-popover: 0 12px 32px rgba(16, 24, 40, 0.18);
+  /* Layered shadows: soft, close ambient + a wider cast. Depth without a hard edge. */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 41, 0.04), 0 1px 3px rgba(15, 23, 41, 0.06);
+  --shadow-md:
+    0 2px 4px -1px rgba(15, 23, 41, 0.06), 0 6px 16px -4px rgba(15, 23, 41, 0.1);
+  --shadow-lg:
+    0 4px 8px -2px rgba(15, 23, 41, 0.08), 0 16px 32px -8px rgba(15, 23, 41, 0.14);
+  --shadow-popover:
+    0 8px 16px -6px rgba(15, 23, 41, 0.12), 0 20px 40px -8px rgba(15, 23, 41, 0.2);
+
+  /* Motion. One easing, two speeds. All honoured through the reduced-motion guard in base.css. */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
 
   /* Controls are 40px with a mouse and 44px on a touch screen. */
   --control-height: 2.5rem;
 
-  /* Type */
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  /* Type — Inter is the UI face, with a solid system fallback while it loads. */
+  --font:
+    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
@@ -100,27 +125,33 @@
  *   - the user explicitly chose dark (data-theme="dark"), whatever the OS says
  * Light is the default on :root above, so data-theme="light" needs no block of its own; it simply
  * excludes itself from the media query. The theme toggle sets data-theme on <html>.
+ *
+ * The two selectors below carry identical declarations; edit them together.
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --color-bg: #0b1017;
-    --color-surface: #121923;
-    --color-surface-subtle: #18212d;
-    --color-overlay: rgba(0, 0, 0, 0.65);
+    --color-bg: #0a0c12;
+    --color-surface: #13161f;
+    --color-surface-subtle: #1a1e2a;
+    --color-surface-raised: #181c27;
+    --color-overlay: rgba(0, 0, 0, 0.66);
 
-    --color-border: #232d3a;
-    --color-border-strong: #6b7686;
+    --color-border: #262b38;
+    --color-border-strong: #69748a;
 
-    --color-text: #f2f4f7;
-    --color-text-muted: #b4bdc9;
-    --color-text-subtle: #98a2b3;
+    --color-text: #f2f4f8;
+    --color-text-muted: #b2bccc;
+    --color-text-subtle: #8a94a6;
 
-    --color-primary: #8ea6ff;
-    --color-primary-hover: #a9bbff;
-    --color-on-primary: #0a1330;
-    --color-primary-soft: #1a2547;
-    --color-primary-soft-text: #c7d4ff;
-    --color-focus: #8ea6ff;
+    --color-primary: #8b93ff;
+    --color-primary-hover: #a5abff;
+    --color-on-primary: #0a0e22;
+    --color-primary-soft: #1d2140;
+    --color-primary-soft-text: #c5caff;
+    --color-focus: #8b93ff;
+    --gradient-primary: linear-gradient(180deg, #969dff 0%, #8b93ff 100%);
+    --gradient-primary-hover: linear-gradient(180deg, #a7adff 0%, #9aa1ff 100%);
+    --ring: 0 0 0 3px rgba(139, 147, 255, 0.32);
 
     --color-danger: #f97066;
     --color-danger-hover: #fda29b;
@@ -139,32 +170,38 @@
     --color-neutral-bg: #222b38;
     --color-neutral-text: #d0d5dd;
 
-    --color-row-hover: rgba(142, 166, 255, 0.08);
+    --color-row-hover: rgba(139, 147, 255, 0.09);
 
-    --shadow-sm: none;
-    --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.6);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.45), 0 8px 20px -6px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 24px -4px rgba(0, 0, 0, 0.55);
+    --shadow-popover: 0 16px 40px -8px rgba(0, 0, 0, 0.66);
   }
 }
 
 :root[data-theme='dark'] {
-  --color-bg: #0b1017;
-  --color-surface: #121923;
-  --color-surface-subtle: #18212d;
-  --color-overlay: rgba(0, 0, 0, 0.65);
+  --color-bg: #0a0c12;
+  --color-surface: #13161f;
+  --color-surface-subtle: #1a1e2a;
+  --color-surface-raised: #181c27;
+  --color-overlay: rgba(0, 0, 0, 0.66);
 
-  --color-border: #232d3a;
-  --color-border-strong: #6b7686;
+  --color-border: #262b38;
+  --color-border-strong: #69748a;
 
-  --color-text: #f2f4f7;
-  --color-text-muted: #b4bdc9;
-  --color-text-subtle: #98a2b3;
+  --color-text: #f2f4f8;
+  --color-text-muted: #b2bccc;
+  --color-text-subtle: #8a94a6;
 
-  --color-primary: #8ea6ff;
-  --color-primary-hover: #a9bbff;
-  --color-on-primary: #0a1330;
-  --color-primary-soft: #1a2547;
-  --color-primary-soft-text: #c7d4ff;
-  --color-focus: #8ea6ff;
+  --color-primary: #8b93ff;
+  --color-primary-hover: #a5abff;
+  --color-on-primary: #0a0e22;
+  --color-primary-soft: #1d2140;
+  --color-primary-soft-text: #c5caff;
+  --color-focus: #8b93ff;
+  --gradient-primary: linear-gradient(180deg, #969dff 0%, #8b93ff 100%);
+  --gradient-primary-hover: linear-gradient(180deg, #a7adff 0%, #9aa1ff 100%);
+  --ring: 0 0 0 3px rgba(139, 147, 255, 0.32);
 
   --color-danger: #f97066;
   --color-danger-hover: #fda29b;
@@ -183,8 +220,10 @@
   --color-neutral-bg: #222b38;
   --color-neutral-text: #d0d5dd;
 
-  --color-row-hover: rgba(142, 166, 255, 0.08);
+  --color-row-hover: rgba(139, 147, 255, 0.09);
 
-  --shadow-sm: none;
-  --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.45), 0 8px 20px -6px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px -4px rgba(0, 0, 0, 0.55);
+  --shadow-popover: 0 16px 40px -8px rgba(0, 0, 0, 0.66);
 }

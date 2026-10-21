@@ -5,8 +5,17 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
   border-bottom: 1px solid var(--color-border);
+}
+
+/* Opaque fallback where backdrop-filter is unsupported, so the header never shows through. */
+@supports not (backdrop-filter: blur(12px)) {
+  .app-header {
+    background: var(--color-surface);
+  }
 }
 
 .app-header__inner {
@@ -239,8 +248,20 @@
   padding: var(--space-5);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+
+/* The whole card is a route into a course — lift it on hover/focus-within so it reads as one. */
+.course-card:hover,
+.course-card:focus-within {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .course-card__code {
@@ -295,6 +316,14 @@
   justify-content: center;
   gap: var(--space-6);
   padding: var(--space-6) var(--space-4);
+  /* A soft indigo wash from the top so the page has light and depth, not a flat grey field. */
+  background:
+    radial-gradient(
+      60rem 40rem at 50% -10%,
+      color-mix(in srgb, var(--color-primary) 10%, transparent),
+      transparent 70%
+    ),
+    var(--color-bg);
 }
 
 .auth__brand {
@@ -323,8 +352,8 @@
   padding: var(--space-6);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
 }
 
 .auth__alt {
