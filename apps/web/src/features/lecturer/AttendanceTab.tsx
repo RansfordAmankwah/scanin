@@ -10,6 +10,8 @@ import {
   Loading,
   SearchField,
   SelectField,
+  Stat,
+  StatGrid,
 } from '../../components/ui';
 import { Link } from '../../router';
 import { AttendanceMatrix } from './AttendanceMatrix';
@@ -258,8 +260,21 @@ export function AttendanceTab({
     );
   }
 
+  const data = summary.data;
+  const totalStudents = data.students.length + data.notRegistered.length;
+  const sessionsHeld = data.sessions.filter((s) => s.state !== 'NOT_STARTED').length;
+  const flaggedStudents = data.students.filter((s) => s.flaggedRecords > 0).length;
+  const attentionCount = data.students.filter(needsAttention).length;
+
   return (
     <div className="stack">
+      <StatGrid label="Course attendance summary">
+        <Stat label="Students" value={totalStudents} />
+        <Stat label="Sessions held" value={sessionsHeld} />
+        <Stat label="Need attention" value={attentionCount} hint={attentionCount > 0 ? 'Flags or unconfirmed' : undefined} />
+        <Stat label="Flagged" value={flaggedStudents} />
+      </StatGrid>
+
       <div className="segmented" role="group" aria-label="Group attendance by">
         <button
           type="button"

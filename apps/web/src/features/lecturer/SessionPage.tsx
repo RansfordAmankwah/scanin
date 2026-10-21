@@ -103,51 +103,47 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
         }
       />
 
-      <nav className="jump" aria-label="On this page">
-        <a href="#controls">Controls</a>
-        <a href="#headcount">Headcount</a>
-        <a href="#attendance">Attendance</a>
-        <a href="#spot-checks">Spot checks</a>
-        <a href="#scans">Scan history</a>
-        <a href="#export">Export</a>
-      </nav>
+      <div className="session-grid">
+        <div className="session-grid__left stack">
+          <div id="controls">
+            <SessionControls
+              session={session}
+              onChange={(next) => {
+                if (next) setSession(next);
+                void load();
+              }}
+            />
+          </div>
+          <div id="headcount">
+            <ReconciliationPanel
+              courseId={courseId}
+              sessionId={sessionId}
+              presentTotal={counts.presentTotal}
+              onHeadcountKnown={setHeadcountEntered}
+            />
+          </div>
+        </div>
 
-      <div id="controls">
-        <SessionControls
-          session={session}
-          onChange={(next) => {
-            if (next) setSession(next);
-            void load();
-          }}
-        />
+        <div className="session-grid__right stack">
+          <CountsPanel counts={counts} revealTotals={headcountEntered} />
+          {attention.length > 0 && (
+            <Notice tone="warning" title="Needs your attention">
+              <ul className="list">
+                {attention.map((a) => (
+                  <li key={a.key}>
+                    {a.to.startsWith('#') ? (
+                      <a href={a.to}>{a.text}</a>
+                    ) : (
+                      <Link to={a.to}>{a.text}</Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Notice>
+          )}
+        </div>
       </div>
 
-      <CountsPanel counts={counts} revealTotals={headcountEntered} />
-
-      {attention.length > 0 && (
-        <Notice tone="warning" title="Needs your attention">
-          <ul className="list">
-            {attention.map((a) => (
-              <li key={a.key}>
-                {a.to.startsWith('#') ? (
-                  <a href={a.to}>{a.text}</a>
-                ) : (
-                  <Link to={a.to}>{a.text}</Link>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Notice>
-      )}
-
-      <div id="headcount">
-        <ReconciliationPanel
-          courseId={courseId}
-          sessionId={sessionId}
-          presentTotal={counts.presentTotal}
-          onHeadcountKnown={setHeadcountEntered}
-        />
-      </div>
       <div id="attendance">
         <AttendanceTable
           roster={roster}
