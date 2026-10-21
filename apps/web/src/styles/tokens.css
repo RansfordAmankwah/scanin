@@ -2,64 +2,63 @@
  * ScanIn design tokens. Every colour, size, radius, shadow and easing used anywhere in the app
  * comes from here.
  *
- * Visual system: ANTHROPIC-INSPIRED — calm, warm, editorial, unhurried. Warm ivory page
- * backgrounds, white content surfaces, warm near-black text, and a restrained terracotta accent
- * for primary actions and links. Serif display face (Newsreader) for headings, Inter for UI.
- * Hairline borders, very light shadows, soft radii. No gradients, glassmorphism, or neon.
+ * Visual system: STITCH — dense, institutional, blue-and-navy console. One sans-serif family
+ * (Inter) for everything, system monospace for codes and timestamps. Near-square corners, hairline
+ * borders, flat surfaces, minimal shadow.
  *
  * Contrast: text and surface pairs meet WCAG AA (4.5:1 for text, 3:1 for the borders of form
  * controls), verified in both schemes. Status is never conveyed by colour alone.
  *
- * Palette derived from anthropic.com's published CSS (gray-000 through gray-950, clay accent).
+ * Palette sampled from Stitch design system screenshot (approximate).
  */
 :root {
   color-scheme: light dark;
 
-  /* Surfaces — warm ivory canvas, white cards */
-  --color-bg: #faf9f5; /* warm ivory page background */
-  --color-surface: #ffffff; /* primary content */
-  --color-surface-subtle: #f5f4ed; /* secondary surface */
+  /* Surfaces — white and cool light grey */
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f1f5f9;
   --color-surface-raised: #ffffff;
-  --color-overlay: rgba(20, 20, 19, 0.45);
+  --color-overlay: rgba(15, 23, 42, 0.5);
 
-  /* Lines — warm gray hairlines */
-  --color-border: #e8e6dc; /* hairline rules and frames */
-  --color-border-strong: #9c9a92; /* form controls: clearly visible (3.4:1) */
+  /* Lines — cool grey hairlines */
+  --color-border: #e2e8f0;
+  --color-border-strong: #94a3b8;
 
-  /* Text — warm near-black */
-  --color-text: #141413; /* primary text */
-  --color-text-muted: #4d4c48; /* secondary (7.5:1) */
-  --color-text-subtle: #5e5d59; /* tertiary (5.7:1) */
+  /* Text — near-black navy */
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #64748b;
 
-  /* Brand — warm terracotta accent, the single accent */
-  --color-primary: #c6613f;
-  --color-primary-hover: #b5522f;
+  /* Brand — saturated royal blue */
+  --color-primary: #1e40af;
+  --color-primary-hover: #1e3a8a;
   --color-on-primary: #ffffff;
-  --color-primary-soft: #fdf0eb; /* active nav / quiet accent fill */
-  --color-primary-soft-text: #8c3a1e;
-  --color-focus: #154c92;
-  --ring: 0 0 0 3px rgba(21, 76, 146, 0.28);
+  --color-primary-soft: #eff6ff;
+  --color-primary-soft-text: #1e3a8a;
+  --color-focus: #2563eb;
+  --ring: 0 0 0 3px rgba(37, 99, 235, 0.3);
 
   /* Destructive */
-  --color-danger: #b42318;
-  --color-danger-hover: #912018;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
   --color-on-danger: #ffffff;
 
-  /* Status pairs: tinted surface + same-hue text */
-  --color-success-bg: #eef6ee;
-  --color-success-text: #0f6b3f;
-  --color-warning-bg: #fef6e7;
-  --color-warning-text: #8a5300;
-  --color-attention-bg: #fef0e4;
-  --color-attention-text: #9a4210;
-  --color-danger-bg: #fdeeed;
-  --color-danger-text: #8c1d18;
-  --color-info-bg: #eef3fa;
-  --color-info-text: #1c4e8a;
-  --color-neutral-bg: #f0eee6;
-  --color-neutral-text: #3d3d3a;
+  /* Status pairs */
+  --color-success-bg: #f0fdf4;
+  --color-success-text: #166534;
+  --color-warning-bg: #fefce8;
+  --color-warning-text: #854d0e;
+  --color-attention-bg: #fff7ed;
+  --color-attention-text: #9a3412;
+  --color-danger-bg: #fef2f2;
+  --color-danger-text: #991b1b;
+  --color-info-bg: #eff6ff;
+  --color-info-text: #1e40af;
+  --color-neutral-bg: #f1f5f9;
+  --color-neutral-text: #334155;
 
-  --color-row-hover: rgba(198, 97, 63, 0.05);
+  --color-row-hover: rgba(30, 64, 175, 0.04);
 
   /* Spacing (4px grid) */
   --space-1: 0.25rem;
@@ -72,19 +71,19 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
 
-  /* Corner radii — soft but modest, Anthropic-inspired */
-  --radius-sm: 0.375rem; /* 6px: inputs, small controls */
-  --radius: 0.5rem; /* 8px: buttons, notices, stat tiles */
-  --radius-lg: 0.75rem; /* 12px: cards, dialog, auth card */
+  /* Corner radii — near-square, institutional */
+  --radius-sm: 0.25rem;  /* 4px */
+  --radius: 0.375rem;    /* 6px */
+  --radius-lg: 0.5rem;   /* 8px */
   --radius-pill: 999px;
 
-  /* Shadows — very restrained; hairline borders do most separating */
-  --shadow-sm: 0 1px 2px rgba(20, 20, 19, 0.04);
-  --shadow-md: 0 1px 2px rgba(20, 20, 19, 0.04), 0 4px 12px -4px rgba(20, 20, 19, 0.07);
-  --shadow-lg: 0 8px 24px -8px rgba(20, 20, 19, 0.10);
-  --shadow-popover: 0 4px 16px -4px rgba(20, 20, 19, 0.12);
+  /* Shadows — very minimal, flat design */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-popover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
 
-  /* Motion — subtle and functional */
+  /* Motion */
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --dur-fast: 120ms;
   --dur: 200ms;
@@ -92,9 +91,10 @@
   /* Controls */
   --control-height: 2.5rem;
 
-  /* Type — Newsreader (serif, display) for headings, Inter (sans) for everything else */
+  /* Type — Inter for everything, system mono for codes */
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, 'Liberation Mono', monospace;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
@@ -106,6 +106,9 @@
   --width-narrow: 28rem;
   --width-medium: 46rem;
   --width-wide: 74rem;
+
+  /* Sidebar */
+  --sidebar-width: 15rem;
 }
 
 @media (pointer: coarse) {
@@ -115,101 +118,101 @@
 }
 
 /*
- * Dark theme — calm, warm near-black with the terracotta brightened. Mirrors Anthropic's slate.
+ * Dark theme — deep navy derived from Stitch Neutral/Secondary.
  * Applies when the OS prefers dark AND the user has not forced light, or when the user chose dark.
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --color-bg: #1a1918;
-    --color-surface: #1f1e1d;
-    --color-surface-subtle: #262624;
-    --color-surface-raised: #1f1e1d;
+    --color-bg: #0f172a;
+    --color-surface: #1e293b;
+    --color-surface-subtle: #1e293b;
+    --color-surface-raised: #334155;
     --color-overlay: rgba(0, 0, 0, 0.6);
 
-    --color-border: #30302e;
-    --color-border-strong: #73726c;
+    --color-border: #334155;
+    --color-border-strong: #64748b;
 
-    --color-text: #faf9f5;
-    --color-text-muted: #b0aea5;
-    --color-text-subtle: #9c9a92;
+    --color-text: #f1f5f9;
+    --color-text-muted: #94a3b8;
+    --color-text-subtle: #64748b;
 
-    --color-primary: #d97757;
-    --color-primary-hover: #e8896b;
-    --color-on-primary: #1a0e08;
-    --color-primary-soft: #3a2318;
-    --color-primary-soft-text: #f0a98a;
-    --color-focus: #90c3f6;
-    --ring: 0 0 0 3px rgba(144, 195, 246, 0.34);
+    --color-primary: #3b82f6;
+    --color-primary-hover: #60a5fa;
+    --color-on-primary: #0f172a;
+    --color-primary-soft: #1e3a5f;
+    --color-primary-soft-text: #93c5fd;
+    --color-focus: #60a5fa;
+    --ring: 0 0 0 3px rgba(96, 165, 250, 0.35);
 
-    --color-danger: #ff6b60;
-    --color-danger-hover: #ff8178;
-    --color-on-danger: #2a0806;
+    --color-danger: #f87171;
+    --color-danger-hover: #fca5a5;
+    --color-on-danger: #1c1917;
 
-    --color-success-bg: #10291b;
-    --color-success-text: #8fe6ae;
-    --color-warning-bg: #332607;
-    --color-warning-text: #ffd98a;
-    --color-attention-bg: #3a2310;
-    --color-attention-text: #ffc79a;
-    --color-danger-bg: #3a1512;
-    --color-danger-text: #ffb4ad;
-    --color-info-bg: #16294a;
-    --color-info-text: #a6cbff;
-    --color-neutral-bg: #30302e;
-    --color-neutral-text: #dedcd1;
+    --color-success-bg: #052e16;
+    --color-success-text: #86efac;
+    --color-warning-bg: #422006;
+    --color-warning-text: #fde68a;
+    --color-attention-bg: #431407;
+    --color-attention-text: #fed7aa;
+    --color-danger-bg: #450a0a;
+    --color-danger-text: #fecaca;
+    --color-info-bg: #172554;
+    --color-info-text: #93c5fd;
+    --color-neutral-bg: #334155;
+    --color-neutral-text: #cbd5e1;
 
-    --color-row-hover: rgba(217, 119, 87, 0.1);
+    --color-row-hover: rgba(59, 130, 246, 0.08);
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5), 0 10px 28px -10px rgba(0, 0, 0, 0.6);
-    --shadow-lg: 0 16px 40px -10px rgba(0, 0, 0, 0.7);
-    --shadow-popover: 0 4px 16px -4px rgba(0, 0, 0, 0.6);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --shadow-popover: 0 10px 30px rgba(0, 0, 0, 0.7);
   }
 }
 
 :root[data-theme='dark'] {
-  --color-bg: #1a1918;
-  --color-surface: #1f1e1d;
-  --color-surface-subtle: #262624;
-  --color-surface-raised: #1f1e1d;
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-subtle: #1e293b;
+  --color-surface-raised: #334155;
   --color-overlay: rgba(0, 0, 0, 0.6);
 
-  --color-border: #30302e;
-  --color-border-strong: #73726c;
+  --color-border: #334155;
+  --color-border-strong: #64748b;
 
-  --color-text: #faf9f5;
-  --color-text-muted: #b0aea5;
-  --color-text-subtle: #9c9a92;
+  --color-text: #f1f5f9;
+  --color-text-muted: #94a3b8;
+  --color-text-subtle: #64748b;
 
-  --color-primary: #d97757;
-  --color-primary-hover: #e8896b;
-  --color-on-primary: #1a0e08;
-  --color-primary-soft: #3a2318;
-  --color-primary-soft-text: #f0a98a;
-  --color-focus: #90c3f6;
-  --ring: 0 0 0 3px rgba(144, 195, 246, 0.34);
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-on-primary: #0f172a;
+  --color-primary-soft: #1e3a5f;
+  --color-primary-soft-text: #93c5fd;
+  --color-focus: #60a5fa;
+  --ring: 0 0 0 3px rgba(96, 165, 250, 0.35);
 
-  --color-danger: #ff6b60;
-  --color-danger-hover: #ff8178;
-  --color-on-danger: #2a0806;
+  --color-danger: #f87171;
+  --color-danger-hover: #fca5a5;
+  --color-on-danger: #1c1917;
 
-  --color-success-bg: #10291b;
-  --color-success-text: #8fe6ae;
-  --color-warning-bg: #332607;
-  --color-warning-text: #ffd98a;
-  --color-attention-bg: #3a2310;
-  --color-attention-text: #ffc79a;
-  --color-danger-bg: #3a1512;
-  --color-danger-text: #ffb4ad;
-  --color-info-bg: #16294a;
-  --color-info-text: #a6cbff;
-  --color-neutral-bg: #30302e;
-  --color-neutral-text: #dedcd1;
+  --color-success-bg: #052e16;
+  --color-success-text: #86efac;
+  --color-warning-bg: #422006;
+  --color-warning-text: #fde68a;
+  --color-attention-bg: #431407;
+  --color-attention-text: #fed7aa;
+  --color-danger-bg: #450a0a;
+  --color-danger-text: #fecaca;
+  --color-info-bg: #172554;
+  --color-info-text: #93c5fd;
+  --color-neutral-bg: #334155;
+  --color-neutral-text: #cbd5e1;
 
-  --color-row-hover: rgba(217, 119, 87, 0.1);
+  --color-row-hover: rgba(59, 130, 246, 0.08);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5), 0 10px 28px -10px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 16px 40px -10px rgba(0, 0, 0, 0.7);
-  --shadow-popover: 0 4px 16px -4px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-popover: 0 10px 30px rgba(0, 0, 0, 0.7);
 }
