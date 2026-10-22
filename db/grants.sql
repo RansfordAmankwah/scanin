@@ -16,8 +16,10 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC, {{app}}, {{retention}}
 
 GRANT USAGE ON SCHEMA public TO {{app}}, {{retention}}, {{operator}};
 
--- Reference data written by the operator; read-only for the app.
+-- Reference data written by the operator; read-only for the app, except that a lecturer may toggle
+-- face_verification_enabled on their own course.
 GRANT SELECT ON terms, courses, lecturer_courses TO {{app}};
+GRANT UPDATE (face_verification_enabled) ON courses TO {{app}};
 
 -- Lecturers create their own terms and courses only through these two functions (migration 0005);
 -- the application role has no INSERT on terms, courses or lecturer_courses.
@@ -141,7 +143,7 @@ TO {{retention}};
 -- Operator CLI: provisioning only. Lecturer accounts, terms, courses and assignments are created
 -- here because the application role deliberately cannot write them.
 GRANT SELECT, INSERT ON terms, courses TO {{operator}};
--- The operator turns the face-verification pilot on or off for a course; nothing else may.
+-- The operator can also toggle face verification; the app role can too (for the lecturer UI toggle).
 GRANT UPDATE (face_verification_enabled) ON courses TO {{operator}};
 GRANT SELECT, INSERT ON lecturer_courses TO {{operator}};
 GRANT UPDATE (ended_at) ON lecturer_courses TO {{operator}};

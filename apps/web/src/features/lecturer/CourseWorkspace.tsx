@@ -4,6 +4,7 @@ import { AppShell } from '../../components/AppShell';
 import { plural } from '../../components/format';
 import {
   Badge,
+  Button,
   ErrorState,
   Loading,
   LinkButton,
@@ -21,6 +22,45 @@ import { SessionsTab } from './SessionsTab';
 import { HOME_PATH } from '../../router';
 
 export type CourseTab = 'sessions' | 'attendance' | 'class-list' | 'review';
+
+function FaceVerificationToggle({
+  courseId,
+  enabled,
+  onChanged,
+}: {
+  courseId: string;
+  enabled: boolean;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const toggle = async () => {
+    setBusy(true);
+    const r = await lecturerApi.setFaceVerification(courseId, !enabled);
+    setBusy(false);
+    if (r.ok) onChanged();
+  };
+  return (
+    <div className="card">
+      <div className="card__header">
+        <div>
+          <h2>Face verification</h2>
+          <p className="card__description">
+            {enabled
+              ? 'Students are asked to verify their identity with a face check after scanning in.'
+              : 'Off. Enable to ask students for a face check after they scan in.'}
+          </p>
+        </div>
+        <Button
+          variant={enabled ? 'danger' : 'primary'}
+          onClick={() => void toggle()}
+          disabled={busy}
+        >
+          {busy ? (enabled ? 'Turning off...' : 'Turning on...') : enabled ? 'Turn off' : 'Turn on'}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Everything about one course, in four parts: its sessions, its attendance (by session and by
@@ -104,6 +144,12 @@ export function CourseWorkspace({ courseId, tab }: { courseId: string; tab: Cour
       {info.faceVerificationEnabled && <FacePilotMetrics courseId={courseId} />}
 
       {tab === 'sessions' && (
+        <>
+        <FaceVerificationToggle
+          courseId={courseId}
+          enabled={!!info.faceVerificationEnabled}
+          onChanged={() => void course.reload()}
+        />
         <SessionsTab
           courseId={courseId}
           summary={summary.state}
@@ -112,6 +158,7 @@ export function CourseWorkspace({ courseId, tab }: { courseId: string; tab: Cour
             void overview.reload();
           }}
         />
+        </>
       )}
       {tab === 'attendance' && (
         <AttendanceTab

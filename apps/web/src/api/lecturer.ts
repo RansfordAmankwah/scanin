@@ -113,6 +113,11 @@ export const lecturerApi = {
   createCourse: (input: NewCourseInput) =>
     call<{ course: Course }>('/courses', { method: 'POST', body: input }),
   course: (id: string) => call<{ course: Course }>(`/courses/${id}`),
+  setFaceVerification: (courseId: string, enabled: boolean) =>
+    call<{ enabled: boolean }>(`/courses/${courseId}/face-verification`, {
+      method: 'PUT',
+      body: { enabled },
+    }),
   sessions: (courseId: string) =>
     call<{ sessions: SessionView[] }>(`/courses/${courseId}/sessions`),
   createSession: (courseId: string, title: string, sessionDate: string) =>

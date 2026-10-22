@@ -209,4 +209,33 @@ export function registerCourseRoutes(app: FastifyInstance, deps: { pool: pg.Pool
       return { course: present(row) };
     },
   );
+
+  app.put(
+    '/courses/:courseId/face-verification',
+    { config: { authz: { roles: LECTURER_ONLY, course: 'courseId' } } },
+    async (req, reply) => {
+      const { courseId } = req.params as { courseId: string };
+      const userId = req.auth?.userId as string;
+      const body = z.object({ enabled: z.boolean() }).safeParse(req.body);
+      if (!body.success)
+        return reply.code(400).send({ error: { code: 'INVALID_REQUEST', message: 'Send { enabled: true/false }.' } });
+
+      await pool.query(
+        'UPDATE courses SET face_verification_enabled = $1 WHERE id = $2',
+        [body.data.enabled, courseId],
+      );
+      await writeAudit(pool, {
+        class: 'DOMAIN',
+        actorType: 'LECTURER',
+        actorUserId: userId,
+        action: body.data.enabled ? 'FACE_VERIFICATION_ENABLED' : 'FACE_VERIFICATION_DISABLED',
+        courseId,
+        entityType: 'course',
+        entityId: courseId,
+        retainUntil: await courseRetainUntil(pool, courseId),
+        summary: { enabled: body.data.enabled },
+      });
+      return { enabled: body.data.enabled };
+    },
+  );
 }
