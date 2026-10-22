@@ -2,41 +2,57 @@ import { useEffect, useState } from 'react';
 import { billingApi, type BillingState } from '../../api/lecturer';
 import { AppShell } from '../../components/AppShell';
 import { formatDate } from '../../components/format';
-import { Badge, Button, Card, Loading, Notice, PageHeader } from '../../components/ui';
-import { HOME_PATH } from '../../router';
+import { Badge, Button, Loading, Notice, PageHeader } from '../../components/ui';
 
 function money(minor: number, currency: string): string {
   const amount = (minor / 100).toFixed(2);
-  return currency === 'GHS' ? `GH₵${amount}` : `${currency} ${amount}`;
+  return currency === 'GHS' ? `GHS ${amount}` : `${currency} ${amount}`;
 }
 
-function StatusLine({ s }: { s: BillingState }) {
+function moneyDisplay(minor: number, currency: string): { big: string; unit: string } {
+  const amount = (minor / 100).toFixed(2);
+  if (currency === 'GHS') return { big: `GH₵${amount}`, unit: 'per month' };
+  return { big: `${currency} ${amount}`, unit: 'per month' };
+}
+
+function PlanCard({ s }: { s: BillingState }) {
+  const { big, unit } = moneyDisplay(s.priceMinor, s.currency);
+  const isActive = s.reason === 'SUBSCRIBED';
+  const isTrial = s.reason === 'TRIAL' || s.reason === 'TRIAL_NOT_STARTED';
+
+  return (
+    <div className="billing-plan">
+      <div className="billing-plan__header">
+        <span className="billing-plan__label">LECTURER PLAN</span>
+        {isActive && <Badge tone="success">Active</Badge>}
+        {isTrial && <Badge tone="info">Trial</Badge>}
+        {s.reason === 'EXPIRED' && <Badge tone="danger">Expired</Badge>}
+      </div>
+      <div className="billing-plan__price">
+        <span className="billing-plan__amount">{big}</span>
+        <span className="billing-plan__unit">{unit}</span>
+      </div>
+      {s.currency === 'GHS' && (
+        <p className="muted">
+          Card payments are charged in Ghana cedis: {money(s.priceMinor, s.currency)} per month.
+        </p>
+      )}
+      {(isActive || isTrial) && (s.currentPeriodEnd || s.trialEndsAt) && (
+        <div className="billing-plan__through">
+          <span className="muted">{isTrial ? 'Trial ends' : 'Paid through'}</span>
+          <strong>{formatDate((isActive ? s.currentPeriodEnd : s.trialEndsAt)!)}</strong>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatusNotice({ s }: { s: BillingState }) {
   switch (s.reason) {
     case 'EXEMPT':
       return (
         <Notice tone="success" title="Free access">
           This account is exempt from billing. You can run sessions without a subscription.
-        </Notice>
-      );
-    case 'TRIAL':
-      return (
-        <Notice tone="info" title="Free trial">
-          Your trial runs until {s.trialEndsAt ? formatDate(s.trialEndsAt) : 'soon'}. Subscribe any
-          time to keep running sessions after it ends.
-        </Notice>
-      );
-    case 'TRIAL_NOT_STARTED':
-      return (
-        <Notice tone="info" title="Your free trial is ready">
-          Your 14-day free trial starts the first time you run a session. Until then nothing is
-          counted.
-        </Notice>
-      );
-    case 'SUBSCRIBED':
-      return (
-        <Notice tone="success" title="Subscription active">
-          You can run sessions until {s.currentPeriodEnd ? formatDate(s.currentPeriodEnd) : 'soon'}.
-          Pay again any time to add another period.
         </Notice>
       );
     case 'EMAIL_UNVERIFIED':
@@ -53,15 +69,10 @@ function StatusLine({ s }: { s: BillingState }) {
         </Notice>
       );
     default:
-      return (
-        <Notice tone="info" title="Billing is off">
-          No subscription is required to run sessions right now.
-        </Notice>
-      );
+      return null;
   }
 }
 
-/** A lecturer's subscription: current state and a way to pay for another period via Paystack. */
 export function BillingPage() {
   const [state, setState] = useState<BillingState | null>(null);
   const [failed, setFailed] = useState(false);
@@ -78,7 +89,7 @@ export function BillingPage() {
     const r = await billingApi.checkout();
     if (r.ok && r.data.authorizationUrl) {
       window.location.assign(r.data.authorizationUrl);
-      return; // leaving the page
+      return;
     }
     setBusy(false);
     setError(
@@ -90,43 +101,54 @@ export function BillingPage() {
     );
   };
 
+  const canPay =
+    state &&
+    state.reason !== 'BILLING_DISABLED' &&
+    state.reason !== 'EXEMPT' &&
+    state.reason !== 'EMAIL_UNVERIFIED';
+
   return (
-    <AppShell width="medium">
-      <PageHeader
-        title="Subscription"
-        breadcrumbs={[
-          { label: 'Home', to: HOME_PATH },
-          { label: 'Account', to: '/account' },
-          { label: 'Subscription' },
-        ]}
-      />
+    <AppShell>
+      <PageHeader title="Billing" />
+
       {failed && <Notice tone="danger" title="Could not load your subscription" urgent />}
       {!failed && !state && <Loading label="Loading…" />}
+
       {state && (
         <>
-          <StatusLine s={state} />
-          {state.reason !== 'BILLING_DISABLED' && state.reason !== 'EXEMPT' && (
-            <Card
-              title="ScanIn for lecturers"
-              description="Students never pay. One payment adds a month; pay again any time."
-            >
-              <p className="cluster">
-                <strong>{money(state.priceMinor, state.currency)}</strong>
-                <Badge tone="neutral">per month</Badge>
-              </p>
-              {error && <Notice tone="danger" title={error} urgent />}
-              <div className="actions">
-                <Button onClick={() => void subscribe()} disabled={busy}>
-                  {busy
-                    ? 'Starting…'
-                    : state.reason === 'SUBSCRIBED'
-                      ? 'Add another month'
-                      : 'Subscribe'}
-                </Button>
-              </div>
-              <p className="muted">You will be taken to Paystack to pay by Mobile Money or card.</p>
-            </Card>
-          )}
+          <StatusNotice s={state} />
+
+          <div className="billing-grid">
+            <div className="billing-grid__main stack">
+              {state.reason !== 'BILLING_DISABLED' && <PlanCard s={state} />}
+
+              {canPay && (
+                <section className="stack">
+                  <h2>Add time</h2>
+                  <div className="billing-summary">
+                    <div className="billing-summary__row">
+                      <span className="muted">Amount today</span>
+                      <strong>{money(state.priceMinor, state.currency)}</strong>
+                    </div>
+                  </div>
+                  {error && <Notice tone="danger" title={error} urgent />}
+                  <button
+                    type="button"
+                    className="btn btn--block"
+                    disabled={busy}
+                    onClick={() => void subscribe()}
+                  >
+                    {busy
+                      ? 'Starting…'
+                      : `Pay ${money(state.priceMinor, state.currency)}`}
+                  </button>
+                  <p className="muted" style={{ textAlign: 'center' }}>
+                    You will confirm on Paystack. A payment only counts once Paystack confirms it.
+                  </p>
+                </section>
+              )}
+            </div>
+          </div>
         </>
       )}
     </AppShell>

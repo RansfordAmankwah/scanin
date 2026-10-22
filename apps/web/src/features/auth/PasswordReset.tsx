@@ -12,12 +12,25 @@ const RESET_ERRORS: Record<string, string> = {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="auth">
-      <div className="auth__brand">
-        <img src="/favicon.svg" alt="" className="brand__mark" width="28" height="28" />
-        <h1>ScanIn</h1>
+    <main className="auth-page">
+      <div className="auth-hero">
+        <a href="/" className="auth-hero__brand">
+          <img src="/favicon.svg" alt="" className="brand__mark" width="28" height="28" />
+          ScanIn
+        </a>
+        <div className="auth-hero__body">
+          <h1>Attendance that checks itself.</h1>
+        </div>
       </div>
-      {children}
+      <div className="auth-panel">
+        <div className="auth-panel__inner">
+          <div className="auth-panel__mobile-brand">
+            <img src="/favicon.svg" alt="" className="brand__mark" width="28" height="28" />
+            ScanIn
+          </div>
+          {children}
+        </div>
+      </div>
     </main>
   );
 }

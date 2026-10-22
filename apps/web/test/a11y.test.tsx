@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
@@ -330,7 +330,7 @@ describe('UX-02 accessibility (axe) on every screen', () => {
     const card = await waitFor(() => screen.getByRole('article', { name: /ZZ100/ }));
     expect(await violations()).toEqual([]);
 
-    fireEvent.click(card.querySelector('button')!); // "Decide…"
+    fireEvent.click(within(card).getByRole('button', { name: /more options/i }));
     await waitFor(() => screen.getByRole('form', { name: /decide ZZ100/i }));
     expect(await violations()).toEqual([]);
   });

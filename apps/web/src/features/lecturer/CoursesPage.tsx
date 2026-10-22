@@ -1,6 +1,7 @@
-import { courseApi, type LecturerCourseOverview } from '../../api/lecturer';
+import { useEffect, useState } from 'react';
+import { billingApi, courseApi, type BillingState, type LecturerCourseOverview } from '../../api/lecturer';
 import { AppShell } from '../../components/AppShell';
-import { plural } from '../../components/format';
+import { formatDate, plural } from '../../components/format';
 import {
   Badge,
   Card,
@@ -12,6 +13,7 @@ import {
 } from '../../components/ui';
 import { useLoad } from '../../components/useLoad';
 import { Link } from '../../router';
+import { useAuth } from '../auth/AuthGate';
 import { CreateCourse } from './CreateCourse';
 
 interface AttentionItem {
@@ -21,7 +23,6 @@ interface AttentionItem {
   detail: string;
 }
 
-/** What needs the lecturer now, across every course: live sessions first, then unresolved records. */
 function attentionItems(courses: LecturerCourseOverview[]): AttentionItem[] {
   const items: AttentionItem[] = [];
   for (const c of courses) {
@@ -59,6 +60,44 @@ function attentionItems(courses: LecturerCourseOverview[]): AttentionItem[] {
     }
   }
   return items;
+}
+
+function SubscriptionBar({ billing }: { billing: BillingState | null }) {
+  if (!billing) return null;
+  if (billing.reason === 'SUBSCRIBED' && billing.currentPeriodEnd) {
+    return (
+      <div className="status-bar">
+        <span className="status-bar__content">
+          <Badge tone="success">Active</Badge>
+          <span>Subscription paid through {formatDate(billing.currentPeriodEnd)}</span>
+        </span>
+        <Link to="/account/billing" className="status-bar__link">Manage billing</Link>
+      </div>
+    );
+  }
+  if (billing.reason === 'TRIAL' && billing.trialEndsAt) {
+    return (
+      <div className="status-bar">
+        <span className="status-bar__content">
+          <Badge tone="info">Trial</Badge>
+          <span>Free trial until {formatDate(billing.trialEndsAt)}</span>
+        </span>
+        <Link to="/account/billing" className="status-bar__link">Subscribe</Link>
+      </div>
+    );
+  }
+  if (billing.reason === 'EXPIRED') {
+    return (
+      <div className="status-bar status-bar--warn">
+        <span className="status-bar__content">
+          <Badge tone="danger">Expired</Badge>
+          <span>Subscribe to run sessions</span>
+        </span>
+        <Link to="/account/billing" className="status-bar__link">Subscribe</Link>
+      </div>
+    );
+  }
+  return null;
 }
 
 function CourseCard({ course }: { course: LecturerCourseOverview }) {
@@ -129,18 +168,34 @@ function CourseCard({ course }: { course: LecturerCourseOverview }) {
   );
 }
 
-/** The lecturer's home: what needs attention, then every course at a glance. */
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 export function CoursesPage() {
+  const { user } = useAuth();
   const { state, reload } = useLoad(() => courseApi.overview(), []);
   const courses = state.status === 'ready' ? state.data.courses : [];
   const attention = attentionItems(courses);
+  const [billing, setBilling] = useState<BillingState | null>(null);
+
+  useEffect(() => {
+    void billingApi.status().then((r) => r.ok && setBilling(r.data));
+  }, []);
+
+  const firstName = user.fullName.split(' ')[0];
 
   return (
     <AppShell>
       <PageHeader
         title="Your courses"
-        meta="Open a course to run a session, review attendance, or manage its class list."
+        meta={`${greeting()}, ${user.fullName}.`}
       />
+
+      <SubscriptionBar billing={billing} />
 
       {state.status === 'loading' && <Loading label="Loading your courses…" />}
       {(state.status === 'error' || state.status === 'not-found') && (

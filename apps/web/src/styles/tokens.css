@@ -1,100 +1,62 @@
 /*
- * ScanIn design tokens. Every colour, size, radius, shadow and easing used anywhere in the app
- * comes from here.
- *
- * Visual system: STITCH — dense, institutional, blue-and-navy console. One sans-serif family
- * (Inter) for everything, system monospace for codes and timestamps. Near-square corners, hairline
- * borders, flat surfaces, minimal shadow.
- *
- * Contrast: text and surface pairs meet WCAG AA (4.5:1 for text, 3:1 for the borders of form
- * controls), verified in both schemes. Status is never conveyed by colour alone.
- *
- * Palette sampled from Stitch design system screenshot (approximate).
+ * ScanIn design tokens — light theme only.
+ * Canonical names from scanin-tokens.css. Aliases keep existing component CSS working
+ * until each file is migrated to the canonical names.
  */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  /* Surfaces — white and cool light grey */
-  --color-bg: #f8fafc;
-  --color-surface: #ffffff;
-  --color-surface-subtle: #f1f5f9;
-  --color-surface-raised: #ffffff;
-  --color-overlay: rgba(15, 23, 42, 0.5);
+  /* ---- Surfaces ---- */
+  --bg: #FAF9F5;
+  --surface: #FFFFFF;
+  --sunken: #F1EEE6;
+  --line: #E3DFD3;
+  --edge: #8A8473;
+  --overlay: rgba(20, 20, 19, 0.45);
 
-  /* Lines — cool grey hairlines */
-  --color-border: #e2e8f0;
-  --color-border-strong: #94a3b8;
+  /* ---- Text ---- */
+  --ink: #141413;
+  --ink-2: #4A4741;
+  --ink-3: #6B675D;
+  --on-ink: var(--bg);
 
-  /* Text — near-black navy */
-  --color-text: #0f172a;
-  --color-text-muted: #475569;
-  --color-text-subtle: #64748b;
+  /* ---- Accent — terracotta, for links and small highlights only ---- */
+  --accent: #B5472A;
+  --accent-soft: #F6E3DA;
+  --accent-on-dark: #E3896A;
 
-  /* Brand — saturated royal blue */
-  --color-primary: #1e40af;
-  --color-primary-hover: #1e3a8a;
-  --color-on-primary: #ffffff;
-  --color-primary-soft: #eff6ff;
-  --color-primary-soft-text: #1e3a8a;
-  --color-focus: #2563eb;
-  --ring: 0 0 0 3px rgba(37, 99, 235, 0.3);
+  /* ---- Status pairs ---- */
+  --ok: #2E6B4E;
+  --ok-soft: #DFEDE5;
+  --warn: #7A5200;
+  --warn-soft: #F8EBCB;
+  --err: #A12E2E;
+  --err-soft: #F7DEDA;
+  --info: #2C5A8C;
+  --info-soft: #E1EAF4;
 
-  /* Destructive */
-  --color-danger: #dc2626;
-  --color-danger-hover: #b91c1c;
-  --color-on-danger: #ffffff;
+  /* ---- Spacing (4px grid) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
 
-  /* Status pairs */
-  --color-success-bg: #f0fdf4;
-  --color-success-text: #166534;
-  --color-warning-bg: #fefce8;
-  --color-warning-text: #854d0e;
-  --color-attention-bg: #fff7ed;
-  --color-attention-text: #9a3412;
-  --color-danger-bg: #fef2f2;
-  --color-danger-text: #991b1b;
-  --color-info-bg: #eff6ff;
-  --color-info-text: #1e40af;
-  --color-neutral-bg: #f1f5f9;
-  --color-neutral-text: #334155;
-
-  --color-row-hover: rgba(30, 64, 175, 0.04);
-
-  /* Spacing (4px grid) */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.25rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-  --space-10: 2.5rem;
-  --space-12: 3rem;
-
-  /* Corner radii — near-square, institutional */
-  --radius-sm: 0.25rem;  /* 4px */
-  --radius: 0.375rem;    /* 6px */
-  --radius-lg: 0.5rem;   /* 8px */
+  /* ---- Radii — warm, generous ---- */
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-pill: 999px;
 
-  /* Shadows — very minimal, flat design */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --shadow-popover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-
-  /* Motion */
-  --ease: cubic-bezier(0.2, 0, 0, 1);
-  --dur-fast: 120ms;
-  --dur: 200ms;
-
-  /* Controls */
-  --control-height: 2.5rem;
-
-  /* Type — Inter for everything, system mono for codes */
-  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, 'Liberation Mono', monospace;
+  /* ---- Type ---- */
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
@@ -102,117 +64,78 @@
   --text-xl: 1.5rem;
   --text-2xl: 1.875rem;
 
-  /* Page widths */
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+
+  /* ---- Controls ---- */
+  --control-height: 48px;
+
+  /* ---- Page widths ---- */
   --width-narrow: 28rem;
   --width-medium: 46rem;
   --width-wide: 74rem;
 
-  /* Sidebar */
+  /* ---- Sidebar ---- */
   --sidebar-width: 15rem;
+
+  /* ---- Focus ---- */
+  --ring: 0 0 0 2px var(--accent);
+
+  /* ==================================================================
+   * Aliases — maps old --color-* names used in components.css / layout.css
+   * to the canonical tokens. Lets code migrate incrementally.
+   * ================================================================== */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--sunken);
+  --color-surface-raised: var(--surface);
+  --color-overlay: var(--overlay);
+  --color-border: var(--line);
+  --color-border-strong: var(--edge);
+  --color-text: var(--ink);
+  --color-text-muted: var(--ink-2);
+  --color-text-subtle: var(--ink-3);
+  --color-primary: var(--ink);
+  --color-primary-hover: var(--ink-2);
+  --color-on-primary: var(--on-ink);
+  --color-primary-soft: var(--sunken);
+  --color-primary-soft-text: var(--ink);
+  --color-focus: var(--accent);
+  --color-danger: var(--err);
+  --color-danger-hover: var(--err);
+  --color-on-danger: var(--bg);
+  --color-success-bg: var(--ok-soft);
+  --color-success-text: var(--ok);
+  --color-warning-bg: var(--warn-soft);
+  --color-warning-text: var(--warn);
+  --color-attention-bg: var(--accent-soft);
+  --color-attention-text: var(--accent);
+  --color-danger-bg: var(--err-soft);
+  --color-danger-text: var(--err);
+  --color-info-bg: var(--info-soft);
+  --color-info-text: var(--info);
+  --color-neutral-bg: var(--sunken);
+  --color-neutral-text: var(--ink-2);
+  --color-row-hover: rgba(20, 20, 19, 0.04);
+
+  /* Old shadow names — no shadows on cards per DESIGN.md, but keep for dialogs */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-popover: 0 10px 30px rgba(20, 20, 19, 0.15);
+
+  /* Old font aliases */
+  --font: var(--font-sans);
+  --font-display: var(--font-serif);
+
+  /* Old radius aliases */
+  --radius: var(--radius-md);
 }
 
 @media (pointer: coarse) {
   :root {
-    --control-height: 2.75rem;
+    --control-height: 52px;
   }
-}
-
-/*
- * Dark theme — deep navy derived from Stitch Neutral/Secondary.
- * Applies when the OS prefers dark AND the user has not forced light, or when the user chose dark.
- */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --color-bg: #0f172a;
-    --color-surface: #1e293b;
-    --color-surface-subtle: #1e293b;
-    --color-surface-raised: #334155;
-    --color-overlay: rgba(0, 0, 0, 0.6);
-
-    --color-border: #334155;
-    --color-border-strong: #64748b;
-
-    --color-text: #f1f5f9;
-    --color-text-muted: #94a3b8;
-    --color-text-subtle: #64748b;
-
-    --color-primary: #3b82f6;
-    --color-primary-hover: #60a5fa;
-    --color-on-primary: #0f172a;
-    --color-primary-soft: #1e3a5f;
-    --color-primary-soft-text: #93c5fd;
-    --color-focus: #60a5fa;
-    --ring: 0 0 0 3px rgba(96, 165, 250, 0.35);
-
-    --color-danger: #f87171;
-    --color-danger-hover: #fca5a5;
-    --color-on-danger: #1c1917;
-
-    --color-success-bg: #052e16;
-    --color-success-text: #86efac;
-    --color-warning-bg: #422006;
-    --color-warning-text: #fde68a;
-    --color-attention-bg: #431407;
-    --color-attention-text: #fed7aa;
-    --color-danger-bg: #450a0a;
-    --color-danger-text: #fecaca;
-    --color-info-bg: #172554;
-    --color-info-text: #93c5fd;
-    --color-neutral-bg: #334155;
-    --color-neutral-text: #cbd5e1;
-
-    --color-row-hover: rgba(59, 130, 246, 0.08);
-
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
-    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
-    --shadow-popover: 0 10px 30px rgba(0, 0, 0, 0.7);
-  }
-}
-
-:root[data-theme='dark'] {
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-surface-subtle: #1e293b;
-  --color-surface-raised: #334155;
-  --color-overlay: rgba(0, 0, 0, 0.6);
-
-  --color-border: #334155;
-  --color-border-strong: #64748b;
-
-  --color-text: #f1f5f9;
-  --color-text-muted: #94a3b8;
-  --color-text-subtle: #64748b;
-
-  --color-primary: #3b82f6;
-  --color-primary-hover: #60a5fa;
-  --color-on-primary: #0f172a;
-  --color-primary-soft: #1e3a5f;
-  --color-primary-soft-text: #93c5fd;
-  --color-focus: #60a5fa;
-  --ring: 0 0 0 3px rgba(96, 165, 250, 0.35);
-
-  --color-danger: #f87171;
-  --color-danger-hover: #fca5a5;
-  --color-on-danger: #1c1917;
-
-  --color-success-bg: #052e16;
-  --color-success-text: #86efac;
-  --color-warning-bg: #422006;
-  --color-warning-text: #fde68a;
-  --color-attention-bg: #431407;
-  --color-attention-text: #fed7aa;
-  --color-danger-bg: #450a0a;
-  --color-danger-text: #fecaca;
-  --color-info-bg: #172554;
-  --color-info-text: #93c5fd;
-  --color-neutral-bg: #334155;
-  --color-neutral-text: #cbd5e1;
-
-  --color-row-hover: rgba(59, 130, 246, 0.08);
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
-  --shadow-popover: 0 10px 30px rgba(0, 0, 0, 0.7);
 }

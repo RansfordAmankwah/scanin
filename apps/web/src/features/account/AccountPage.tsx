@@ -172,7 +172,7 @@ function ChangeEmail() {
           required
         />
         <TextField
-          label="Current password"
+          label="Your password"
           type="password"
           autoComplete="current-password"
           value={password}

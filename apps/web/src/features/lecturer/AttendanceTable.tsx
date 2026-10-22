@@ -17,14 +17,23 @@ export function CountsPanel({
   revealTotals = true,
 }: {
   counts: Counts;
-  /** False keeps the recorded totals hidden until a headcount is entered (a blind count). */
   revealTotals?: boolean;
 }) {
   if (!revealTotals) {
     return (
-      <section className="card" aria-labelledby="counts-heading">
+      <section aria-labelledby="counts-heading">
         <h2 id="counts-heading">Attendance counts</h2>
-        <p className="muted">
+        <div className="stat-cards">
+          <div className="stat-card">
+            <span className="stat-card__eyebrow">Checked in</span>
+            <span className="stat-card__value">&mdash;</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-card__eyebrow">Turned away</span>
+            <span className="stat-card__value">&mdash;</span>
+          </div>
+        </div>
+        <p className="muted" style={{ marginTop: '12px' }}>
           The recorded totals are hidden until you enter a headcount below, so your count of the
           room is your own. Enter it in <strong>Room headcount</strong> to reveal them.
         </p>
@@ -32,9 +41,19 @@ export function CountsPanel({
     );
   }
   return (
-    <section className="card" aria-labelledby="counts-heading">
+    <section aria-labelledby="counts-heading">
       <h2 id="counts-heading">Attendance counts</h2>
-      <dl className="counts">
+      <div className="stat-cards">
+        <div className="stat-card">
+          <span className="stat-card__eyebrow">Checked in</span>
+          <span className="stat-card__value">{counts.presentTotal}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-card__eyebrow">Turned away</span>
+          <span className="stat-card__value">{counts.invalidated}</span>
+        </div>
+      </div>
+      <dl className="counts" style={{ marginTop: '16px' }}>
         <div>
           <dt>Present (all)</dt>
           <dd>{counts.presentTotal}</dd>
@@ -62,14 +81,13 @@ export function CountsPanel({
         (shown for information; not added to any total).
       </p>
       <p className="muted">
-        “Confirmed” means matched to your class list or confirmed by you. Student IDs and names are
+        {'"'}Confirmed{'"'} means matched to your class list or confirmed by you. Student IDs and names are
         self-reported, so a match is not proof of who holds the phone.
       </p>
     </section>
   );
 }
 
-/** Who attended and in what state. Scan times are intentionally not shown here (see scan history). */
 export function AttendanceTable({
   roster,
   courseId,

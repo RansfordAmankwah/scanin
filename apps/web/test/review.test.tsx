@@ -88,7 +88,7 @@ describe('review queue', () => {
     mockApi(courseRoutes());
     render(<App pathname={`/courses/${COURSE}/review`} />);
     const card = await waitFor(() => screen.getByRole('article', { name: /ZZ100 Ama Mensa/ }));
-    expect(card.textContent).toContain('Needs review');
+    expect(card.textContent).toContain('Not on the class list');
     expect(card.textContent).toContain('(not verified)');
     expect(card.textContent).toContain('Self-reported details');
     expect(card.textContent).toContain('2 attendance record(s)');
@@ -116,7 +116,7 @@ describe('review queue', () => {
       }),
     );
     render(<App pathname={`/courses/${COURSE}/review`} />);
-    fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /decide…/i })));
+    fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /more options/i })));
     const form = await waitFor(() => screen.getByRole('form', { name: /decide ZZ100/i }));
 
     const submit = within(form).getByRole('button', { name: /record decision/i });
@@ -160,7 +160,7 @@ describe('review queue', () => {
       }),
     );
     render(<App pathname={`/courses/${COURSE}/review`} />);
-    fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /decide…/i })));
+    fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /more options/i })));
     const form = await waitFor(() => screen.getByRole('form', { name: /decide ZZ100/i }));
     fireEvent.change(within(form).getByLabelText(/decision/i), { target: { value: 'REJECT' } });
     fireEvent.change(within(form).getByLabelText(/written explanation/i), {

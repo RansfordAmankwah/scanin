@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { useAuth } from '../features/auth/AuthGate';
 import { HOME_PATH, Link, useRouter } from '../router';
-import { ThemeToggle } from './ThemeToggle';
 import { Badge, Button } from './ui';
 
 interface NavItem {
@@ -20,11 +19,22 @@ function HomeIcon() {
   );
 }
 
-function CoursesIcon() {
+function SessionsIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2 4h5a3 3 0 013 3v10a2 2 0 00-2-2H2V4z" />
-      <path d="M18 4h-5a3 3 0 00-3 3v10a2 2 0 012-2h6V4z" />
+      <path d="M17 3H3a1 1 0 00-1 1v12a1 1 0 001 1h14a1 1 0 001-1V4a1 1 0 00-1-1z" />
+      <path d="M2 7h16" />
+      <path d="M6 3v4" />
+      <path d="M14 3v4" />
+    </svg>
+  );
+}
+
+function BillingIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="4" width="16" height="12" rx="1" />
+      <path d="M2 8h16" />
     </svg>
   );
 }
@@ -40,18 +50,19 @@ function AccountIcon() {
 
 const STUDENT_NAV: NavItem[] = [
   { to: HOME_PATH, label: 'Home', icon: <HomeIcon />, current: (p) => p === HOME_PATH || p === '/' },
-  { to: '/my/courses', label: 'My courses', icon: <CoursesIcon />, current: (p) => p.startsWith('/my/courses') },
+  { to: '/my/courses', label: 'My courses', icon: <SessionsIcon />, current: (p) => p.startsWith('/my/courses') },
   { to: '/account', label: 'Account', icon: <AccountIcon />, current: (p) => p.startsWith('/account') },
 ];
 
 const LECTURER_NAV: NavItem[] = [
   {
     to: HOME_PATH,
-    label: 'Courses',
-    icon: <CoursesIcon />,
+    label: 'Sessions',
+    icon: <SessionsIcon />,
     current: (p) => p === HOME_PATH || p === '/' || p.startsWith('/courses'),
   },
-  { to: '/account', label: 'Account', icon: <AccountIcon />, current: (p) => p.startsWith('/account') },
+  { to: '/account/billing', label: 'Billing', icon: <BillingIcon />, current: (p) => p === '/account/billing' },
+  { to: '/account', label: 'Account', icon: <AccountIcon />, current: (p) => p === '/account' || p === '/account/privacy' },
 ];
 
 export function AppShell({
@@ -85,7 +96,6 @@ export function AppShell({
           ))}
         </nav>
         <div className="sidebar__footer">
-          <ThemeToggle />
           <div className="sidebar__user">
             <span className="sidebar__user-name">{user.fullName}</span>
             <Badge tone="neutral">{user.role === 'STUDENT' ? 'Student' : 'Lecturer'}</Badge>
@@ -102,9 +112,7 @@ export function AppShell({
             <img src="/favicon.svg" alt="" className="brand__mark" width="28" height="28" />
             ScanIn
           </Link>
-          <div className="app-topbar__end">
-            <ThemeToggle />
-          </div>
+          <div className="app-topbar__end" />
         </header>
 
         <main className={`app-main${width === 'medium' ? ' app-main--medium' : ''}`}>

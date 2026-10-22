@@ -8,3 +8,8 @@ coverage/
 .DS_Store
 e2e/test-results/
 e2e/playwright-report/
+
+# Design reference assets
+DESIGN.md
+scanin-redesign-kit/
+scanin-tokens.css

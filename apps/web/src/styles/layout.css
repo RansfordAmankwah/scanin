@@ -1,5 +1,7 @@
 /* ------------------------------------------------------------------------------------------------
- * Application shell — sidebar (desktop) + top bar & bottom tabs (mobile)
+ * App shell — sidebar (desktop) + bottom nav (mobile)
+ * DESIGN.md: sidebar is --sunken, current item --surface with a 1px --line ring.
+ * Mobile bottom nav: 52px, icon above label, current item --ink 600.
  * ---------------------------------------------------------------------------------------------- */
 .app-layout {
   display: flex;
@@ -7,7 +9,7 @@
   min-height: 100dvh;
 }
 
-/* ---- Sidebar (desktop) ---- */
+/* ---- Sidebar (desktop, ≥ 48rem) ---- */
 .app-sidebar {
   position: sticky;
   top: 0;
@@ -18,8 +20,8 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
+  background: var(--sunken);
+  border-right: 1px solid var(--line);
   overflow-y: auto;
 }
 
@@ -29,15 +31,17 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-5) var(--space-4);
-  color: var(--color-text);
+  color: var(--ink);
+  font-family: var(--font-serif);
   font-size: var(--text-lg);
-  font-weight: 700;
-  letter-spacing: -0.014em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   text-decoration: none;
 }
 
 .sidebar__brand:hover {
-  color: var(--color-text);
+  color: var(--ink);
+  opacity: 1;
 }
 
 .sidebar-nav {
@@ -53,23 +57,25 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: var(--control-height);
+  min-height: 44px;
   padding: 0 var(--space-3);
-  color: var(--color-text-muted);
+  color: var(--ink-3);
   font-weight: 600;
   font-size: var(--text-sm);
   text-decoration: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
 }
 
 .sidebar-nav__item:hover {
-  background: var(--color-surface-subtle);
-  color: var(--color-text);
+  background: var(--surface);
+  color: var(--ink);
+  opacity: 1;
 }
 
 .sidebar-nav__item[aria-current='page'] {
-  background: var(--color-primary-soft);
-  color: var(--color-primary-soft-text);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .sidebar__footer {
@@ -77,7 +83,7 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--line);
   margin-top: auto;
 }
 
@@ -106,12 +112,12 @@
   flex-direction: column;
 }
 
-/* ---- Top bar (mobile only on desktop it's hidden) ---- */
+/* ---- Top bar (mobile only) ---- */
 .app-topbar {
   display: none;
 }
 
-/* ---- Bottom tabs (mobile only) ---- */
+/* ---- Bottom nav (mobile only) ---- */
 .bottom-tabs {
   display: none;
 }
@@ -122,23 +128,25 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--control-height);
-  color: var(--color-text);
+  min-height: 44px;
+  color: var(--ink);
+  font-family: var(--font-serif);
   font-size: var(--text-lg);
-  font-weight: 700;
-  letter-spacing: -0.014em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   text-decoration: none;
 }
 
 .brand:hover {
-  color: var(--color-text);
+  color: var(--ink);
+  opacity: 1;
 }
 
 .brand__mark {
   display: block;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: var(--radius);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
 }
 
 /* ---- Main content ---- */
@@ -146,7 +154,7 @@
   max-width: var(--width-wide);
   margin-inline: auto;
   width: 100%;
-  padding: var(--space-6) var(--space-6) var(--space-12);
+  padding: var(--space-12) var(--space-12) var(--space-12);
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -170,10 +178,10 @@
     position: sticky;
     top: 0;
     z-index: 20;
-    min-height: 3.5rem;
-    padding: var(--space-2) var(--space-4);
-    background: var(--color-surface);
-    border-bottom: 1px solid var(--color-border);
+    min-height: 52px;
+    padding: var(--space-2) var(--space-6);
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
   }
 
   .app-topbar__end {
@@ -189,8 +197,9 @@
     left: 0;
     right: 0;
     z-index: 20;
-    background: var(--color-surface);
-    border-top: 1px solid var(--color-border);
+    min-height: 52px;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
@@ -200,20 +209,22 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.15rem;
+    gap: 2px;
     padding: var(--space-2) 0;
-    color: var(--color-text-muted);
+    color: var(--ink-3);
     font-size: 0.65rem;
     font-weight: 600;
     text-decoration: none;
+    min-height: 44px;
   }
 
   .bottom-tabs__item:hover {
-    color: var(--color-text);
+    color: var(--ink);
+    opacity: 1;
   }
 
   .bottom-tabs__item[aria-current='page'] {
-    color: var(--color-primary);
+    color: var(--ink);
   }
 
   .bottom-tabs__label {
@@ -221,12 +232,12 @@
   }
 
   .app-main {
-    padding: var(--space-4) var(--space-4) calc(var(--space-12) + 3.5rem);
+    padding: var(--space-6) var(--space-6) calc(var(--space-12) + 52px);
   }
 }
 
 /* ------------------------------------------------------------------------------------------------
- * Page header: where am I, what is this, what can I do here
+ * Page header
  * ---------------------------------------------------------------------------------------------- */
 .page-header {
   display: flex;
@@ -243,13 +254,13 @@
   margin: 0;
   list-style: none;
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  color: var(--ink-3);
 }
 
 .breadcrumbs li + li::before {
   content: '/';
   margin-right: var(--space-1);
-  color: var(--color-text-subtle);
+  color: var(--ink-3);
 }
 
 .breadcrumbs a {
@@ -276,7 +287,7 @@
   align-items: center;
   gap: var(--space-2) var(--space-3);
   margin-top: var(--space-2);
-  color: var(--color-text-muted);
+  color: var(--ink-3);
   font-size: var(--text-sm);
 }
 
@@ -294,7 +305,6 @@
   gap: var(--space-2) var(--space-4);
 }
 
-/* In-page jump links on long pages */
 .jump {
   display: flex;
   flex-wrap: wrap;
@@ -307,22 +317,23 @@
   align-items: center;
   min-height: 1.75rem;
   padding: 0 var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius-pill);
-  color: var(--color-text-muted);
+  color: var(--ink-3);
   font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
 }
 
 .jump a:hover {
-  color: var(--color-text);
-  background: var(--color-surface-subtle);
+  color: var(--ink);
+  background: var(--sunken);
+  opacity: 1;
 }
 
 /* ------------------------------------------------------------------------------------------------
- * Session page: two-column layout (controls+headcount | counts+stream)
+ * Session page: two-column layout
  * ---------------------------------------------------------------------------------------------- */
 .session-grid {
   display: grid;
@@ -338,7 +349,7 @@
 }
 
 /* ------------------------------------------------------------------------------------------------
- * Grids
+ * Grids and course cards
  * ---------------------------------------------------------------------------------------------- */
 .grid {
   display: grid;
@@ -357,24 +368,19 @@
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-5);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  transition:
-    border-color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease);
 }
 
-/* The whole card is a route into a course — a quiet border + elevation shift marks it. */
 .course-card:hover,
 .course-card:focus-within {
-  border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-md);
+  border-color: var(--edge);
 }
 
 .course-card__code {
-  color: var(--color-text-muted);
+  color: var(--ink-3);
   font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -382,21 +388,23 @@
 }
 
 .course-card__title {
+  font-family: var(--font-serif);
   font-size: var(--text-lg);
-  font-weight: 650;
-  letter-spacing: -0.005em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   line-height: 1.3;
 }
 
 .course-card__title a,
 .course-card__title a:visited {
-  color: var(--color-text);
+  color: var(--ink);
   text-decoration: none;
 }
 
 .course-card__title a:hover {
-  color: var(--color-primary);
+  color: var(--accent);
   text-decoration: underline;
+  opacity: 1;
 }
 
 .course-card__facts {
@@ -404,7 +412,7 @@
   flex-direction: column;
   gap: var(--space-2);
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  color: var(--ink-3);
 }
 
 .course-card__footer {
@@ -415,75 +423,248 @@
 }
 
 /* ------------------------------------------------------------------------------------------------
- * Authentication layout: one calm card, centred
+ * Auth layout — split-screen hero (desktop) / stacked (mobile)
+ * D1: left ivory hero + right white form panel. S1: stacked, brand + hero above form.
  * ---------------------------------------------------------------------------------------------- */
+
+/* Fallback for loading state — keeps centered layout */
 .auth {
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-6);
-  padding: var(--space-6) var(--space-4);
-  background: var(--color-bg);
+  padding: var(--space-6);
+  background: var(--bg);
 }
 
-.auth__brand {
+/* Two-column split on desktop */
+.auth-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Left hero panel */
+.auth-hero {
   display: flex;
   flex-direction: column;
+  padding: var(--space-8) var(--space-10);
+  background: var(--bg);
+}
+
+.auth-hero__brand,
+.auth-hero__brand:visited {
+  display: flex;
   align-items: center;
   gap: var(--space-2);
-  text-align: center;
-}
-
-.auth__brand h1 {
-  font-size: var(--text-2xl);
-  font-weight: 700;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 500;
   letter-spacing: -0.01em;
-}
-
-.auth__brand p {
-  color: var(--color-text-muted);
-}
-
-.auth__card {
-  width: 100%;
-  max-width: var(--width-narrow);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-6);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-}
-
-.auth__alt {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
-  text-align: center;
-}
-
-.auth__link {
-  align-self: center;
-  color: var(--color-primary);
-  font-size: var(--text-sm);
+  color: var(--ink);
   text-decoration: none;
 }
 
-.auth__link:hover {
+.auth-hero__brand:hover {
+  color: var(--ink);
+  opacity: 1;
+}
+
+.auth-hero__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 32rem;
+}
+
+.auth-hero__body h1,
+.auth-hero__heading {
+  font-family: var(--font-serif);
+  font-size: clamp(2.25rem, 4vw, 3.5rem);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-5);
+}
+
+.auth-hero__tagline {
+  font-size: var(--text-base);
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+.auth-hero__features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.auth-hero__features li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.auth-hero__features svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+.auth-hero__privacy {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* Right form panel */
+.auth-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-10);
+  background: var(--surface);
+}
+
+.auth-panel__inner {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.auth-panel__header h2 {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--space-1);
+}
+
+.auth-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.auth-forgot {
+  color: var(--accent);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  margin-top: calc(-1 * var(--space-3));
+}
+
+.auth-forgot:hover {
   text-decoration: underline;
 }
 
+.auth-alt {
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.auth-alt .textlink {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Full-width segmented control on auth page */
+.auth-panel .segmented {
+  display: flex;
+  width: 100%;
+}
+
+.auth-panel .segmented button {
+  flex: 1;
+}
+
+/* Mobile-only elements hidden on desktop */
+.auth-panel__mobile-brand,
+.auth-panel__mobile-hero,
+.auth-panel__mobile-tagline,
+.auth-panel__mobile-privacy {
+  display: none;
+}
+
+/* Auth card — used by register flows and password reset */
+.auth__card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ---- Mobile auth layout (<48rem) ---- */
+@media (max-width: 48rem) {
+  .auth-page {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-hero {
+    display: none;
+  }
+
+  .auth-panel {
+    background: var(--bg);
+    padding: var(--space-6);
+    align-items: flex-start;
+    padding-top: var(--space-8);
+  }
+
+  .auth-panel__inner {
+    max-width: 100%;
+  }
+
+  .auth-panel__mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+
+  .auth-panel__mobile-hero {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: clamp(1.75rem, 7vw, 2.5rem);
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .auth-panel__mobile-tagline {
+    display: block;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+  }
+
+  .auth-panel__mobile-privacy {
+    display: block;
+    text-align: center;
+    font-size: var(--text-xs);
+  }
+}
+
 /* ------------------------------------------------------------------------------------------------
- * The room display. Always black on white: a QR code must stay scannable whatever the colour
- * scheme, from the back of a hall.
+ * QR projector display — always black on white
  * ---------------------------------------------------------------------------------------------- */
 .present {
   min-height: 100vh;
@@ -496,12 +677,12 @@
   padding: var(--space-4);
   background: #ffffff;
   color: #111111;
-  font-family: var(--font);
+  font-family: var(--font-sans);
 }
 
 .present__message {
   font-size: clamp(1.25rem, 3vw, 2rem);
-  font-weight: 650;
+  font-weight: 600;
   text-align: center;
 }
 
@@ -523,14 +704,14 @@ a.present__button:visited {
   display: inline-flex;
   align-items: center;
   text-decoration: none;
-  min-height: 2.75rem;
+  min-height: 48px;
   padding: 0 var(--space-5);
   font: inherit;
   font-weight: 600;
   color: #111111;
   background: #ffffff;
   border: 2px solid #111111;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 

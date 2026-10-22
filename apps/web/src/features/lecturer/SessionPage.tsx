@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { lecturerApi, type SessionRoster, type SessionView } from '../../api/lecturer';
+import { exportApi, lecturerApi, type SessionRoster, type SessionView } from '../../api/lecturer';
 import { AppShell } from '../../components/AppShell';
 import { formatDate, plural } from '../../components/format';
-import { Loading, Notice, PageHeader } from '../../components/ui';
+import { Button, Loading, Notice, PageHeader } from '../../components/ui';
 import { useLoad } from '../../components/useLoad';
 import { Link, HOME_PATH } from '../../router';
 import { AttendanceTable, CountsPanel } from './AttendanceTable';
@@ -16,13 +16,47 @@ import { SpotChecksPanel } from './SpotChecksPanel';
 
 const REFRESH_MS = 10_000;
 
+const STATE_LABEL: Record<string, string> = {
+  NOT_STARTED: 'Not started',
+  CHECK_IN_OPEN: 'Open',
+  CHECK_IN_CLOSED: 'Closed',
+  ENDED: 'Ended',
+};
+
+function DownloadIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 2v8M4 7l4 4 4-4" />
+      <path d="M2 12v2h12v-2" />
+    </svg>
+  );
+}
+
+function QuickExportButton({ courseId, sessionId }: { courseId: string; sessionId: string }) {
+  const [busy, setBusy] = useState(false);
+  const exportCsv = async () => {
+    setBusy(true);
+    const r = await exportApi.create(courseId, sessionId, 'ATTENDANCE', 'CSV');
+    setBusy(false);
+    if (r.ok) {
+      const a = document.createElement('a');
+      a.href = `/api${r.data.export.downloadPath}`;
+      a.download = r.data.export.filename;
+      a.click();
+    }
+  };
+  return (
+    <Button variant="secondary" size="sm" onClick={() => void exportCsv()} disabled={busy}>
+      <DownloadIcon /> {busy ? 'Exporting…' : 'Export as CSV'}
+    </Button>
+  );
+}
+
 export function SessionPage({ courseId, sessionId }: { courseId: string; sessionId: string }) {
   const [session, setSession] = useState<SessionView | null>(null);
   const [roster, setRoster] = useState<SessionRoster | null>(null);
   const [notFound, setNotFound] = useState(false);
-  // Bumped when a spot check or review changes, so the other panels reload.
   const [reviewKey, setReviewKey] = useState(0);
-  // A blind headcount: the recorded totals stay hidden until the lecturer enters their own count.
   const [headcountEntered, setHeadcountEntered] = useState(false);
   const course = useLoad(() => lecturerApi.course(courseId), [courseId]);
   const code = course.state.status === 'ready' ? course.state.data.course.code : 'Course';
@@ -42,15 +76,11 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
 
   useEffect(() => {
     void load();
-    // Keep the live view fresh while students check in.
     const timer = setInterval(() => void load(), REFRESH_MS);
     return () => clearInterval(timer);
   }, [load]);
 
-  const crumbs = [
-    { label: 'Courses', to: HOME_PATH },
-    { label: code, to: `/courses/${courseId}` },
-  ];
+  const crumbs = [{ label: 'Sessions', to: HOME_PATH }];
 
   if (notFound) {
     return (
@@ -72,6 +102,7 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
   }
 
   const counts = roster.counts;
+  const isLive = session.state === 'CHECK_IN_OPEN';
   const attention: Array<{ key: string; text: string; to: string }> = [];
   if (counts.reviewRequired > 0) {
     attention.push({
@@ -88,44 +119,75 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
     });
   }
 
+  const title = `${code} · ${session.title}`;
+
   return (
     <AppShell>
       <PageHeader
-        title={session.title}
-        breadcrumbs={[...crumbs, { label: session.title }]}
+        title={title}
+        breadcrumbs={crumbs}
         meta={
           <>
             <span>{formatDate(session.sessionDate)}</span>
+            <span>{STATE_LABEL[session.state] ?? session.state}</span>
             {headcountEntered && (
               <span>{plural(counts.presentTotal, 'student')} recorded present</span>
             )}
           </>
         }
+        actions={
+          session.state !== 'NOT_STARTED' && (
+            <QuickExportButton courseId={courseId} sessionId={sessionId} />
+          )
+        }
       />
 
-      <div className="session-grid">
-        <div className="session-grid__left stack">
-          <div id="controls">
-            <SessionControls
-              session={session}
-              onChange={(next) => {
-                if (next) setSession(next);
-                void load();
-              }}
-            />
+      <div id="controls">
+        <SessionControls
+          session={session}
+          onChange={(next) => {
+            if (next) setSession(next);
+            void load();
+          }}
+        />
+      </div>
+
+      {isLive ? (
+        <div className="session-grid">
+          <div className="session-grid__left stack">
+            <div id="headcount">
+              <ReconciliationPanel
+                courseId={courseId}
+                sessionId={sessionId}
+                presentTotal={counts.presentTotal}
+                onHeadcountKnown={setHeadcountEntered}
+              />
+            </div>
           </div>
-          <div id="headcount">
-            <ReconciliationPanel
-              courseId={courseId}
-              sessionId={sessionId}
-              presentTotal={counts.presentTotal}
-              onHeadcountKnown={setHeadcountEntered}
-            />
+
+          <div className="session-grid__right stack">
+            <CountsPanel counts={counts} revealTotals={headcountEntered} />
+            {attention.length > 0 && (
+              <Notice tone="warning" title="Needs your attention">
+                <ul className="list">
+                  {attention.map((a) => (
+                    <li key={a.key}>
+                      {a.to.startsWith('#') ? (
+                        <a href={a.to}>{a.text}</a>
+                      ) : (
+                        <Link to={a.to}>{a.text}</Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Notice>
+            )}
           </div>
         </div>
-
-        <div className="session-grid__right stack">
+      ) : (
+        <>
           <CountsPanel counts={counts} revealTotals={headcountEntered} />
+
           {attention.length > 0 && (
             <Notice tone="warning" title="Needs your attention">
               <ul className="list">
@@ -141,8 +203,17 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
               </ul>
             </Notice>
           )}
-        </div>
-      </div>
+
+          <div id="headcount">
+            <ReconciliationPanel
+              courseId={courseId}
+              sessionId={sessionId}
+              presentTotal={counts.presentTotal}
+              onHeadcountKnown={setHeadcountEntered}
+            />
+          </div>
+        </>
+      )}
 
       <div id="attendance">
         <AttendanceTable
@@ -178,11 +249,11 @@ export function SessionPage({ courseId, sessionId }: { courseId: string; session
       <div id="scans">
         <ScanHistory courseId={courseId} sessionId={sessionId} />
       </div>
-      <div id="export">
-        {session.state !== 'NOT_STARTED' && (
+      {session.state !== 'NOT_STARTED' && (
+        <div id="export">
           <ExportPanel courseId={courseId} sessionId={sessionId} />
-        )}
-      </div>
+        </div>
+      )}
     </AppShell>
   );
 }

@@ -348,7 +348,7 @@ describe('navigation and account', () => {
       within(lnav)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Courses', 'Account']);
+    ).toEqual(['Sessions', 'Billing', 'Account']);
   });
 
   it('shows the account, offers to verify an unverified e-mail, and changes the password', async () => {
